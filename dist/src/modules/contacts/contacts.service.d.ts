@@ -1,0 +1,71 @@
+import { PrismaService } from '../../prisma/prisma.service';
+import { RecordScanContactDto } from './dto/record-scan-contact.dto';
+export declare class ContactsService {
+    private readonly prisma;
+    constructor(prisma: PrismaService);
+    findAll(userId: string): Promise<{
+        id: string;
+        source: import(".prisma/client").$Enums.ContactSource;
+        fullName: string;
+        initials: string;
+        subtitle: string;
+        email: string | null;
+        phone: string | null;
+        jobTitle: string | null;
+        company: string | null;
+        linkedCardId: string | null;
+        avatarColor: number;
+        addedAgo: string;
+        sharedAgo: string;
+        createdAt: string;
+    }[]>;
+    findExchangeContacts(userId: string): Promise<{
+        id: string;
+        source: import(".prisma/client").$Enums.ContactSource;
+        fullName: string;
+        initials: string;
+        subtitle: string;
+        email: string | null;
+        phone: string | null;
+        jobTitle: string | null;
+        company: string | null;
+        linkedCardId: string | null;
+        avatarColor: number;
+        addedAgo: string;
+        sharedAgo: string;
+        createdAt: string;
+    }[]>;
+    exchangeFromCardSlug(userId: string, cardSlug: string): Promise<{
+        id: string;
+        source: import(".prisma/client").$Enums.ContactSource;
+        fullName: string;
+        initials: string;
+        subtitle: string;
+        email: string | null;
+        phone: string | null;
+        jobTitle: string | null;
+        company: string | null;
+        linkedCardId: string | null;
+        avatarColor: number;
+        addedAgo: string;
+        sharedAgo: string;
+        createdAt: string;
+    }>;
+    createFromScan(userId: string, scanEventId: string, payload?: RecordScanContactDto): Promise<{
+        id: string;
+        source: import(".prisma/client").$Enums.ContactSource;
+        fullName: string;
+        initials: string;
+        subtitle: string;
+        email: string | null;
+        phone: string | null;
+        jobTitle: string | null;
+        company: string | null;
+        linkedCardId: string | null;
+        avatarColor: number;
+        addedAgo: string;
+        sharedAgo: string;
+        createdAt: string;
+    }>;
+    private optionalString;
+}

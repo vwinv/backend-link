@@ -1,0 +1,1 @@
+export declare const ACCOUNT_DELETED_ERROR = "ACCOUNT_DELETED";

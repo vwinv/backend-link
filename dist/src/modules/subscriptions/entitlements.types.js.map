@@ -1,0 +1,1 @@
+{"version":3,"file":"entitlements.types.js","sourceRoot":"","sources":["../../../../src/modules/subscriptions/entitlements.types.ts"],"names":[],"mappings":";;;AAAA,2CAA+C;AAuBlC,QAAA,oBAAoB,GAAqB;IACpD,QAAQ,EAAE,sBAAa,CAAC,QAAQ;IAChC,YAAY,EAAE,KAAK;IACnB,cAAc,EAAE,CAAC;IACjB,YAAY,EAAE,KAAK;IACnB,UAAU,EAAE,CAAC;CACd,CAAC"}

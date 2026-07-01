@@ -1,0 +1,6 @@
+export declare class CreateTeamDto {
+    name: string;
+    description?: string;
+    logoUrl?: string;
+    brandColor?: string;
+}

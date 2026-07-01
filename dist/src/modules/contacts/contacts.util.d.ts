@@ -1,0 +1,21 @@
+import type { Contact } from '@prisma/client';
+export declare function buildContactInitials(firstName: string, lastName: string): string;
+export declare function buildContactSubtitle(jobTitle?: string | null, company?: string | null): string;
+export declare function resolveAvatarColor(seed: string, fallback?: number): number;
+export declare function formatRelativeTimeFr(date: Date): string;
+export declare function toContactResponse(contact: Contact): {
+    id: string;
+    source: import(".prisma/client").$Enums.ContactSource;
+    fullName: string;
+    initials: string;
+    subtitle: string;
+    email: string | null;
+    phone: string | null;
+    jobTitle: string | null;
+    company: string | null;
+    linkedCardId: string | null;
+    avatarColor: number;
+    addedAgo: string;
+    sharedAgo: string;
+    createdAt: string;
+};
