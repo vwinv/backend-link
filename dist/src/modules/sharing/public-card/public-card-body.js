@@ -331,7 +331,14 @@ function buildInlineScript(pageUrl) {
       var saveLink = document.querySelector('[data-save-contact]');
       if (!saveLink) return;
 
-      saveLink.addEventListener('click', function () {
+      saveLink.addEventListener('click', function (event) {
+        if (window.LinkApp && window.LinkApp.postMessage) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          LinkApp.postMessage('save-contact');
+          return;
+        }
+
         var slug = ${safeSlug};
         if (!slug) return;
 
@@ -342,7 +349,7 @@ function buildInlineScript(pageUrl) {
         }
 
         fetch(endpoint, { method: 'POST', keepalive: true }).catch(function () {});
-      });
+      }, true);
     })();
   `;
 }
