@@ -9,20 +9,20 @@ export declare class CardsController {
     create(user: {
         userId: string;
     }, dto: CreateCardDto): Promise<{
-        id: string;
         email: string | null;
         firstName: string;
         lastName: string;
-        phone: string | null;
+        jobTitle: string | null;
         avatarUrl: string | null;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        teamId: string | null;
+        id: string;
         slug: string;
         logoUrl: string | null;
         ownerId: string;
-        jobTitle: string | null;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        phone: string | null;
+        teamId: string | null;
         company: string | null;
         kind: import(".prisma/client").$Enums.CardKind;
         bio: string | null;
@@ -34,20 +34,20 @@ export declare class CardsController {
     findAll(user: {
         userId: string;
     }): Promise<{
-        id: string;
         email: string | null;
         firstName: string;
         lastName: string;
-        phone: string | null;
+        jobTitle: string | null;
         avatarUrl: string | null;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        teamId: string | null;
+        id: string;
         slug: string;
         logoUrl: string | null;
         ownerId: string;
-        jobTitle: string | null;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        phone: string | null;
+        teamId: string | null;
         company: string | null;
         kind: import(".prisma/client").$Enums.CardKind;
         bio: string | null;
@@ -77,20 +77,20 @@ export declare class CardsController {
     findOne(user: {
         userId: string;
     }, id: string): Promise<{
-        id: string;
         email: string | null;
         firstName: string;
         lastName: string;
-        phone: string | null;
+        jobTitle: string | null;
         avatarUrl: string | null;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        teamId: string | null;
+        id: string;
         slug: string;
         logoUrl: string | null;
         ownerId: string;
-        jobTitle: string | null;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        phone: string | null;
+        teamId: string | null;
         company: string | null;
         kind: import(".prisma/client").$Enums.CardKind;
         bio: string | null;
@@ -102,20 +102,20 @@ export declare class CardsController {
     update(user: {
         userId: string;
     }, id: string, dto: UpdateCardDto): Promise<{
-        id: string;
         email: string | null;
         firstName: string;
         lastName: string;
-        phone: string | null;
+        jobTitle: string | null;
         avatarUrl: string | null;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        teamId: string | null;
+        id: string;
         slug: string;
         logoUrl: string | null;
         ownerId: string;
-        jobTitle: string | null;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        phone: string | null;
+        teamId: string | null;
         company: string | null;
         kind: import(".prisma/client").$Enums.CardKind;
         bio: string | null;
@@ -127,20 +127,20 @@ export declare class CardsController {
     updateTheme(user: {
         userId: string;
     }, id: string, dto: UpdateCardThemeDto): Promise<{
-        id: string;
         email: string | null;
         firstName: string;
         lastName: string;
-        phone: string | null;
+        jobTitle: string | null;
         avatarUrl: string | null;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        teamId: string | null;
+        id: string;
         slug: string;
         logoUrl: string | null;
         ownerId: string;
-        jobTitle: string | null;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        phone: string | null;
+        teamId: string | null;
         company: string | null;
         kind: import(".prisma/client").$Enums.CardKind;
         bio: string | null;

@@ -217,15 +217,23 @@ let TeamsService = class TeamsService {
         if (existingInvite) {
             throw new common_1.BadRequestException('Une invitation est déjà en attente pour cet email');
         }
+        const role = dto.role ?? client_1.TeamMemberRole.MEMBER;
+        if (role === client_1.TeamMemberRole.OWNER) {
+            throw new common_1.BadRequestException('Le rôle propriétaire ne peut pas être attribué par invitation');
+        }
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + 30);
         return this.prisma.teamInvite.create({
             data: {
                 teamId: id,
                 email,
+                firstName: dto.firstName?.trim() || null,
+                lastName: dto.lastName?.trim() || null,
+                jobTitle: dto.jobTitle?.trim() || null,
+                avatarUrl: dto.avatarUrl?.trim() || null,
                 invitedById: userId,
                 inviteeUserId: existingUser?.id ?? null,
-                role: dto.role ?? client_1.TeamMemberRole.MEMBER,
+                role,
                 status: client_1.TeamInviteStatus.PENDING,
                 expiresAt,
             },

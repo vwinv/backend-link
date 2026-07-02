@@ -154,6 +154,10 @@ model TeamInvite {
   id            String           @id @default(cuid())
   teamId        String
   email         String
+  firstName     String?
+  lastName      String?
+  jobTitle      String?
+  avatarUrl     String?
   invitedById   String
   inviteeUserId String?
   role          TeamMemberRole   @default(MEMBER)

@@ -11,20 +11,20 @@ export declare class CardsService {
     constructor(prisma: PrismaService, contactsService: ContactsService);
     create(userId: string, dto: CreateCardDto): Promise<BusinessCard>;
     findAll(userId: string): Promise<{
-        id: string;
         email: string | null;
         firstName: string;
         lastName: string;
-        phone: string | null;
+        jobTitle: string | null;
         avatarUrl: string | null;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        teamId: string | null;
+        id: string;
         slug: string;
         logoUrl: string | null;
         ownerId: string;
-        jobTitle: string | null;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        phone: string | null;
+        teamId: string | null;
         company: string | null;
         kind: import(".prisma/client").$Enums.CardKind;
         bio: string | null;

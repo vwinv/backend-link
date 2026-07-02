@@ -244,6 +244,11 @@ export class TeamsService {
       throw new BadRequestException('Une invitation est déjà en attente pour cet email');
     }
 
+    const role = dto.role ?? TeamMemberRole.MEMBER;
+    if (role === TeamMemberRole.OWNER) {
+      throw new BadRequestException('Le rôle propriétaire ne peut pas être attribué par invitation');
+    }
+
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30);
 
@@ -251,9 +256,13 @@ export class TeamsService {
       data: {
         teamId: id,
         email,
+        firstName: dto.firstName?.trim() || null,
+        lastName: dto.lastName?.trim() || null,
+        jobTitle: dto.jobTitle?.trim() || null,
+        avatarUrl: dto.avatarUrl?.trim() || null,
         invitedById: userId,
         inviteeUserId: existingUser?.id ?? null,
-        role: dto.role ?? TeamMemberRole.MEMBER,
+        role,
         status: TeamInviteStatus.PENDING,
         expiresAt,
       },
@@ -396,6 +405,20 @@ export class TeamsService {
 
   async removeMember(userId: string, id: string, memberId: string) {
     await this.assertOwner(userId, id);
+
+    const member = await this.prisma.teamMember.findFirst({
+      where: { id: memberId, teamId: id },
+    });
+
+    if (!member) {
+      throw new NotFoundException('Membre introuvable');
+    }
+
+    if (member.role === TeamMemberRole.OWNER) {
+      throw new BadRequestException(
+        'Le propriétaire de l’équipe ne peut pas être retiré',
+      );
+    }
 
     return this.prisma.teamMember.delete({ where: { id: memberId } });
   }

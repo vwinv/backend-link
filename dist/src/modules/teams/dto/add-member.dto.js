@@ -15,6 +15,10 @@ const client_1 = require("@prisma/client");
 const class_validator_1 = require("class-validator");
 class AddMemberDto {
     email;
+    firstName;
+    lastName;
+    jobTitle;
+    avatarUrl;
     role;
 }
 exports.AddMemberDto = AddMemberDto;
@@ -23,6 +27,34 @@ __decorate([
     (0, class_validator_1.IsEmail)(),
     __metadata("design:type", String)
 ], AddMemberDto.prototype, "email", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: 'Nina' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(80),
+    __metadata("design:type", String)
+], AddMemberDto.prototype, "firstName", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: 'Ba' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(80),
+    __metadata("design:type", String)
+], AddMemberDto.prototype, "lastName", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: 'Commerciale' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(120),
+    __metadata("design:type", String)
+], AddMemberDto.prototype, "jobTitle", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: '/uploads/avatar.jpg' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(500),
+    __metadata("design:type", String)
+], AddMemberDto.prototype, "avatarUrl", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)({ enum: client_1.TeamMemberRole, default: client_1.TeamMemberRole.MEMBER }),
     (0, class_validator_1.IsOptional)(),
