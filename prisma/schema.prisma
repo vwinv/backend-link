@@ -19,6 +19,14 @@ enum TeamMemberRole {
   MEMBER
 }
 
+enum TeamInviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+  EXPIRED
+}
+
 enum SubscriptionStatus {
   TRIAL
   ACTIVE
@@ -103,8 +111,10 @@ model User {
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
-  ownedTeams      Team[]         @relation("TeamOwner")
-  teamMemberships TeamMember[]
+  ownedTeams           Team[]       @relation("TeamOwner")
+  teamMemberships      TeamMember[]
+  teamInvitesSent      TeamInvite[] @relation("TeamInvitesSent")
+  teamInvitesReceived  TeamInvite[] @relation("TeamInvitesReceived")
   businessCards   BusinessCard[]
   subscriptions   Subscription[]
   savedCards      SavedCard[]
@@ -133,10 +143,33 @@ model Team {
 
   owner         User           @relation("TeamOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   members       TeamMember[]
+  invites       TeamInvite[]
   businessCards BusinessCard[]
   subscriptions Subscription[]
 
   @@map("teams")
+}
+
+model TeamInvite {
+  id            String           @id @default(cuid())
+  teamId        String
+  email         String
+  invitedById   String
+  inviteeUserId String?
+  role          TeamMemberRole   @default(MEMBER)
+  status        TeamInviteStatus @default(PENDING)
+  expiresAt     DateTime?
+  respondedAt   DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  team      Team  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  invitedBy User  @relation("TeamInvitesSent", fields: [invitedById], references: [id], onDelete: Cascade)
+  invitee   User? @relation("TeamInvitesReceived", fields: [inviteeUserId], references: [id], onDelete: SetNull)
+
+  @@index([teamId, status])
+  @@index([email, status])
+  @@map("team_invites")
 }
 
 model TeamMember {

@@ -5,6 +5,9 @@ export class TeamMembersResponseDto {
   @ApiProperty({ type: [Object] })
   members: unknown[];
 
+  @ApiProperty({ type: [Object] })
+  pendingInvites: unknown[];
+
   @ApiProperty({ type: TeamSeatsQuotaDto })
   seats: TeamSeatsQuotaDto;
 }

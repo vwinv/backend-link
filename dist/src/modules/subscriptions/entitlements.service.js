@@ -36,9 +36,16 @@ let EntitlementsService = class EntitlementsService {
             throw new common_1.BadRequestException('Équipe introuvable');
         }
         const entitlements = await this.getUserEntitlements(team.ownerId);
-        const used = await this.prisma.teamMember.count({
+        const memberCount = await this.prisma.teamMember.count({
             where: { teamId },
         });
+        const pendingInviteCount = await this.prisma.teamInvite.count({
+            where: {
+                teamId,
+                status: client_1.TeamInviteStatus.PENDING,
+            },
+        });
+        const used = memberCount + pendingInviteCount;
         const max = entitlements.maxTeamMembers;
         const hasTeamPlan = entitlements.audience === client_1.OfferAudience.TEAM && max > 0;
         return {

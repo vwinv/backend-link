@@ -7,6 +7,7 @@ import {
   BillingPeriod,
   OfferAudience,
   SubscriptionStatus,
+  TeamInviteStatus,
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
@@ -45,9 +46,16 @@ export class EntitlementsService {
     }
 
     const entitlements = await this.getUserEntitlements(team.ownerId);
-    const used = await this.prisma.teamMember.count({
+    const memberCount = await this.prisma.teamMember.count({
       where: { teamId },
     });
+    const pendingInviteCount = await this.prisma.teamInvite.count({
+      where: {
+        teamId,
+        status: TeamInviteStatus.PENDING,
+      },
+    });
+    const used = memberCount + pendingInviteCount;
 
     const max = entitlements.maxTeamMembers;
     const hasTeamPlan =

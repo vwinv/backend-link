@@ -34,6 +34,15 @@ let TeamsController = class TeamsController {
     findAll(user) {
         return this.teamsService.findAllForUser(user.userId);
     }
+    getMyInvitations(user) {
+        return this.teamsService.getMyInvitations(user.userId);
+    }
+    acceptInvitation(user, inviteId) {
+        return this.teamsService.acceptInvitation(user.userId, inviteId);
+    }
+    declineInvitation(user, inviteId) {
+        return this.teamsService.declineInvitation(user.userId, inviteId);
+    }
     findOne(user, id) {
         return this.teamsService.findOneForUser(user.userId, id);
     }
@@ -48,6 +57,9 @@ let TeamsController = class TeamsController {
     }
     addMember(user, id, dto) {
         return this.teamsService.addMember(user.userId, id, dto);
+    }
+    cancelInvitation(user, id, inviteId) {
+        return this.teamsService.cancelInvitation(user.userId, id, inviteId);
     }
     updateMemberRole(user, id, memberId, dto) {
         return this.teamsService.updateMemberRole(user.userId, id, memberId, dto);
@@ -74,6 +86,32 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], TeamsController.prototype, "findAll", null);
+__decorate([
+    (0, common_1.Get)('invitations/me'),
+    (0, swagger_1.ApiOperation)({ summary: 'Lister mes invitations d\'équipe en attente' }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], TeamsController.prototype, "getMyInvitations", null);
+__decorate([
+    (0, common_1.Post)('invitations/:inviteId/accept'),
+    (0, swagger_1.ApiOperation)({ summary: 'Accepter une invitation d\'équipe' }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('inviteId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], TeamsController.prototype, "acceptInvitation", null);
+__decorate([
+    (0, common_1.Post)('invitations/:inviteId/decline'),
+    (0, swagger_1.ApiOperation)({ summary: 'Refuser une invitation d\'équipe' }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('inviteId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], TeamsController.prototype, "declineInvitation", null);
 __decorate([
     (0, common_1.Get)(':id'),
     (0, swagger_1.ApiOperation)({ summary: 'Récupérer une équipe par ID' }),
@@ -114,7 +152,7 @@ __decorate([
 ], TeamsController.prototype, "getMembers", null);
 __decorate([
     (0, common_1.Post)(':id/members'),
-    (0, swagger_1.ApiOperation)({ summary: 'Ajouter un membre à l\'équipe' }),
+    (0, swagger_1.ApiOperation)({ summary: 'Inviter un membre à l\'équipe' }),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Param)('id')),
     __param(2, (0, common_1.Body)()),
@@ -122,6 +160,16 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, add_member_dto_1.AddMemberDto]),
     __metadata("design:returntype", void 0)
 ], TeamsController.prototype, "addMember", null);
+__decorate([
+    (0, common_1.Delete)(':id/invitations/:inviteId'),
+    (0, swagger_1.ApiOperation)({ summary: 'Annuler une invitation en attente' }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Param)('inviteId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String]),
+    __metadata("design:returntype", void 0)
+], TeamsController.prototype, "cancelInvitation", null);
 __decorate([
     (0, common_1.Patch)(':id/members/:memberId'),
     (0, swagger_1.ApiOperation)({ summary: 'Modifier le rôle d\'un membre' }),

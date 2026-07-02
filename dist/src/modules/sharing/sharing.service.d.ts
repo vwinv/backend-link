@@ -22,14 +22,16 @@ export declare class SharingService {
         ogImageUrl: string;
     }>;
     renderPublicCardNotFoundPage(): string;
-    renderPublicCardPage(slug: string): Promise<string | null>;
+    renderPublicCardPage(slug: string, options?: {
+        embed?: boolean;
+    }): Promise<string | null>;
     shareCard(userId: string, id: string, dto: ShareCardDto): Promise<{
         id: string;
         createdAt: Date;
+        userId: string | null;
+        cardId: string;
         method: import(".prisma/client").$Enums.ShareMethod;
         metadata: import("@prisma/client/runtime/client").JsonValue;
-        cardId: string;
-        userId: string | null;
     }>;
     getQrCode(id: string): {
         message: string;

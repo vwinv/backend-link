@@ -18,4 +18,5 @@ export type PublicCardPageParams = {
   logoUrl: string;
   design: ResolvedProDesign;
   socialLinks: PublicSocialLink[];
+  embed?: boolean;
 };

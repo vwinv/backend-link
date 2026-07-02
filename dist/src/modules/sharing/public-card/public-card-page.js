@@ -26,7 +26,7 @@ function buildPublicCardHtml(params) {
         ? `background: ${params.design.pageBackground};`
         : `background: ${params.design.pageBackground};`;
     return `<!DOCTYPE html>
-<html lang="fr">
+<html lang="fr"${params.embed ? ' class="embed"' : ''}>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />

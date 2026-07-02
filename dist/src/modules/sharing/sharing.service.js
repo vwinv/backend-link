@@ -50,7 +50,7 @@ let SharingService = class SharingService {
 </body>
 </html>`;
     }
-    async renderPublicCardPage(slug) {
+    async renderPublicCardPage(slug, options) {
         const card = await this.findPublicCard(slug);
         if (!card) {
             return null;
@@ -76,6 +76,7 @@ let SharingService = class SharingService {
                 url: link.url,
                 label: link.label,
             })),
+            embed: options?.embed === true,
         });
     }
     async shareCard(userId, id, dto) {

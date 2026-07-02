@@ -49,7 +49,10 @@ export class SharingService {
 </html>`;
   }
 
-  async renderPublicCardPage(slug: string): Promise<string | null> {
+  async renderPublicCardPage(
+    slug: string,
+    options?: { embed?: boolean },
+  ): Promise<string | null> {
     const card = await this.findPublicCard(slug);
     if (!card) {
       return null;
@@ -78,6 +81,7 @@ export class SharingService {
         url: link.url,
         label: link.label,
       })),
+      embed: options?.embed === true,
     });
   }
 

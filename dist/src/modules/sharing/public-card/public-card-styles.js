@@ -435,5 +435,54 @@ exports.PUBLIC_CARD_STYLES = `
     --text: #0c0d10;
     --text-muted: rgba(12, 13, 16, 0.62);
   }
+
+  html.embed,
+  html.embed body {
+    width: 100%;
+    height: 100%;
+    min-height: 100%;
+  }
+
+  html.embed body {
+    background: transparent;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  html.embed .page {
+    width: 100%;
+    max-width: none;
+    min-height: 100%;
+    height: 100%;
+  }
+
+  html.embed .shell {
+    width: 100%;
+    max-width: none;
+    min-height: 100%;
+    height: 100%;
+  }
+
+  html.embed .content {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  html.embed .layout-arc .arc-stage,
+  html.embed .layout-bubble .bubble-stage {
+    min-height: 100%;
+    height: 100%;
+  }
+
+  html.embed .layout-arc .shell {
+    min-height: 100%;
+    height: 100%;
+  }
+
+  html.embed [data-save-contact] {
+    display: none !important;
+  }
 `;
 //# sourceMappingURL=public-card-styles.js.map

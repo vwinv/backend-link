@@ -78,6 +78,7 @@ let AuthService = class AuthService {
                 lastName: dto.lastName.trim(),
             },
         });
+        await this.linkPendingInvites(user.id, email);
         return this.buildAuthResponse(user);
     }
     async login(dto) {
@@ -149,6 +150,7 @@ let AuthService = class AuthService {
                     avatarUrl: profile.avatarUrl,
                 },
             });
+            await this.linkPendingInvites(user.id, profile.email);
         }
         else if (profile.avatarUrl && !user.avatarUrl) {
             user = await this.prisma.user.update({
@@ -160,6 +162,16 @@ let AuthService = class AuthService {
             throw new common_1.UnauthorizedException(auth_constants_1.ACCOUNT_DELETED_ERROR);
         }
         return this.buildAuthResponse(user);
+    }
+    async linkPendingInvites(userId, email) {
+        await this.prisma.teamInvite.updateMany({
+            where: {
+                email,
+                status: client_1.TeamInviteStatus.PENDING,
+                inviteeUserId: null,
+            },
+            data: { inviteeUserId: userId },
+        });
     }
     oauthOnlyMessage(provider) {
         switch (provider) {

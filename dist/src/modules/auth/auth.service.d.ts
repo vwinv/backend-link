@@ -36,6 +36,7 @@ export declare class AuthService {
         message: string;
     };
     private authenticateWithOAuth;
+    private linkPendingInvites;
     private oauthOnlyMessage;
     private buildAuthResponse;
     private toPublicUser;

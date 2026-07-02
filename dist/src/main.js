@@ -51,7 +51,8 @@ async function bootstrap() {
     });
     expressApp.get('/cards/:slug', async (req, res) => {
         const slug = String(req.params.slug);
-        const html = await sharingService.renderPublicCardPage(slug);
+        const embed = req.query.embed === '1' || req.query.embed === 'true';
+        const html = await sharingService.renderPublicCardPage(slug, { embed });
         if (!html) {
             res
                 .status(404)

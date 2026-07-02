@@ -40,6 +40,30 @@ export class TeamsController {
     return this.teamsService.findAllForUser(user.userId);
   }
 
+  @Get('invitations/me')
+  @ApiOperation({ summary: 'Lister mes invitations d\'équipe en attente' })
+  getMyInvitations(@CurrentUser() user: { userId: string }) {
+    return this.teamsService.getMyInvitations(user.userId);
+  }
+
+  @Post('invitations/:inviteId/accept')
+  @ApiOperation({ summary: 'Accepter une invitation d\'équipe' })
+  acceptInvitation(
+    @CurrentUser() user: { userId: string },
+    @Param('inviteId') inviteId: string,
+  ) {
+    return this.teamsService.acceptInvitation(user.userId, inviteId);
+  }
+
+  @Post('invitations/:inviteId/decline')
+  @ApiOperation({ summary: 'Refuser une invitation d\'équipe' })
+  declineInvitation(
+    @CurrentUser() user: { userId: string },
+    @Param('inviteId') inviteId: string,
+  ) {
+    return this.teamsService.declineInvitation(user.userId, inviteId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Récupérer une équipe par ID' })
   findOne(
@@ -79,13 +103,23 @@ export class TeamsController {
   }
 
   @Post(':id/members')
-  @ApiOperation({ summary: 'Ajouter un membre à l\'équipe' })
+  @ApiOperation({ summary: 'Inviter un membre à l\'équipe' })
   addMember(
     @CurrentUser() user: { userId: string },
     @Param('id') id: string,
     @Body() dto: AddMemberDto,
   ) {
     return this.teamsService.addMember(user.userId, id, dto);
+  }
+
+  @Delete(':id/invitations/:inviteId')
+  @ApiOperation({ summary: 'Annuler une invitation en attente' })
+  cancelInvitation(
+    @CurrentUser() user: { userId: string },
+    @Param('id') id: string,
+    @Param('inviteId') inviteId: string,
+  ) {
+    return this.teamsService.cancelInvitation(user.userId, id, inviteId);
   }
 
   @Patch(':id/members/:memberId')

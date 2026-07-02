@@ -14,6 +14,7 @@ const swagger_1 = require("@nestjs/swagger");
 const usage_quota_dto_1 = require("../../subscriptions/dto/usage-quota.dto");
 class TeamMembersResponseDto {
     members;
+    pendingInvites;
     seats;
 }
 exports.TeamMembersResponseDto = TeamMembersResponseDto;
@@ -21,6 +22,10 @@ __decorate([
     (0, swagger_1.ApiProperty)({ type: [Object] }),
     __metadata("design:type", Array)
 ], TeamMembersResponseDto.prototype, "members", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ type: [Object] }),
+    __metadata("design:type", Array)
+], TeamMembersResponseDto.prototype, "pendingInvites", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({ type: usage_quota_dto_1.TeamSeatsQuotaDto }),
     __metadata("design:type", usage_quota_dto_1.TeamSeatsQuotaDto)

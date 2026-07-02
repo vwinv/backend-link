@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { AuthProvider, User } from '@prisma/client';
+import { AuthProvider, TeamInviteStatus, User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ACCOUNT_DELETED_ERROR } from './auth.constants';
@@ -42,6 +42,8 @@ export class AuthService {
         lastName: dto.lastName.trim(),
       },
     });
+
+    await this.linkPendingInvites(user.id, email);
 
     return this.buildAuthResponse(user);
   }
@@ -149,6 +151,8 @@ export class AuthService {
           avatarUrl: profile.avatarUrl,
         },
       });
+
+      await this.linkPendingInvites(user.id, profile.email);
     } else if (profile.avatarUrl && !user.avatarUrl) {
       user = await this.prisma.user.update({
         where: { id: user.id },
@@ -161,6 +165,17 @@ export class AuthService {
     }
 
     return this.buildAuthResponse(user);
+  }
+
+  private async linkPendingInvites(userId: string, email: string) {
+    await this.prisma.teamInvite.updateMany({
+      where: {
+        email,
+        status: TeamInviteStatus.PENDING,
+        inviteeUserId: null,
+      },
+      data: { inviteeUserId: userId },
+    });
   }
 
   private oauthOnlyMessage(provider: AuthProvider): string {
