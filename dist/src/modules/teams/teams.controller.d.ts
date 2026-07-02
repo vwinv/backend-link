@@ -10,28 +10,28 @@ export declare class TeamsController {
         userId: string;
     }, dto: CreateTeamDto): Promise<{
         id: string;
-        slug: string;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
         name: string;
+        slug: string;
         description: string | null;
-        ownerId: string;
         logoUrl: string | null;
+        ownerId: string;
         brandColor: string | null;
     }>;
     findAll(user: {
         userId: string;
     }): Promise<{
         id: string;
-        slug: string;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
         name: string;
+        slug: string;
         description: string | null;
-        ownerId: string;
         logoUrl: string | null;
+        ownerId: string;
         brandColor: string | null;
     }[]>;
     findOne(user: {
@@ -48,49 +48,49 @@ export declare class TeamsController {
             };
         } & {
             id: string;
-            updatedAt: Date;
             role: import(".prisma/client").$Enums.TeamMemberRole;
-            userId: string;
+            updatedAt: Date;
             teamId: string;
+            userId: string;
             joinedAt: Date;
         })[];
         id: string;
-        slug: string;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
         name: string;
+        slug: string;
         description: string | null;
-        ownerId: string;
         logoUrl: string | null;
+        ownerId: string;
         brandColor: string | null;
     }>;
     update(user: {
         userId: string;
     }, id: string, dto: UpdateTeamDto): Promise<{
         id: string;
-        slug: string;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
         name: string;
+        slug: string;
         description: string | null;
-        ownerId: string;
         logoUrl: string | null;
+        ownerId: string;
         brandColor: string | null;
     }>;
     remove(user: {
         userId: string;
     }, id: string): Promise<{
         id: string;
-        slug: string;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
         name: string;
+        slug: string;
         description: string | null;
-        ownerId: string;
         logoUrl: string | null;
+        ownerId: string;
         brandColor: string | null;
     }>;
     getMembers(user: {
@@ -106,10 +106,10 @@ export declare class TeamsController {
             };
         } & {
             id: string;
-            updatedAt: Date;
             role: import(".prisma/client").$Enums.TeamMemberRole;
-            userId: string;
+            updatedAt: Date;
             teamId: string;
+            userId: string;
             joinedAt: Date;
         })[];
         seats: import("../subscriptions/entitlements.types").TeamSeatsQuota;
@@ -118,30 +118,30 @@ export declare class TeamsController {
         userId: string;
     }, id: string, dto: AddMemberDto): Promise<{
         id: string;
-        updatedAt: Date;
         role: import(".prisma/client").$Enums.TeamMemberRole;
-        userId: string;
+        updatedAt: Date;
         teamId: string;
+        userId: string;
         joinedAt: Date;
     }>;
     updateMemberRole(user: {
         userId: string;
     }, id: string, memberId: string, dto: UpdateMemberRoleDto): Promise<{
         id: string;
-        updatedAt: Date;
         role: import(".prisma/client").$Enums.TeamMemberRole;
-        userId: string;
+        updatedAt: Date;
         teamId: string;
+        userId: string;
         joinedAt: Date;
     }>;
     removeMember(user: {
         userId: string;
     }, id: string, memberId: string): Promise<{
         id: string;
-        updatedAt: Date;
         role: import(".prisma/client").$Enums.TeamMemberRole;
-        userId: string;
+        updatedAt: Date;
         teamId: string;
+        userId: string;
         joinedAt: Date;
     }>;
 }

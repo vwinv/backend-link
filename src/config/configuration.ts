@@ -24,7 +24,7 @@ export default () => ({
     appPublicUrl:
       process.env.APP_PUBLIC_URL ??
       (process.env.NODE_ENV === 'production'
-        ? 'https://link.app'
+        ? 'https://backend-link-wt91.onrender.com'
         : 'http://localhost:3000'),
     apple: {
       teamId: process.env.APPLE_TEAM_ID ?? '',

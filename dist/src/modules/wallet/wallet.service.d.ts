@@ -21,9 +21,9 @@ export declare class WalletService {
     findAll(userId: string): Promise<({
         card: {
             id: string;
-            slug: string;
             firstName: string;
             lastName: string;
+            slug: string;
             jobTitle: string | null;
             company: string | null;
         };
@@ -31,9 +31,9 @@ export declare class WalletService {
         id: string;
         userId: string;
         cardId: string;
-        savedAt: Date;
         walletType: import(".prisma/client").$Enums.WalletType;
         passId: string | null;
+        savedAt: Date;
     })[]>;
     remove(userId: string, id: string): Promise<{
         message: string;

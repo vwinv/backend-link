@@ -44,7 +44,8 @@ async function bootstrap() {
         namespace: 'android_app',
         package_name: 'com.example.linkflutter',
         sha256_cert_fingerprints: [
-          'REPLACE_WITH_RELEASE_SHA256_FINGERPRINT',
+          // Keystore debug Android (flutter run) — remplacer en prod par le keystore release
+          'B5:F8:5C:04:90:E6:3D:B2:F1:AB:DB:86:9D:7F:6E:9E:7E:02:07:BE:3D:1A:C5:FD:C6:23:F0:CC:D6:94:63:D9',
         ],
       },
     },

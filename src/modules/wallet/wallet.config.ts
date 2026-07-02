@@ -8,7 +8,7 @@ export class WalletConfig {
   constructor(private readonly config: ConfigService) {}
 
   get appPublicUrl(): string {
-    return (this.config.get<string>('wallet.appPublicUrl') ?? 'https://link.app').replace(
+    return (this.config.get<string>('wallet.appPublicUrl') ?? 'https://backend-link-wt91.onrender.com').replace(
       /\/$/,
       '',
     );

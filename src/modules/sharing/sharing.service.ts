@@ -17,7 +17,7 @@ export class SharingService {
   private get appPublicUrl(): string {
     return this.configService.get<string>(
       'wallet.appPublicUrl',
-      'https://link.app',
+      'https://backend-link-wt91.onrender.com',
     );
   }
 
