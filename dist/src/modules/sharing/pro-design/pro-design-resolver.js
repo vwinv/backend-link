@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.resolveProDesign = resolveProDesign;
 const pro_design_catalog_1 = require("./pro-design-catalog");
+const card_style_palette_1 = require("./card-style-palette");
 const card_theme_util_1 = require("./card-theme.util");
 function blendTowardBlack(hex, amount = 0.9) {
     const normalized = hex.replace('#', '');
@@ -31,13 +32,30 @@ function resolvePageBackground(template) {
 }
 function resolveProDesign(theme) {
     const themeJson = (0, card_theme_util_1.resolveCardThemeForRender)(theme);
-    const hasChosenDesign = themeJson.proDesignId != null;
+    const proDesignId = themeJson.proDesignId != null ? String(themeJson.proDesignId).trim() : '';
+    const hasChosenDesign = proDesignId.length > 0 && proDesignId !== pro_design_catalog_1.DEFAULT_PRO_DESIGN_ID;
     let template = (0, pro_design_catalog_1.getProDesignTemplate)(themeJson.proDesignId);
     const brandColor = themeJson.brandColor?.trim();
+    let cardStyleApplied = false;
     if (themeJson.useCompanyColors === true && brandColor) {
         template = (0, pro_design_catalog_1.applyBrandColorToTemplate)(template, brandColor);
     }
-    const background = !hasChosenDesign && template.id === pro_design_catalog_1.DEFAULT_PRO_DESIGN_ID
+    else {
+        const palette = (0, card_style_palette_1.getCardStylePalette)(themeJson.style);
+        if (palette) {
+            cardStyleApplied = true;
+            template = {
+                ...template,
+                id: 'uni',
+                name: 'Uni',
+                background: palette.background,
+                accent: palette.accent,
+                gradientEnd: palette.gradientEnd,
+                layout: palette.layout,
+            };
+        }
+    }
+    const background = !hasChosenDesign && !cardStyleApplied && template.id === pro_design_catalog_1.DEFAULT_PRO_DESIGN_ID
         ? pro_design_catalog_1.DEFAULT_UNI_BACKGROUND
         : template.background;
     const accentColor = template.accent ?? background;

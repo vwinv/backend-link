@@ -23,17 +23,17 @@ export declare class WalletController {
             id: string;
             firstName: string;
             lastName: string;
-            slug: string;
             jobTitle: string | null;
             company: string | null;
+            slug: string;
         };
     } & {
         id: string;
         userId: string;
         cardId: string;
+        savedAt: Date;
         walletType: import(".prisma/client").$Enums.WalletType;
         passId: string | null;
-        savedAt: Date;
     })[]>;
     remove(user: {
         userId: string;

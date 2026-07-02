@@ -174,12 +174,31 @@ export class SharingService {
 
   private resolvePortraitUrl(card: BusinessCard): string | null {
     const avatar = card.avatarUrl?.trim();
-    if (avatar) return avatar;
+    if (avatar) return this.resolvePublicAssetUrl(avatar);
 
     const logo = card.logoUrl?.trim();
-    if (logo) return logo;
+    if (logo) return this.resolvePublicAssetUrl(logo);
 
     return null;
+  }
+
+  private resolvePublicAssetUrl(value: string): string {
+    const trimmed = value.trim();
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      try {
+        const url = new URL(trimmed);
+        if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+          const publicOrigin = new URL(this.appPublicUrl);
+          return `${publicOrigin.origin}${url.pathname}${url.search}`;
+        }
+      } catch {
+        return trimmed;
+      }
+      return trimmed;
+    }
+
+    const path = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+    return `${this.appPublicUrl}${path}`;
   }
 
   private getBrandLogoUrl(): string {

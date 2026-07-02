@@ -26,10 +26,10 @@ export declare class SharingService {
     shareCard(userId: string, id: string, dto: ShareCardDto): Promise<{
         id: string;
         createdAt: Date;
-        userId: string | null;
-        cardId: string;
         method: import(".prisma/client").$Enums.ShareMethod;
         metadata: import("@prisma/client/runtime/client").JsonValue;
+        cardId: string;
+        userId: string | null;
     }>;
     getQrCode(id: string): {
         message: string;
@@ -47,6 +47,7 @@ export declare class SharingService {
     private toPublicCardPayload;
     private buildSubtitle;
     private resolvePortraitUrl;
+    private resolvePublicAssetUrl;
     private getBrandLogoUrl;
     private getOgImageUrl;
 }

@@ -4,6 +4,7 @@ import {
   DEFAULT_UNI_BACKGROUND,
   getProDesignTemplate,
 } from './pro-design-catalog';
+import { getCardStylePalette } from './card-style-palette';
 import { resolveCardThemeForRender } from './card-theme.util';
 import type { CardThemeJson, ResolvedProDesign } from './pro-design.types';
 
@@ -41,16 +42,34 @@ function resolvePageBackground(template: ReturnType<typeof getProDesignTemplate>
 
 export function resolveProDesign(theme: unknown): ResolvedProDesign {
   const themeJson = resolveCardThemeForRender(theme);
-  const hasChosenDesign = themeJson.proDesignId != null;
+  const proDesignId =
+    themeJson.proDesignId != null ? String(themeJson.proDesignId).trim() : '';
+  const hasChosenDesign =
+    proDesignId.length > 0 && proDesignId !== DEFAULT_PRO_DESIGN_ID;
   let template = getProDesignTemplate(themeJson.proDesignId);
 
   const brandColor = themeJson.brandColor?.trim();
+  let cardStyleApplied = false;
   if (themeJson.useCompanyColors === true && brandColor) {
     template = applyBrandColorToTemplate(template, brandColor);
+  } else {
+    const palette = getCardStylePalette(themeJson.style);
+    if (palette) {
+      cardStyleApplied = true;
+      template = {
+        ...template,
+        id: 'uni',
+        name: 'Uni',
+        background: palette.background,
+        accent: palette.accent,
+        gradientEnd: palette.gradientEnd,
+        layout: palette.layout,
+      };
+    }
   }
 
   const background =
-    !hasChosenDesign && template.id === DEFAULT_PRO_DESIGN_ID
+    !hasChosenDesign && !cardStyleApplied && template.id === DEFAULT_PRO_DESIGN_ID
       ? DEFAULT_UNI_BACKGROUND
       : template.background;
 
