@@ -40,7 +40,7 @@ function resolveProDesign(theme) {
     if (themeJson.useCompanyColors === true && brandColor) {
         template = (0, pro_design_catalog_1.applyBrandColorToTemplate)(template, brandColor);
     }
-    else {
+    else if (!hasChosenDesign) {
         const palette = (0, card_style_palette_1.getCardStylePalette)(themeJson.style);
         if (palette) {
             cardStyleApplied = true;

@@ -52,7 +52,7 @@ export function resolveProDesign(theme: unknown): ResolvedProDesign {
   let cardStyleApplied = false;
   if (themeJson.useCompanyColors === true && brandColor) {
     template = applyBrandColorToTemplate(template, brandColor);
-  } else {
+  } else if (!hasChosenDesign) {
     const palette = getCardStylePalette(themeJson.style);
     if (palette) {
       cardStyleApplied = true;
