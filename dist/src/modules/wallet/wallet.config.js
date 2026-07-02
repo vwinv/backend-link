@@ -53,7 +53,7 @@ let WalletConfig = class WalletConfig {
         this.config = config;
     }
     get appPublicUrl() {
-        return (this.config.get('wallet.appPublicUrl') ?? 'https://link.app').replace(/\/$/, '');
+        return (this.config.get('wallet.appPublicUrl') ?? 'https://backend-link-wt91.onrender.com').replace(/\/$/, '');
     }
     get appleTeamId() {
         return this.config.get('wallet.apple.teamId') ?? '';

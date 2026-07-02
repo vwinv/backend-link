@@ -24,7 +24,7 @@ let SharingService = class SharingService {
         this.configService = configService;
     }
     get appPublicUrl() {
-        return this.configService.get('wallet.appPublicUrl', 'https://link.app');
+        return this.configService.get('wallet.appPublicUrl', 'https://backend-link-wt91.onrender.com');
     }
     async getPublicCard(slug) {
         const card = await this.findPublicCard(slug);
