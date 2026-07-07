@@ -25,12 +25,18 @@ async function bootstrap() {
     const sharingService = app.get(sharing_service_1.SharingService);
     const teamsService = app.get(teams_service_1.TeamsService);
     const expressApp = app.getHttpAdapter().getInstance();
+    const appleTeamId = configService.get('mobile.appleTeamId', 'CMU6AB64K7');
+    const appleBundleId = configService.get('mobile.appleBundleId', 'com.mega.dropone');
+    const appleAppId = `${appleTeamId}.${appleBundleId}`;
+    const androidPackageName = configService.get('mobile.androidPackageName', 'com.mega.link');
+    const androidSha256Fingerprints = configService.get('mobile.androidSha256Fingerprints', []);
+    const defaultAndroidFingerprint = 'B5:F8:5C:04:90:E6:3D:B2:F1:AB:DB:86:9D:7F:6E:9E:7E:02:07:BE:3D:1A:C5:FD:C6:23:F0:CC:D6:94:63:D9';
     const appleAppSiteAssociation = {
         applinks: {
             apps: [],
             details: [
                 {
-                    appID: 'CMU6AB64K7.com.example.linkflutter',
+                    appIDs: [appleAppId],
                     paths: ['/cards/*'],
                 },
             ],
@@ -41,10 +47,10 @@ async function bootstrap() {
             relation: ['delegate_permission/common.handle_all_urls'],
             target: {
                 namespace: 'android_app',
-                package_name: 'com.mega.link',
-                sha256_cert_fingerprints: [
-                    'B5:F8:5C:04:90:E6:3D:B2:F1:AB:DB:86:9D:7F:6E:9E:7E:02:07:BE:3D:1A:C5:FD:C6:23:F0:CC:D6:94:63:D9',
-                ],
+                package_name: androidPackageName,
+                sha256_cert_fingerprints: androidSha256Fingerprints.length > 0
+                    ? androidSha256Fingerprints
+                    : [defaultAndroidFingerprint],
             },
         },
     ];

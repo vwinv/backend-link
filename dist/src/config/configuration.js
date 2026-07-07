@@ -63,5 +63,14 @@ exports.default = () => ({
         cancelUrl: process.env.STRIPE_CANCEL_URL ??
             `${process.env.APP_PUBLIC_URL ?? 'http://localhost:3000'}/premium/cancel`,
     },
+    mobile: {
+        appleTeamId: process.env.APPLE_TEAM_ID ?? 'CMU6AB64K7',
+        appleBundleId: process.env.APPLE_CLIENT_ID ?? 'com.mega.dropone',
+        androidPackageName: process.env.ANDROID_APP_PACKAGE ?? 'com.mega.link',
+        androidSha256Fingerprints: (process.env.ANDROID_APP_SHA256_CERT ?? '')
+            .split(',')
+            .map((value) => value.trim())
+            .filter(Boolean),
+    },
 });
 //# sourceMappingURL=configuration.js.map

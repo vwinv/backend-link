@@ -50,5 +50,11 @@ declare const _default: () => {
         successUrl: string;
         cancelUrl: string;
     };
+    mobile: {
+        appleTeamId: string;
+        appleBundleId: string;
+        androidPackageName: string;
+        androidSha256Fingerprints: string[];
+    };
 };
 export default _default;
