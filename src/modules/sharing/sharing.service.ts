@@ -21,13 +21,13 @@ export class SharingService {
     );
   }
 
-  async getPublicCard(slug: string) {
+  async getPublicCard(slug: string, viewerUserId?: string) {
     const card = await this.findPublicCard(slug);
     if (!card) {
       throw new NotFoundException('Carte introuvable');
     }
 
-    await this.recordCardView(card.id);
+    await this.recordCardView(card.id, viewerUserId);
 
     return this.toPublicCardPayload(card);
   }
@@ -51,7 +51,7 @@ export class SharingService {
 
   async renderPublicCardPage(
     slug: string,
-    options?: { embed?: boolean },
+    options?: { embed?: boolean; viewerUserId?: string },
   ): Promise<string | null> {
     const card = await this.findPublicCard(slug);
     if (!card) {
@@ -59,7 +59,7 @@ export class SharingService {
     }
 
     if (!options?.embed) {
-      await this.recordCardView(card.id);
+      await this.recordCardView(card.id, options?.viewerUserId);
     }
 
     const fullName = `${card.firstName} ${card.lastName}`.trim();
@@ -113,7 +113,17 @@ export class SharingService {
     return { message: 'getShareLink', id };
   }
 
-  private async recordCardView(cardId: string) {
+  private async recordCardView(cardId: string, viewerUserId?: string) {
+    if (viewerUserId) {
+      const ownCard = await this.prisma.businessCard.findFirst({
+        where: { id: cardId, ownerId: viewerUserId },
+        select: { id: true },
+      });
+      if (ownCard) {
+        return;
+      }
+    }
+
     await this.prisma.cardView.create({
       data: { cardId },
     });

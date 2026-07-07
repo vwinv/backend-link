@@ -26,12 +26,12 @@ let SharingService = class SharingService {
     get appPublicUrl() {
         return this.configService.get('wallet.appPublicUrl', 'https://dropone.pro');
     }
-    async getPublicCard(slug) {
+    async getPublicCard(slug, viewerUserId) {
         const card = await this.findPublicCard(slug);
         if (!card) {
             throw new common_1.NotFoundException('Carte introuvable');
         }
-        await this.recordCardView(card.id);
+        await this.recordCardView(card.id, viewerUserId);
         return this.toPublicCardPayload(card);
     }
     renderPublicCardNotFoundPage() {
@@ -56,7 +56,7 @@ let SharingService = class SharingService {
             return null;
         }
         if (!options?.embed) {
-            await this.recordCardView(card.id);
+            await this.recordCardView(card.id, options?.viewerUserId);
         }
         const fullName = `${card.firstName} ${card.lastName}`.trim();
         const subtitle = this.buildSubtitle(card);
@@ -102,7 +102,16 @@ let SharingService = class SharingService {
     getShareLink(id) {
         return { message: 'getShareLink', id };
     }
-    async recordCardView(cardId) {
+    async recordCardView(cardId, viewerUserId) {
+        if (viewerUserId) {
+            const ownCard = await this.prisma.businessCard.findFirst({
+                where: { id: cardId, ownerId: viewerUserId },
+                select: { id: true },
+            });
+            if (ownCard) {
+                return;
+            }
+        }
         await this.prisma.cardView.create({
             data: { cardId },
         });

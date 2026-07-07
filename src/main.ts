@@ -1,5 +1,6 @@
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -31,7 +32,24 @@ async function bootstrap() {
 
   const sharingService = app.get(SharingService);
   const teamsService = app.get(TeamsService);
+  const jwtService = app.get(JwtService);
   const expressApp = app.getHttpAdapter().getInstance() as import('express').Express;
+
+  const resolveViewerUserId = (req: Request): string | undefined => {
+    const authorization = req.headers.authorization;
+    if (!authorization?.startsWith('Bearer ')) {
+      return undefined;
+    }
+
+    try {
+      const payload = jwtService.verify<{ sub?: string }>(
+        authorization.slice('Bearer '.length),
+      );
+      return payload.sub;
+    } catch {
+      return undefined;
+    }
+  };
 
   const appleTeamId = configService.get<string>('mobile.appleTeamId', 'CMU6AB64K7');
   const appleBundleId = configService.get<string>(
@@ -102,7 +120,11 @@ async function bootstrap() {
   expressApp.get('/cards/:slug', async (req: Request, res: Response) => {
     const slug = String(req.params.slug);
     const embed = req.query.embed === '1' || req.query.embed === 'true';
-    const html = await sharingService.renderPublicCardPage(slug, { embed });
+    const viewerUserId = resolveViewerUserId(req);
+    const html = await sharingService.renderPublicCardPage(slug, {
+      embed,
+      viewerUserId,
+    });
     if (!html) {
       res
         .status(404)

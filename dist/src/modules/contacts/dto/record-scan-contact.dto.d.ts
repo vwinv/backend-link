@@ -5,4 +5,5 @@ export declare class RecordScanContactDto {
     phone?: string;
     jobTitle?: string;
     company?: string;
+    cardSlug?: string;
 }

@@ -65,6 +65,33 @@ let GoogleWalletService = class GoogleWalletService {
         const fullName = `${card.firstName} ${card.lastName}`.trim();
         const subtitle = [card.jobTitle, card.company].filter(Boolean).join(' · ');
         const cardUrl = `${this.walletConfig.appPublicUrl}/cards/${card.slug}`;
+        const genericClass = {
+            id: classId,
+            classTemplateInfo: {
+                cardTemplateOverride: {
+                    cardRowTemplateInfos: [
+                        {
+                            twoItems: {
+                                startItem: {
+                                    firstValue: {
+                                        fields: [
+                                            { fieldPath: "object.textModulesData['email']" },
+                                        ],
+                                    },
+                                },
+                                endItem: {
+                                    firstValue: {
+                                        fields: [
+                                            { fieldPath: "object.textModulesData['phone']" },
+                                        ],
+                                    },
+                                },
+                            },
+                        },
+                    ],
+                },
+            },
+        };
         const genericObject = {
             id: objectId,
             classId,
@@ -124,6 +151,7 @@ let GoogleWalletService = class GoogleWalletService {
                 origins: this.walletConfig.googleOrigins,
                 typ: 'savetowallet',
                 payload: {
+                    genericClasses: [genericClass],
                     genericObjects: [genericObject],
                 },
             }, account.private_key, { algorithm: 'RS256' });

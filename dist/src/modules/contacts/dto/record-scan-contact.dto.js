@@ -19,6 +19,7 @@ class RecordScanContactDto {
     phone;
     jobTitle;
     company;
+    cardSlug;
 }
 exports.RecordScanContactDto = RecordScanContactDto;
 __decorate([
@@ -57,4 +58,10 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], RecordScanContactDto.prototype, "company", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: 'alex-moreau' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], RecordScanContactDto.prototype, "cardSlug", void 0);
 //# sourceMappingURL=record-scan-contact.dto.js.map

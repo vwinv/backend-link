@@ -6,7 +6,7 @@ export declare class SharingService {
     private readonly configService;
     constructor(prisma: PrismaService, configService: ConfigService);
     private get appPublicUrl();
-    getPublicCard(slug: string): Promise<{
+    getPublicCard(slug: string, viewerUserId?: string): Promise<{
         slug: string;
         fullName: string;
         subtitle: string;
@@ -24,14 +24,15 @@ export declare class SharingService {
     renderPublicCardNotFoundPage(): string;
     renderPublicCardPage(slug: string, options?: {
         embed?: boolean;
+        viewerUserId?: string;
     }): Promise<string | null>;
     shareCard(userId: string, id: string, dto: ShareCardDto): Promise<{
         id: string;
-        userId: string | null;
         createdAt: Date;
         method: import(".prisma/client").$Enums.ShareMethod;
         metadata: import("@prisma/client/runtime/client").JsonValue;
         cardId: string;
+        userId: string | null;
     }>;
     getQrCode(id: string): {
         message: string;

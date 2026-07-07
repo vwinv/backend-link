@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
+const jwt_1 = require("@nestjs/jwt");
 const core_1 = require("@nestjs/core");
 const swagger_1 = require("@nestjs/swagger");
 const node_fs_1 = require("node:fs");
@@ -24,7 +25,21 @@ async function bootstrap() {
     app.setGlobalPrefix(apiPrefix);
     const sharingService = app.get(sharing_service_1.SharingService);
     const teamsService = app.get(teams_service_1.TeamsService);
+    const jwtService = app.get(jwt_1.JwtService);
     const expressApp = app.getHttpAdapter().getInstance();
+    const resolveViewerUserId = (req) => {
+        const authorization = req.headers.authorization;
+        if (!authorization?.startsWith('Bearer ')) {
+            return undefined;
+        }
+        try {
+            const payload = jwtService.verify(authorization.slice('Bearer '.length));
+            return payload.sub;
+        }
+        catch {
+            return undefined;
+        }
+    };
     const appleTeamId = configService.get('mobile.appleTeamId', 'CMU6AB64K7');
     const appleBundleId = configService.get('mobile.appleBundleId', 'com.mega.dropone');
     const appleAppId = `${appleTeamId}.${appleBundleId}`;
@@ -74,7 +89,11 @@ async function bootstrap() {
     expressApp.get('/cards/:slug', async (req, res) => {
         const slug = String(req.params.slug);
         const embed = req.query.embed === '1' || req.query.embed === 'true';
-        const html = await sharingService.renderPublicCardPage(slug, { embed });
+        const viewerUserId = resolveViewerUserId(req);
+        const html = await sharingService.renderPublicCardPage(slug, {
+            embed,
+            viewerUserId,
+        });
         if (!html) {
             res
                 .status(404)

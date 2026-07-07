@@ -13,17 +13,21 @@ exports.ScansService = void 0;
 const common_1 = require("@nestjs/common");
 const contacts_service_1 = require("../contacts/contacts.service");
 const entitlements_service_1 = require("../subscriptions/entitlements.service");
+const prisma_service_1 = require("../../prisma/prisma.service");
 let ScansService = class ScansService {
     entitlementsService;
     contactsService;
-    constructor(entitlementsService, contactsService) {
+    prisma;
+    constructor(entitlementsService, contactsService, prisma) {
         this.entitlementsService = entitlementsService;
         this.contactsService = contactsService;
+        this.prisma = prisma;
     }
     getQuota(userId) {
         return this.entitlementsService.getAiScanQuota(userId);
     }
     async recordScan(userId, payload) {
+        await this.assertNotScanningOwnCard(userId, payload);
         const result = await this.entitlementsService.recordAiScan(userId);
         const contact = await this.contactsService.createFromScan(userId, result.scanId, payload);
         return {
@@ -32,11 +36,29 @@ let ScansService = class ScansService {
             quota: result.quota,
         };
     }
+    async assertNotScanningOwnCard(userId, payload) {
+        const cardSlug = payload?.cardSlug?.trim().toLowerCase();
+        if (!cardSlug) {
+            return;
+        }
+        const ownCard = await this.prisma.businessCard.findFirst({
+            where: {
+                slug: cardSlug,
+                ownerId: userId,
+                isActive: true,
+            },
+            select: { id: true },
+        });
+        if (ownCard) {
+            throw new common_1.BadRequestException('Vous ne pouvez pas scanner votre propre carte DropOne');
+        }
+    }
 };
 exports.ScansService = ScansService;
 exports.ScansService = ScansService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [entitlements_service_1.EntitlementsService,
-        contacts_service_1.ContactsService])
+        contacts_service_1.ContactsService,
+        prisma_service_1.PrismaService])
 ], ScansService);
 //# sourceMappingURL=scans.service.js.map

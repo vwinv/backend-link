@@ -1,10 +1,12 @@
 import { ContactsService } from '../contacts/contacts.service';
 import { RecordScanContactDto } from '../contacts/dto/record-scan-contact.dto';
 import { EntitlementsService } from '../subscriptions/entitlements.service';
+import { PrismaService } from '../../prisma/prisma.service';
 export declare class ScansService {
     private readonly entitlementsService;
     private readonly contactsService;
-    constructor(entitlementsService: EntitlementsService, contactsService: ContactsService);
+    private readonly prisma;
+    constructor(entitlementsService: EntitlementsService, contactsService: ContactsService, prisma: PrismaService);
     getQuota(userId: string): Promise<import("../subscriptions/entitlements.types").AiScanQuota>;
     recordScan(userId: string, payload?: RecordScanContactDto): Promise<{
         scanId: string;
@@ -26,4 +28,5 @@ export declare class ScansService {
         };
         quota: import("../subscriptions/entitlements.types").AiScanQuota;
     }>;
+    private assertNotScanningOwnCard;
 }

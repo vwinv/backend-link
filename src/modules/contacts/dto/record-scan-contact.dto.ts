@@ -31,4 +31,9 @@ export class RecordScanContactDto {
   @IsOptional()
   @IsString()
   company?: string;
+
+  @ApiPropertyOptional({ example: 'alex-moreau' })
+  @IsOptional()
+  @IsString()
+  cardSlug?: string;
 }

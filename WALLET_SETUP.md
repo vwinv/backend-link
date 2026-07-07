@@ -110,8 +110,8 @@ APPLE_PASS_SIGNER_KEY_PASSPHRASE=
    - Console → **Google Wallet API**
    - Notez l’**Issuer ID** (nombre long) → `GOOGLE_WALLET_ISSUER_ID`
 
-2. **Créer une classe Generic (une fois)**
-   - Dans la console ou via API, créez une classe générique
+2. **Classe Generic — créée automatiquement**
+   - Aucune action manuelle : le backend inclut la définition de la classe **inline** dans le JWT « Save to Wallet ». Google la crée/insère à la volée au premier enregistrement.
    - Le backend utilise par défaut le suffixe `link_business_card`
    - Class ID final : `{ISSUER_ID}.link_business_card`
    - Vous pouvez changer le suffixe avec `GOOGLE_WALLET_CLASS_SUFFIX`

@@ -11,27 +11,27 @@ export declare class CardsService {
     constructor(prisma: PrismaService, contactsService: ContactsService);
     create(userId: string, dto: CreateCardDto): Promise<BusinessCard>;
     findAll(userId: string): Promise<{
-        teamId: string | null;
-        email: string | null;
-        id: string;
-        slug: string;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
         firstName: string;
         lastName: string;
+        email: string | null;
         phone: string | null;
-        avatarUrl: string | null;
         jobTitle: string | null;
         company: string | null;
+        id: string;
+        slug: string;
         ownerId: string;
-        kind: import(".prisma/client").$Enums.CardKind;
+        teamId: string | null;
         bio: string | null;
         website: string | null;
+        avatarUrl: string | null;
         coverImageUrl: string | null;
         logoUrl: string | null;
         theme: import("@prisma/client/runtime/client").JsonValue;
         isPublic: boolean;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        kind: import(".prisma/client").$Enums.CardKind;
     }[]>;
     findOne(userId: string, id: string): Promise<BusinessCard>;
     update(userId: string, id: string, dto: UpdateCardDto): Promise<BusinessCard>;
@@ -43,20 +43,20 @@ export declare class CardsService {
     syncSocialLinks(userId: string, cardId: string, links: SocialLinkItemDto[]): Promise<{
         id: string;
         createdAt: Date;
-        platform: import(".prisma/client").$Enums.SocialPlatform;
-        url: string;
-        label: string | null;
         order: number;
         cardId: string;
+        platform: import(".prisma/client").$Enums.SocialPlatform;
+        label: string | null;
+        url: string;
     }[]>;
     getSocialLinks(userId: string, cardId: string): Promise<{
         id: string;
         createdAt: Date;
-        platform: import(".prisma/client").$Enums.SocialPlatform;
-        url: string;
-        label: string | null;
         order: number;
         cardId: string;
+        platform: import(".prisma/client").$Enums.SocialPlatform;
+        label: string | null;
+        url: string;
     }[]>;
     addSocialLink(id: string): {
         message: string;
