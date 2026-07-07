@@ -8,9 +8,16 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { AppModule } from './app.module';
 import { SharingService } from './modules/sharing/sharing.service';
+import { TeamsService } from './modules/teams/teams.service';
+import {
+  buildPremiumCancelPage,
+  buildPremiumSuccessPage,
+} from './modules/subscriptions/premium-payment-page';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    rawBody: true,
+  });
   const configService = app.get(ConfigService);
 
   const uploadsDir = join(process.cwd(), 'uploads');
@@ -23,6 +30,7 @@ async function bootstrap() {
   app.setGlobalPrefix(apiPrefix);
 
   const sharingService = app.get(SharingService);
+  const teamsService = app.get(TeamsService);
   const expressApp = app.getHttpAdapter().getInstance() as import('express').Express;
 
   const appleAppSiteAssociation = {
@@ -42,7 +50,7 @@ async function bootstrap() {
       relation: ['delegate_permission/common.handle_all_urls'],
       target: {
         namespace: 'android_app',
-        package_name: 'com.example.linkflutter',
+        package_name: 'com.mega.link',
         sha256_cert_fingerprints: [
           // Keystore debug Android (flutter run) — remplacer en prod par le keystore release
           'B5:F8:5C:04:90:E6:3D:B2:F1:AB:DB:86:9D:7F:6E:9E:7E:02:07:BE:3D:1A:C5:FD:C6:23:F0:CC:D6:94:63:D9',
@@ -57,6 +65,20 @@ async function bootstrap() {
 
   expressApp.get('/.well-known/assetlinks.json', (_req, res) => {
     res.status(200).type('application/json').send(androidAssetLinks);
+  });
+
+  expressApp.get('/premium/success', (_req: Request, res: Response) => {
+    res.status(200).type('text/html; charset=utf-8').send(buildPremiumSuccessPage());
+  });
+
+  expressApp.get('/premium/cancel', (_req: Request, res: Response) => {
+    res.status(200).type('text/html; charset=utf-8').send(buildPremiumCancelPage());
+  });
+
+  expressApp.get('/team-invites/:inviteId', async (req: Request, res: Response) => {
+    const inviteId = String(req.params.inviteId);
+    const html = await teamsService.renderTeamInvitePage(inviteId);
+    res.status(200).type('text/html; charset=utf-8').send(html);
   });
 
   expressApp.get('/cards/:slug', async (req: Request, res: Response) => {
@@ -85,8 +107,8 @@ async function bootstrap() {
   app.enableCors();
 
   const swaggerConfig = new DocumentBuilder()
-    .setTitle('Link API')
-    .setDescription('API backend pour les cartes de visite digitales Link')
+    .setTitle('DropOne API')
+    .setDescription('API backend pour les cartes de visite digitales DropOne')
     .setVersion('1.0')
     .addBearerAuth()
     .build();
@@ -97,8 +119,9 @@ async function bootstrap() {
   const port = configService.get<number>('port', 3000);
   await app.listen(port);
 
-  console.log(`🚀 Link API running on http://localhost:${port}/${apiPrefix}`);
+  console.log(`🚀 DropOne API running on http://localhost:${port}/${apiPrefix}`);
   console.log(`🃏 Public cards: http://localhost:${port}/cards/{slug}`);
+  console.log(`✉️ Team invites: http://localhost:${port}/team-invites/{inviteId}`);
   console.log(`📚 Swagger docs: http://localhost:${port}/docs`);
 }
 

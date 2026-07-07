@@ -1,8 +1,10 @@
 import type { Contact } from '@prisma/client';
 
 const AVATAR_COLORS = [
-  0xff0a6bff, 0xff7c4dff, 0xff26a69a, 0xffff7043, 0xff5c6bc0, 0xff43a047,
+  0x0a6bff, 0x7c4dff, 0x26a69a, 0xff7043, 0x5c6bc0, 0x43a047,
 ];
+
+export const DEFAULT_AVATAR_COLOR = 0x0a6bff;
 
 export function buildContactInitials(firstName: string, lastName: string): string {
   const first = firstName.trim();
@@ -24,7 +26,7 @@ export function buildContactSubtitle(
   return `${job} · ${org}`;
 }
 
-export function resolveAvatarColor(seed: string, fallback = 0xff0a6bff): number {
+export function resolveAvatarColor(seed: string, fallback = DEFAULT_AVATAR_COLOR): number {
   if (!seed.trim()) return fallback;
   let hash = 0;
   for (let index = 0; index < seed.length; index += 1) {

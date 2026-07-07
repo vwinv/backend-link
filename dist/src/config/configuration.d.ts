@@ -17,6 +17,15 @@ declare const _default: () => {
             clientId: string;
         };
     };
+    mail: {
+        enabled: boolean;
+        host: string;
+        port: number;
+        secure: boolean;
+        user: string;
+        password: string;
+        from: string;
+    };
     wallet: {
         appPublicUrl: string;
         apple: {
@@ -33,6 +42,13 @@ declare const _default: () => {
             serviceAccountPath: string;
             origins: string[];
         };
+    };
+    stripe: {
+        enabled: boolean;
+        secretKey: string;
+        webhookSecret: string;
+        successUrl: string;
+        cancelUrl: string;
     };
 };
 export default _default;

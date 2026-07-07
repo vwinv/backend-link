@@ -11,15 +11,33 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TeamsService = void 0;
 const common_1 = require("@nestjs/common");
+const config_1 = require("@nestjs/config");
 const client_1 = require("@prisma/client");
 const prisma_service_1 = require("../../prisma/prisma.service");
+const mail_service_1 = require("../mail/mail.service");
 const entitlements_service_1 = require("../subscriptions/entitlements.service");
+const team_invite_page_1 = require("./team-invite-page");
 let TeamsService = class TeamsService {
     prisma;
     entitlementsService;
-    constructor(prisma, entitlementsService) {
+    mailService;
+    configService;
+    constructor(prisma, entitlementsService, mailService, configService) {
         this.prisma = prisma;
         this.entitlementsService = entitlementsService;
+        this.mailService = mailService;
+        this.configService = configService;
+    }
+    get appPublicUrl() {
+        return (this.configService.get('wallet.appPublicUrl') ??
+            'https://dropone.pro').replace(/\/$/, '');
+    }
+    formatUserName(user) {
+        if (!user) {
+            return 'Un membre de l\'équipe';
+        }
+        const name = `${user.firstName} ${user.lastName}`.trim();
+        return name || 'Un membre de l\'équipe';
     }
     async create(userId, dto) {
         const existingOwnedTeam = await this.prisma.team.findFirst({
@@ -223,7 +241,7 @@ let TeamsService = class TeamsService {
         }
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + 30);
-        return this.prisma.teamInvite.create({
+        const invite = await this.prisma.teamInvite.create({
             data: {
                 teamId: id,
                 email,
@@ -247,6 +265,54 @@ let TeamsService = class TeamsService {
                     },
                 },
             },
+        });
+        const inviteUrl = `${this.appPublicUrl}/team-invites/${invite.id}`;
+        try {
+            await this.mailService.sendTeamInviteEmail({
+                to: email,
+                inviteeFirstName: invite.firstName,
+                teamName: invite.team.name,
+                inviterName: this.formatUserName(inviter),
+                inviteId: invite.id,
+                inviteUrl,
+            });
+        }
+        catch (error) {
+            await this.prisma.teamInvite.delete({ where: { id: invite.id } });
+            const message = error instanceof Error ? error.message : 'Envoi de l\'e-mail impossible';
+            throw new common_1.InternalServerErrorException(message);
+        }
+        return invite;
+    }
+    async renderTeamInvitePage(inviteId) {
+        const invite = await this.prisma.teamInvite.findUnique({
+            where: { id: inviteId },
+            include: {
+                team: { select: { name: true, isActive: true } },
+                invitedBy: { select: { firstName: true, lastName: true } },
+            },
+        });
+        if (!invite || !invite.team.isActive) {
+            return (0, team_invite_page_1.buildTeamInviteNotFoundPage)();
+        }
+        if (invite.status !== client_1.TeamInviteStatus.PENDING) {
+            return (0, team_invite_page_1.buildTeamInviteLandingPage)({
+                teamName: invite.team.name,
+                inviterName: this.formatUserName(invite.invitedBy),
+                inviteeEmail: invite.email,
+                inviteeFirstName: invite.firstName,
+                isExpired: false,
+                isUnavailable: true,
+            });
+        }
+        const isExpired = Boolean(invite.expiresAt && invite.expiresAt.getTime() < Date.now());
+        return (0, team_invite_page_1.buildTeamInviteLandingPage)({
+            teamName: invite.team.name,
+            inviterName: this.formatUserName(invite.invitedBy),
+            inviteeEmail: invite.email,
+            inviteeFirstName: invite.firstName,
+            isExpired,
+            isUnavailable: false,
         });
     }
     async acceptInvitation(userId, inviteId) {
@@ -354,6 +420,15 @@ let TeamsService = class TeamsService {
     }
     async removeMember(userId, id, memberId) {
         await this.assertOwner(userId, id);
+        const member = await this.prisma.teamMember.findFirst({
+            where: { id: memberId, teamId: id },
+        });
+        if (!member) {
+            throw new common_1.NotFoundException('Membre introuvable');
+        }
+        if (member.role === client_1.TeamMemberRole.OWNER) {
+            throw new common_1.BadRequestException('Le propriétaire de l’équipe ne peut pas être retiré');
+        }
         return this.prisma.teamMember.delete({ where: { id: memberId } });
     }
     async assertOwner(userId, teamId) {
@@ -427,6 +502,8 @@ exports.TeamsService = TeamsService;
 exports.TeamsService = TeamsService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
-        entitlements_service_1.EntitlementsService])
+        entitlements_service_1.EntitlementsService,
+        mail_service_1.MailService,
+        config_1.ConfigService])
 ], TeamsService);
 //# sourceMappingURL=teams.service.js.map

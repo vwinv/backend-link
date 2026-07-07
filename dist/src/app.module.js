@@ -25,6 +25,7 @@ const teams_module_1 = require("./modules/teams/teams.module");
 const users_module_1 = require("./modules/users/users.module");
 const wallet_module_1 = require("./modules/wallet/wallet.module");
 const uploads_module_1 = require("./modules/uploads/uploads.module");
+const mail_module_1 = require("./modules/mail/mail.module");
 const prisma_module_1 = require("./prisma/prisma.module");
 let AppModule = class AppModule {
 };
@@ -37,6 +38,7 @@ exports.AppModule = AppModule = __decorate([
                 load: [configuration_1.default],
             }),
             prisma_module_1.PrismaModule,
+            mail_module_1.MailModule,
             auth_module_1.AuthModule,
             users_module_1.UsersModule,
             teams_module_1.TeamsModule,

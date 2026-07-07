@@ -20,8 +20,8 @@ function accentRgba(hex: string, alpha: number): string {
 }
 
 export function buildPublicCardHtml(params: PublicCardPageParams): string {
-  const title = `${params.fullName} | Link Cartes de visite digitales`;
-  const description = 'Découvrez ma carte de visite Link';
+  const title = `${params.fullName} | DropOne Cartes de visite digitales`;
+  const description = 'Découvrez ma carte de visite DropOne';
   const safeTitle = escapeHtml(title);
   const safeDescription = escapeHtml(description);
   const safePageUrl = escapeHtml(params.pageUrl);
@@ -40,7 +40,7 @@ export function buildPublicCardHtml(params: PublicCardPageParams): string {
   <title>${safeTitle}</title>
   <meta name="description" content="${safeDescription}" />
   <meta property="og:type" content="website" />
-  <meta property="og:site_name" content="Link" />
+  <meta property="og:site_name" content="DropOne" />
   <meta property="og:title" content="${safeTitle}" />
   <meta property="og:description" content="${safeDescription}" />
   <meta property="og:url" content="${safePageUrl}" />

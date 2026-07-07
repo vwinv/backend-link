@@ -45,7 +45,7 @@ export class GoogleWalletService {
       cardTitle: {
         defaultValue: {
           language: 'fr',
-          value: 'Link',
+          value: 'DropOne',
         },
       },
       header: {

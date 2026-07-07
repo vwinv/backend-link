@@ -14,14 +14,14 @@ export class ContactsController {
 
   @Get()
   @ApiOperation({
-    summary: 'Lister les contacts (échanges Link + scans IA)',
+    summary: 'Lister les contacts (échanges DropOne + scans IA)',
   })
   findAll(@CurrentUser() user: { userId: string }) {
     return this.contactsService.findAll(user.userId);
   }
 
   @Post('exchange')
-  @ApiOperation({ summary: 'Enregistrer un contact via échange de carte Link' })
+  @ApiOperation({ summary: 'Enregistrer un contact via échange de carte DropOne' })
   exchange(
     @CurrentUser() user: { userId: string },
     @Body() dto: ExchangeContactDto,

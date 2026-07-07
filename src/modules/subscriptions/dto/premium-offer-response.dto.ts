@@ -6,7 +6,7 @@ export class PremiumOfferResponseDto {
   @ApiProperty()
   id: string;
 
-  @ApiProperty({ example: 'Link Premium' })
+  @ApiProperty({ example: 'DropOne Premium' })
   title: string;
 
   @ApiProperty({ example: 'link-premium' })

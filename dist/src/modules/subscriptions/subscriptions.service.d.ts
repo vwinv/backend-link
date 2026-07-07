@@ -1,8 +1,14 @@
 import { PrismaService } from '../../prisma/prisma.service';
+import { CheckoutDto } from './dto/checkout.dto';
 import { SubscribeDto } from './dto/subscribe.dto';
+import { StripeService } from './stripe.service';
 export declare class SubscriptionsService {
     private readonly prisma;
-    constructor(prisma: PrismaService);
+    private readonly stripeService;
+    constructor(prisma: PrismaService, stripeService: StripeService);
+    getPaymentConfig(): {
+        paymentsEnabled: boolean;
+    };
     getOffers(): Promise<{
         id: string;
         title: string;
@@ -71,6 +77,10 @@ export declare class SubscriptionsService {
         };
         currentPeriodEnd: string | null;
     }>;
+    createCheckout(userId: string, dto: CheckoutDto): Promise<{
+        checkoutUrl: string;
+        sessionId: string;
+    }>;
     subscribe(userId: string, dto: SubscribeDto): Promise<{
         id: string;
         status: import(".prisma/client").$Enums.SubscriptionStatus;
@@ -89,12 +99,22 @@ export declare class SubscriptionsService {
         };
         currentPeriodEnd: string | null;
     }>;
+    handleStripeWebhook(payload: Buffer, signature?: string): Promise<{
+        received: boolean;
+    }>;
     cancel(): {
         message: string;
     };
-    handleWebhook(): {
-        message: string;
-    };
+    private resolveOfferPrice;
+    private ensureStripeCustomer;
+    private activateSubscription;
+    private handleCheckoutSessionCompleted;
+    private handleStripeSubscriptionUpdated;
+    private handleStripeSubscriptionDeleted;
+    private handleInvoicePaymentFailed;
+    private mapStripeSubscriptionStatus;
+    private stripeTimestampToDate;
+    private readStripeSubscriptionPeriodEnd;
     private ensurePremiumPlan;
     private buildPlanFeatures;
     private findActiveSubscription;

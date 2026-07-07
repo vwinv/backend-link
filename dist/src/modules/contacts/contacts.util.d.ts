@@ -1,4 +1,5 @@
 import type { Contact } from '@prisma/client';
+export declare const DEFAULT_AVATAR_COLOR = 683007;
 export declare function buildContactInitials(firstName: string, lastName: string): string;
 export declare function buildContactSubtitle(jobTitle?: string | null, company?: string | null): string;
 export declare function resolveAvatarColor(seed: string, fallback?: number): number;

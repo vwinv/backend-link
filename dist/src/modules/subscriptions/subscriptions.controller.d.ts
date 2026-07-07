@@ -1,8 +1,14 @@
+import type { RawBodyRequest } from '@nestjs/common';
+import type { Request } from 'express';
+import { CheckoutDto } from './dto/checkout.dto';
 import { SubscribeDto } from './dto/subscribe.dto';
 import { SubscriptionsService } from './subscriptions.service';
 export declare class SubscriptionsController {
     private readonly subscriptionsService;
     constructor(subscriptionsService: SubscriptionsService);
+    getPaymentConfig(): {
+        paymentsEnabled: boolean;
+    };
     getOffers(): Promise<{
         id: string;
         title: string;
@@ -73,6 +79,12 @@ export declare class SubscriptionsController {
         message: string;
         slug: string;
     };
+    createCheckout(user: {
+        userId: string;
+    }, dto: CheckoutDto): Promise<{
+        checkoutUrl: string;
+        sessionId: string;
+    }>;
     subscribe(user: {
         userId: string;
     }, dto: SubscribeDto): Promise<{
@@ -96,7 +108,7 @@ export declare class SubscriptionsController {
     cancel(): {
         message: string;
     };
-    webhook(): {
-        message: string;
-    };
+    webhook(request: RawBodyRequest<Request>): Promise<{
+        received: boolean;
+    }>;
 }

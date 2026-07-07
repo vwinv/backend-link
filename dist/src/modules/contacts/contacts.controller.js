@@ -35,7 +35,7 @@ exports.ContactsController = ContactsController;
 __decorate([
     (0, common_1.Get)(),
     (0, swagger_1.ApiOperation)({
-        summary: 'Lister les contacts (échanges Link + scans IA)',
+        summary: 'Lister les contacts (échanges DropOne + scans IA)',
     }),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
@@ -44,7 +44,7 @@ __decorate([
 ], ContactsController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Post)('exchange'),
-    (0, swagger_1.ApiOperation)({ summary: 'Enregistrer un contact via échange de carte Link' }),
+    (0, swagger_1.ApiOperation)({ summary: 'Enregistrer un contact via échange de carte DropOne' }),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),

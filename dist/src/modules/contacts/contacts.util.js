@@ -1,13 +1,15 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.DEFAULT_AVATAR_COLOR = void 0;
 exports.buildContactInitials = buildContactInitials;
 exports.buildContactSubtitle = buildContactSubtitle;
 exports.resolveAvatarColor = resolveAvatarColor;
 exports.formatRelativeTimeFr = formatRelativeTimeFr;
 exports.toContactResponse = toContactResponse;
 const AVATAR_COLORS = [
-    0xff0a6bff, 0xff7c4dff, 0xff26a69a, 0xffff7043, 0xff5c6bc0, 0xff43a047,
+    0x0a6bff, 0x7c4dff, 0x26a69a, 0xff7043, 0x5c6bc0, 0x43a047,
 ];
+exports.DEFAULT_AVATAR_COLOR = 0x0a6bff;
 function buildContactInitials(firstName, lastName) {
     const first = firstName.trim();
     const last = lastName.trim();
@@ -28,7 +30,7 @@ function buildContactSubtitle(jobTitle, company) {
         return job;
     return `${job} · ${org}`;
 }
-function resolveAvatarColor(seed, fallback = 0xff0a6bff) {
+function resolveAvatarColor(seed, fallback = exports.DEFAULT_AVATAR_COLOR) {
     if (!seed.trim())
         return fallback;
     let hash = 0;

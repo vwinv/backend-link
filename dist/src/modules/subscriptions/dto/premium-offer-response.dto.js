@@ -32,7 +32,7 @@ __decorate([
     __metadata("design:type", String)
 ], PremiumOfferResponseDto.prototype, "id", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)({ example: 'Link Premium' }),
+    (0, swagger_1.ApiProperty)({ example: 'DropOne Premium' }),
     __metadata("design:type", String)
 ], PremiumOfferResponseDto.prototype, "title", void 0);
 __decorate([

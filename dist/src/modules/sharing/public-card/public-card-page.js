@@ -14,8 +14,8 @@ function accentRgba(hex, alpha) {
     return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 }
 function buildPublicCardHtml(params) {
-    const title = `${params.fullName} | Link Cartes de visite digitales`;
-    const description = 'Découvrez ma carte de visite Link';
+    const title = `${params.fullName} | DropOne Cartes de visite digitales`;
+    const description = 'Découvrez ma carte de visite DropOne';
     const safeTitle = (0, public_card_body_1.escapeHtml)(title);
     const safeDescription = (0, public_card_body_1.escapeHtml)(description);
     const safePageUrl = (0, public_card_body_1.escapeHtml)(params.pageUrl);
@@ -33,7 +33,7 @@ function buildPublicCardHtml(params) {
   <title>${safeTitle}</title>
   <meta name="description" content="${safeDescription}" />
   <meta property="og:type" content="website" />
-  <meta property="og:site_name" content="Link" />
+  <meta property="og:site_name" content="DropOne" />
   <meta property="og:title" content="${safeTitle}" />
   <meta property="og:description" content="${safeDescription}" />
   <meta property="og:url" content="${safePageUrl}" />

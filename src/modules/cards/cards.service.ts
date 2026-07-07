@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { BusinessCard, CardKind, ShareMethod } from '@prisma/client';
+import { BusinessCard, CardKind, ContactSource, ShareMethod } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateCardDto } from './dto/create-card.dto';
 import { SocialLinkItemDto } from './dto/social-link-item.dto';
@@ -228,7 +228,12 @@ export class CardsService {
           method: { in: countedShareMethods },
         },
       }),
-      this.prisma.contact.count({ where: { linkedCardId: id } }),
+      this.prisma.contact.count({
+        where: {
+          linkedCardId: id,
+          source: ContactSource.EXCHANGE,
+        },
+      }),
       this.prisma.cardSaveEvent.count({ where: { cardId: id } }),
     ]);
 

@@ -22,10 +22,19 @@ exports.default = () => ({
             clientId: process.env.APPLE_CLIENT_ID ?? '',
         },
     },
+    mail: {
+        enabled: process.env.SMTP_ENABLED !== 'false',
+        host: process.env.SMTP_HOST ?? '',
+        port: parseInt(process.env.SMTP_PORT ?? '587', 10),
+        secure: process.env.SMTP_SECURE === 'true',
+        user: process.env.SMTP_USER ?? '',
+        password: process.env.SMTP_PASSWORD ?? '',
+        from: process.env.MAIL_FROM ?? 'DropOne <noreply@dropone.pro>',
+    },
     wallet: {
         appPublicUrl: process.env.APP_PUBLIC_URL ??
             (process.env.NODE_ENV === 'production'
-                ? 'https://backend-link-wt91.onrender.com'
+                ? 'https://dropone.pro'
                 : 'http://localhost:3000'),
         apple: {
             teamId: process.env.APPLE_TEAM_ID ?? '',
@@ -44,6 +53,15 @@ exports.default = () => ({
                 .map((origin) => origin.trim())
                 .filter(Boolean),
         },
+    },
+    stripe: {
+        enabled: process.env.STRIPE_ENABLED === 'true',
+        secretKey: process.env.STRIPE_SECRET_KEY ?? '',
+        webhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? '',
+        successUrl: process.env.STRIPE_SUCCESS_URL ??
+            `${process.env.APP_PUBLIC_URL ?? 'http://localhost:3000'}/premium/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancelUrl: process.env.STRIPE_CANCEL_URL ??
+            `${process.env.APP_PUBLIC_URL ?? 'http://localhost:3000'}/premium/cancel`,
     },
 });
 //# sourceMappingURL=configuration.js.map

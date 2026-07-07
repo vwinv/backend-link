@@ -9,12 +9,35 @@ import {
   OfferBillingType,
   SubscriptionStatus,
 } from '@prisma/client';
+import type Stripe from 'stripe';
 import { PrismaService } from '../../prisma/prisma.service';
+import { CheckoutDto } from './dto/checkout.dto';
 import { SubscribeDto } from './dto/subscribe.dto';
+import { StripeService } from './stripe.service';
+
+type ActivateSubscriptionInput = {
+  userId: string;
+  offerSlug: string;
+  billingType: OfferBillingType;
+  teamId?: string | null;
+  offerPriceId?: string | null;
+  stripeSubscriptionId?: string | null;
+  stripeCheckoutSessionId?: string | null;
+  currentPeriodEnd?: Date | null;
+};
 
 @Injectable()
 export class SubscriptionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly stripeService: StripeService,
+  ) {}
+
+  getPaymentConfig() {
+    return {
+      paymentsEnabled: this.stripeService.isEnabled(),
+    };
+  }
 
   async getOffers() {
     const offers = await this.prisma.premiumOffer.findMany({
@@ -48,13 +71,138 @@ export class SubscriptionsService {
     return this.toSubscriptionResponse(subscription);
   }
 
+  async createCheckout(userId: string, dto: CheckoutDto) {
+    if (!this.stripeService.isEnabled()) {
+      throw new BadRequestException(
+        'Le paiement Stripe est désactivé. Utilisez /subscriptions/subscribe pour les tests.',
+      );
+    }
+
+    const { offer, price } = await this.resolveOfferPrice(
+      dto.offerSlug,
+      dto.billingType,
+    );
+
+    if (dto.teamId && offer.audience !== OfferAudience.TEAM) {
+      throw new BadRequestException(
+        'Cette offre ne couvre pas un espace équipe',
+      );
+    }
+
+    if (!price.stripePriceId?.trim()) {
+      throw new BadRequestException(
+        'Cette offre n’est pas encore configurée pour le paiement en ligne',
+      );
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('Utilisateur introuvable');
+    }
+
+    const customerId = await this.ensureStripeCustomer(user);
+
+    const session = await this.stripeService.createCheckoutSession({
+      customerId,
+      stripePriceId: price.stripePriceId,
+      billingType: price.billingType,
+      userId,
+      offerSlug: offer.slug,
+      offerPriceId: price.id,
+      teamId: dto.teamId ?? null,
+    });
+
+    if (!session.url) {
+      throw new BadRequestException('Impossible de créer la session de paiement');
+    }
+
+    return {
+      checkoutUrl: session.url,
+      sessionId: session.id,
+    };
+  }
+
   async subscribe(userId: string, dto: SubscribeDto) {
+    if (this.stripeService.isEnabled()) {
+      throw new BadRequestException(
+        'Un paiement en ligne est requis pour souscrire à cette offre',
+      );
+    }
+
+    this.stripeService.logDisabledCheckoutAttempt(userId);
+
+    const { offer, price } = await this.resolveOfferPrice(
+      dto.offerSlug,
+      dto.billingType,
+    );
+
+    if (dto.teamId && offer.audience !== OfferAudience.TEAM) {
+      throw new BadRequestException(
+        'Cette offre ne couvre pas un espace équipe',
+      );
+    }
+
+    const subscription = await this.activateSubscription({
+      userId,
+      offerSlug: offer.slug,
+      billingType: price.billingType,
+      teamId: dto.teamId ?? null,
+      offerPriceId: price.id,
+    });
+
+    return this.toSubscriptionResponse(subscription);
+  }
+
+  async handleStripeWebhook(payload: Buffer, signature?: string) {
+    if (!this.stripeService.isEnabled()) {
+      throw new BadRequestException('Stripe est désactivé');
+    }
+
+    if (!signature) {
+      throw new BadRequestException('Signature Stripe manquante');
+    }
+
+    const event = this.stripeService.constructWebhookEvent(payload, signature);
+
+    switch (event.type) {
+      case 'checkout.session.completed':
+        await this.handleCheckoutSessionCompleted(
+          event.data.object as Stripe.Checkout.Session,
+        );
+        break;
+      case 'customer.subscription.updated':
+        await this.handleStripeSubscriptionUpdated(
+          event.data.object as Stripe.Subscription,
+        );
+        break;
+      case 'customer.subscription.deleted':
+        await this.handleStripeSubscriptionDeleted(
+          event.data.object as Stripe.Subscription,
+        );
+        break;
+      case 'invoice.payment_failed':
+        await this.handleInvoicePaymentFailed(
+          event.data.object as Stripe.Invoice,
+        );
+        break;
+      default:
+        break;
+    }
+
+    return { received: true };
+  }
+
+  cancel() {
+    return { message: 'cancel subscription' };
+  }
+
+  private async resolveOfferPrice(offerSlug: string, billingType: OfferBillingType) {
     const offer = await this.prisma.premiumOffer.findFirst({
-      where: { slug: dto.offerSlug, isActive: true },
+      where: { slug: offerSlug, isActive: true },
       include: {
         prices: {
           where: {
-            billingType: dto.billingType,
+            billingType,
             isActive: true,
           },
         },
@@ -72,19 +220,52 @@ export class SubscriptionsService {
       );
     }
 
-    if (dto.teamId && offer.audience !== OfferAudience.TEAM) {
-      throw new BadRequestException(
-        'Cette offre ne couvre pas un espace équipe',
-      );
+    return { offer, price };
+  }
+
+  private async ensureStripeCustomer(user: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    stripeCustomerId: string | null;
+  }) {
+    if (user.stripeCustomerId) {
+      return user.stripeCustomerId;
+    }
+
+    const customer = await this.stripeService.createCustomer({
+      email: user.email,
+      name: `${user.firstName} ${user.lastName}`.trim(),
+      userId: user.id,
+    });
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { stripeCustomerId: customer.id },
+    });
+
+    return customer.id;
+  }
+
+  private async activateSubscription(input: ActivateSubscriptionInput) {
+    const { offer, price } = await this.resolveOfferPrice(
+      input.offerSlug,
+      input.billingType,
+    );
+
+    if (input.offerPriceId && input.offerPriceId !== price.id) {
+      throw new BadRequestException('Tarif d’offre invalide');
     }
 
     const plan = await this.ensurePremiumPlan(offer);
     const billingPeriod = this.mapBillingPeriod(price.billingType);
-    const currentPeriodEnd = this.computePeriodEnd(price.billingType);
+    const currentPeriodEnd =
+      input.currentPeriodEnd ?? this.computePeriodEnd(price.billingType);
 
     await this.prisma.subscription.updateMany({
       where: {
-        userId,
+        userId: input.userId,
         status: {
           in: [
             SubscriptionStatus.TRIAL,
@@ -99,16 +280,18 @@ export class SubscriptionsService {
       },
     });
 
-    const subscription = await this.prisma.subscription.create({
+    return this.prisma.subscription.create({
       data: {
-        userId,
-        teamId: dto.teamId ?? null,
+        userId: input.userId,
+        teamId: input.teamId ?? null,
         planId: plan.id,
         offerId: offer.id,
         offerPriceId: price.id,
         status: SubscriptionStatus.ACTIVE,
         billingPeriod,
         currentPeriodEnd,
+        stripeSubscriptionId: input.stripeSubscriptionId ?? null,
+        stripeCheckoutSessionId: input.stripeCheckoutSessionId ?? null,
       },
       include: {
         plan: true,
@@ -116,16 +299,145 @@ export class SubscriptionsService {
         offerPrice: true,
       },
     });
-
-    return this.toSubscriptionResponse(subscription);
   }
 
-  cancel() {
-    return { message: 'cancel subscription' };
+  private async handleCheckoutSessionCompleted(
+    session: Stripe.Checkout.Session,
+  ) {
+    const metadata = session.metadata ?? {};
+    const userId = metadata.userId;
+    const offerSlug = metadata.offerSlug;
+    const billingType = metadata.billingType as OfferBillingType | undefined;
+
+    if (!userId || !offerSlug || !billingType) {
+      return;
+    }
+
+    const existing = await this.prisma.subscription.findFirst({
+      where: { stripeCheckoutSessionId: session.id },
+    });
+    if (existing) {
+      return;
+    }
+
+    const stripeSubscriptionId =
+      typeof session.subscription === 'string'
+        ? session.subscription
+        : session.subscription?.id ?? null;
+
+    let currentPeriodEnd: Date | null = null;
+    if (stripeSubscriptionId) {
+      const stripeSubscription =
+        await this.stripeService.getClient().subscriptions.retrieve(
+          stripeSubscriptionId,
+        );
+      currentPeriodEnd = this.stripeTimestampToDate(
+        this.readStripeSubscriptionPeriodEnd(stripeSubscription),
+      );
+    } else {
+      currentPeriodEnd = this.computePeriodEnd(billingType);
+    }
+
+    await this.activateSubscription({
+      userId,
+      offerSlug,
+      billingType,
+      teamId: metadata.teamId || null,
+      offerPriceId: metadata.offerPriceId ?? null,
+      stripeSubscriptionId,
+      stripeCheckoutSessionId: session.id,
+      currentPeriodEnd,
+    });
   }
 
-  handleWebhook() {
-    return { message: 'payment webhook' };
+  private async handleStripeSubscriptionUpdated(
+    subscription: Stripe.Subscription,
+  ) {
+    const existing = await this.prisma.subscription.findFirst({
+      where: { stripeSubscriptionId: subscription.id },
+    });
+    if (!existing) {
+      return;
+    }
+
+    const status = this.mapStripeSubscriptionStatus(subscription.status);
+    const currentPeriodEnd = this.stripeTimestampToDate(
+      this.readStripeSubscriptionPeriodEnd(subscription),
+    );
+
+    await this.prisma.subscription.update({
+      where: { id: existing.id },
+      data: {
+        status,
+        currentPeriodEnd,
+        cancelledAt:
+          status === SubscriptionStatus.CANCELLED ? new Date() : null,
+      },
+    });
+  }
+
+  private async handleStripeSubscriptionDeleted(
+    subscription: Stripe.Subscription,
+  ) {
+    await this.prisma.subscription.updateMany({
+      where: { stripeSubscriptionId: subscription.id },
+      data: {
+        status: SubscriptionStatus.CANCELLED,
+        cancelledAt: new Date(),
+      },
+    });
+  }
+
+  private async handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
+    const subscriptionRef =
+      invoice.parent?.subscription_details?.subscription;
+    const stripeSubscriptionId =
+      typeof subscriptionRef === 'string'
+        ? subscriptionRef
+        : subscriptionRef?.id;
+
+    if (!stripeSubscriptionId) {
+      return;
+    }
+
+    await this.prisma.subscription.updateMany({
+      where: { stripeSubscriptionId },
+      data: { status: SubscriptionStatus.PAST_DUE },
+    });
+  }
+
+  private mapStripeSubscriptionStatus(
+    status: Stripe.Subscription.Status,
+  ): SubscriptionStatus {
+    switch (status) {
+      case 'active':
+      case 'trialing':
+        return SubscriptionStatus.ACTIVE;
+      case 'past_due':
+      case 'unpaid':
+        return SubscriptionStatus.PAST_DUE;
+      case 'canceled':
+      case 'incomplete_expired':
+        return SubscriptionStatus.CANCELLED;
+      case 'incomplete':
+      case 'paused':
+      default:
+        return SubscriptionStatus.TRIAL;
+    }
+  }
+
+  private stripeTimestampToDate(value?: number | null): Date | null {
+    if (!value) {
+      return null;
+    }
+
+    return new Date(value * 1000);
+  }
+
+  private readStripeSubscriptionPeriodEnd(
+    subscription: Stripe.Subscription,
+  ): number | null {
+    return subscription.items.data[0]?.current_period_end ?? null;
   }
 
   private async ensurePremiumPlan(offer?: {
@@ -148,11 +460,11 @@ export class SubscriptionsService {
       },
       create: {
         id: isTeam ? 'plan_premium_team' : 'plan_premium',
-        name: isTeam ? 'Link Premium Équipe' : 'Link Premium',
+        name: isTeam ? 'DropOne Premium Équipe' : 'DropOne Premium',
         slug: isTeam ? 'premium-team' : 'premium',
         description: isTeam
-          ? 'Espace équipe et cartes professionnelles Link'
-          : 'Accès complet aux fonctionnalités Premium Link',
+          ? 'Espace équipe et cartes professionnelles DropOne'
+          : 'Accès complet aux fonctionnalités Premium DropOne',
         priceMonthly: 0,
         priceYearly: 0,
         maxCards: isTeam ? 10 : 2,

@@ -24,7 +24,7 @@ let SharingService = class SharingService {
         this.configService = configService;
     }
     get appPublicUrl() {
-        return this.configService.get('wallet.appPublicUrl', 'https://backend-link-wt91.onrender.com');
+        return this.configService.get('wallet.appPublicUrl', 'https://dropone.pro');
     }
     async getPublicCard(slug) {
         const card = await this.findPublicCard(slug);
@@ -40,7 +40,7 @@ let SharingService = class SharingService {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Carte introuvable | Link</title>
+  <title>Carte introuvable | DropOne</title>
 </head>
 <body style="margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0c0d10;color:#fff;font-family:system-ui,sans-serif;">
   <main style="text-align:center;padding:24px;">
@@ -55,7 +55,9 @@ let SharingService = class SharingService {
         if (!card) {
             return null;
         }
-        await this.recordCardView(card.id);
+        if (!options?.embed) {
+            await this.recordCardView(card.id);
+        }
         const fullName = `${card.firstName} ${card.lastName}`.trim();
         const subtitle = this.buildSubtitle(card);
         const pageUrl = `${this.appPublicUrl}/cards/${card.slug}`;
@@ -146,8 +148,8 @@ let SharingService = class SharingService {
             proDesignId: design.id,
             proDesignName: design.name,
             publicUrl: `${this.appPublicUrl}/cards/${card.slug}`,
-            ogTitle: `${fullName} | Link Cartes de visite digitales`,
-            ogDescription: 'Découvrez ma carte de visite Link',
+            ogTitle: `${fullName} | DropOne Cartes de visite digitales`,
+            ogDescription: 'Découvrez ma carte de visite DropOne',
             ogImageUrl: this.getOgImageUrl(card, fullName),
         };
     }
@@ -186,7 +188,7 @@ let SharingService = class SharingService {
         return `${this.appPublicUrl}${path}`;
     }
     getBrandLogoUrl() {
-        return 'https://ui-avatars.com/api/?name=Link&size=128&background=1B4DFF&color=ffffff&bold=true&format=png';
+        return 'https://ui-avatars.com/api/?name=DropOne&size=128&background=1B4DFF&color=ffffff&bold=true&format=png';
     }
     getOgImageUrl(card, fullName) {
         if (card.avatarUrl?.trim())

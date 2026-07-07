@@ -47,7 +47,7 @@ let OAuthService = class OAuthService {
             providerId: payload.sub,
             email: payload.email.toLowerCase(),
             firstName: payload.given_name?.trim() || 'Utilisateur',
-            lastName: payload.family_name?.trim() || 'Link',
+            lastName: payload.family_name?.trim() || 'User',
             avatarUrl: payload.picture ?? null,
         };
     }
@@ -75,7 +75,7 @@ let OAuthService = class OAuthService {
             providerId: payload.sub,
             email,
             firstName: firstName?.trim() || 'Utilisateur',
-            lastName: lastName?.trim() || 'Link',
+            lastName: lastName?.trim() || 'User',
             avatarUrl: null,
         };
     }

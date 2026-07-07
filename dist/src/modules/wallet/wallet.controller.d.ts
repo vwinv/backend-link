@@ -20,16 +20,16 @@ export declare class WalletController {
         userId: string;
     }): Promise<({
         card: {
+            id: string;
+            slug: string;
             firstName: string;
             lastName: string;
             jobTitle: string | null;
-            id: string;
-            slug: string;
             company: string | null;
         };
     } & {
-        id: string;
         userId: string;
+        id: string;
         cardId: string;
         savedAt: Date;
         walletType: import(".prisma/client").$Enums.WalletType;

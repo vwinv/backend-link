@@ -182,7 +182,12 @@ let CardsService = class CardsService {
                     method: { in: countedShareMethods },
                 },
             }),
-            this.prisma.contact.count({ where: { linkedCardId: id } }),
+            this.prisma.contact.count({
+                where: {
+                    linkedCardId: id,
+                    source: client_1.ContactSource.EXCHANGE,
+                },
+            }),
             this.prisma.cardSaveEvent.count({ where: { cardId: id } }),
         ]);
         return { views, shares, saved: contactsSaved + publicSaves };

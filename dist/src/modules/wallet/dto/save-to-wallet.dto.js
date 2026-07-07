@@ -14,15 +14,9 @@ const swagger_1 = require("@nestjs/swagger");
 const client_1 = require("@prisma/client");
 const class_validator_1 = require("class-validator");
 class SaveToWalletDto {
-    cardId;
     walletType;
 }
 exports.SaveToWalletDto = SaveToWalletDto;
-__decorate([
-    (0, swagger_1.ApiProperty)({ description: 'ID de la carte à enregistrer' }),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], SaveToWalletDto.prototype, "cardId", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({ enum: client_1.WalletType, example: client_1.WalletType.APPLE_WALLET }),
     (0, class_validator_1.IsEnum)(client_1.WalletType),

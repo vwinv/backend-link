@@ -106,6 +106,7 @@ model User {
   lastName     String
   phone        String?
   avatarUrl    String?
+  stripeCustomerId String?      @unique
   role         UserRole     @default(USER)
   isActive     Boolean      @default(true)
   createdAt    DateTime     @default(now())
@@ -313,6 +314,8 @@ model Subscription {
   billingPeriod    BillingPeriod      @default(MONTHLY)
   currentPeriodEnd DateTime?
   cancelledAt      DateTime?
+  stripeSubscriptionId   String? @unique
+  stripeCheckoutSessionId String?
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
 
@@ -358,6 +361,7 @@ model PremiumOfferPrice {
   isPopular       Boolean          @default(false)
   sortOrder       Int              @default(0)
   isActive        Boolean          @default(true)
+  stripePriceId   String?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
@@ -452,7 +456,7 @@ model Contact {
   company      String?
   linkedCardId String?
   scanEventId  String?       @unique
-  avatarColor  Int           @default(4278190335)
+  avatarColor  Int           @default(683007)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 

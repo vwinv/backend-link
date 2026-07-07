@@ -24,6 +24,19 @@ type PriceSeed = {
   badgeLabel?: string;
   isPopular?: boolean;
   sortOrder: number;
+  stripePriceId?: string;
+};
+
+const stripePriceIds: Record<string, string | undefined> = {
+  price_link_premium_monthly: process.env.STRIPE_PRICE_LINK_PREMIUM_MONTHLY,
+  price_link_premium_yearly: process.env.STRIPE_PRICE_LINK_PREMIUM_YEARLY,
+  price_link_premium_lifetime: process.env.STRIPE_PRICE_LINK_PREMIUM_LIFETIME,
+  price_link_premium_team_monthly:
+    process.env.STRIPE_PRICE_LINK_PREMIUM_TEAM_MONTHLY,
+  price_link_premium_team_yearly:
+    process.env.STRIPE_PRICE_LINK_PREMIUM_TEAM_YEARLY,
+  price_link_premium_team_lifetime:
+    process.env.STRIPE_PRICE_LINK_PREMIUM_TEAM_LIFETIME,
 };
 
 type OfferSeed = {
@@ -43,7 +56,7 @@ type OfferSeed = {
 const offers: OfferSeed[] = [
   {
     id: 'offer_link_premium',
-    title: 'Link Premium',
+    title: 'DropOne Premium',
     slug: 'link-premium',
     subtitle: 'Carte personnelle enrichie',
     audience: OfferAudience.PERSONAL,
@@ -79,7 +92,7 @@ const offers: OfferSeed[] = [
   },
   {
     id: 'offer_link_premium_team',
-    title: 'Link Premium Équipe',
+    title: 'DropOne Premium Équipe',
     slug: 'link-premium-equipe',
     subtitle: 'Espace équipe et cartes professionnelles',
     audience: OfferAudience.TEAM,
@@ -165,6 +178,10 @@ async function main() {
           isPopular: price.isPopular ?? false,
           sortOrder: price.sortOrder,
           isActive: true,
+          stripePriceId:
+            stripePriceIds[price.id]?.trim() ||
+            price.stripePriceId?.trim() ||
+            null,
         },
         create: {
           id: price.id,
@@ -177,6 +194,10 @@ async function main() {
           isPopular: price.isPopular ?? false,
           sortOrder: price.sortOrder,
           isActive: true,
+          stripePriceId:
+            stripePriceIds[price.id]?.trim() ||
+            price.stripePriceId?.trim() ||
+            null,
         },
       });
     }

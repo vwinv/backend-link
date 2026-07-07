@@ -17,6 +17,8 @@ const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
 const current_user_decorator_1 = require("../auth/decorators/current-user.decorator");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
+const checkout_dto_1 = require("./dto/checkout.dto");
+const payment_config_response_dto_1 = require("./dto/payment-config-response.dto");
 const premium_offer_response_dto_1 = require("./dto/premium-offer-response.dto");
 const subscribe_dto_1 = require("./dto/subscribe.dto");
 const subscription_response_dto_1 = require("./dto/subscription-response.dto");
@@ -25,6 +27,9 @@ let SubscriptionsController = class SubscriptionsController {
     subscriptionsService;
     constructor(subscriptionsService) {
         this.subscriptionsService = subscriptionsService;
+    }
+    getPaymentConfig() {
+        return this.subscriptionsService.getPaymentConfig();
     }
     getOffers() {
         return this.subscriptionsService.getOffers();
@@ -38,17 +43,35 @@ let SubscriptionsController = class SubscriptionsController {
     getPlan(slug) {
         return this.subscriptionsService.getPlan(slug);
     }
+    createCheckout(user, dto) {
+        return this.subscriptionsService.createCheckout(user.userId, dto);
+    }
     subscribe(user, dto) {
         return this.subscriptionsService.subscribe(user.userId, dto);
     }
     cancel() {
         return this.subscriptionsService.cancel();
     }
-    webhook() {
-        return this.subscriptionsService.handleWebhook();
+    webhook(request) {
+        const signature = request.headers['stripe-signature'];
+        const payload = request.rawBody;
+        if (!payload) {
+            throw new Error('Corps brut du webhook manquant');
+        }
+        return this.subscriptionsService.handleStripeWebhook(payload, typeof signature === 'string' ? signature : undefined);
     }
 };
 exports.SubscriptionsController = SubscriptionsController;
+__decorate([
+    (0, common_1.Get)('config'),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Configuration paiement (Stripe activé ou mode test instantané)',
+    }),
+    (0, swagger_1.ApiResponse)({ status: 200, type: payment_config_response_dto_1.PaymentConfigResponseDto }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], SubscriptionsController.prototype, "getPaymentConfig", null);
 __decorate([
     (0, common_1.Get)('offers'),
     (0, swagger_1.ApiOperation)({ summary: 'Lister les offres Premium disponibles' }),
@@ -85,10 +108,24 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], SubscriptionsController.prototype, "getPlan", null);
 __decorate([
+    (0, common_1.Post)('checkout'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({ summary: 'Créer une session Stripe Checkout' }),
+    (0, swagger_1.ApiResponse)({ status: 201, type: payment_config_response_dto_1.CheckoutSessionResponseDto }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, checkout_dto_1.CheckoutDto]),
+    __metadata("design:returntype", void 0)
+], SubscriptionsController.prototype, "createCheckout", null);
+__decorate([
     (0, common_1.Post)('subscribe'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, swagger_1.ApiBearerAuth)(),
-    (0, swagger_1.ApiOperation)({ summary: 'Souscrire à une offre Premium' }),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Souscrire sans paiement (tests uniquement, si STRIPE_ENABLED=false)',
+    }),
     (0, swagger_1.ApiResponse)({ status: 201, type: subscription_response_dto_1.SubscriptionResponseDto }),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Body)()),
@@ -107,9 +144,10 @@ __decorate([
 ], SubscriptionsController.prototype, "cancel", null);
 __decorate([
     (0, common_1.Post)('webhook'),
-    (0, swagger_1.ApiOperation)({ summary: 'Webhook paiement (Stripe, etc.)' }),
+    (0, swagger_1.ApiOperation)({ summary: 'Webhook Stripe' }),
+    __param(0, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], SubscriptionsController.prototype, "webhook", null);
 exports.SubscriptionsController = SubscriptionsController = __decorate([
