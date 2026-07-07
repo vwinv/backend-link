@@ -60,7 +60,7 @@ async function bootstrap() {
 
   const androidPackageName = configService.get<string>(
     'mobile.androidPackageName',
-    'com.mega.link',
+    'com.mega.dropone',
   );
   const androidSha256Fingerprints = configService.get<string[]>(
     'mobile.androidSha256Fingerprints',

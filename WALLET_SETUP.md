@@ -61,14 +61,49 @@ Ajoutez `certs/` à `.gitignore` si ce n’est pas déjà fait.
    - Téléchargez le certificat `.cer`, double-cliquez pour l’importer dans Keychain
 
 4. **Exporter les fichiers PEM**
-   - Dans Keychain : certificat Pass → clic droit → Export → `.pem` → `pass_certificate.pem`
-   - Exportez la **clé privée** associée → `pass_private_key.pem`
-   - Téléchargez le certificat **Apple WWDR G4** :
-     https://www.apple.com/certificateauthority/AppleWWDRCAG4.cer  
-     Convertissez en PEM :
-     ```bash
-     openssl x509 -inform der -in AppleWWDRCAG4.cer -out AppleWWDRCAG4.pem
-     ```
+
+   Sur macOS, le Trousseau **n’affiche pas toujours « .pem »** dans le menu Exporter. C’est normal : on exporte en `.cer` / `.p12`, puis on convertit avec `openssl`.
+
+   **A. Trouver le bon certificat dans le Trousseau**
+   - Ouvrir **Trousseau d’accès** (Keychain Access)
+   - À gauche : trousseau **session** (login), pas « Système »
+   - Catégorie : **Mes certificats**
+   - Chercher une ligne du type : `Pass Type ID: pass.com.mega.dropone`
+   - Cliquer sur le **triangle** à gauche : une **clé privée** doit apparaître en dessous  
+     → Si pas de clé privée : le CSR a été fait sur un autre Mac ou la clé est perdue → refaire un certificat Pass depuis un nouveau CSR sur **ce** Mac.
+
+   **B. Certificat Pass → `pass_certificate.pem`**
+
+   Méthode simple (depuis le `.cer` Apple que vous avez déjà) :
+   ```bash
+   mkdir -p backend-link/certs
+   openssl x509 -inform der -in ~/Downloads/pass.cer -out backend-link/certs/pass_certificate.pem
+   ```
+   Remplacez `~/Downloads/pass.cer` par le chemin réel de votre fichier `.cer` téléchargé depuis Apple Developer.
+
+   **C. Clé privée → `pass_private_key.pem`**
+
+   1. Dans le Trousseau : sous le certificat Pass, clic droit sur la **clé privée** → **Exporter « … »**
+   2. Format proposé : **Personal Information Exchange (.p12)** — enregistrez `pass_key.p12` (mot de passe optionnel)
+   3. Convertir en PEM :
+   ```bash
+   openssl pkcs12 -in pass_key.p12 -nocerts -out backend-link/certs/pass_private_key.pem -nodes
+   ```
+   Si vous aviez mis un mot de passe sur le `.p12`, `openssl` le demandera ; sinon appuyez sur Entrée.
+
+   **D. Certificat Apple WWDR G4 → `AppleWWDRCAG4.pem`**
+
+   Télécharger : https://www.apple.com/certificateauthority/AppleWWDRCAG4.cer  
+   (Le double-clic l’ajoute au Trousseau — c’est bien, mais le backend a besoin du fichier **PEM** sur disque.)
+   ```bash
+   openssl x509 -inform der -in AppleWWDRCAG4.cer -out backend-link/certs/AppleWWDRCAG4.pem
+   ```
+
+   **Vérification rapide**
+   ```bash
+   ls -la backend-link/certs/
+   # attendu : pass_certificate.pem, pass_private_key.pem, AppleWWDRCAG4.pem
+   ```
 
 5. **Variables `.env` backend**
 

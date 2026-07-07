@@ -86,8 +86,10 @@ export class ContactsService {
     scanEventId: string,
     payload?: RecordScanContactDto,
   ) {
-    const firstName = this.optionalString(payload?.firstName) ?? 'Contact';
-    const lastName = this.optionalString(payload?.lastName) ?? 'scanné';
+    // On ne force aucun placeholder : si l'OCR n'a pas trouvé le nom, on
+    // laisse le champ vide plutôt que d'inscrire un texte factice.
+    const firstName = this.optionalString(payload?.firstName) ?? '';
+    const lastName = this.optionalString(payload?.lastName) ?? '';
     const email = this.optionalString(payload?.email);
     const phone = this.optionalString(payload?.phone);
     const jobTitle = this.optionalString(payload?.jobTitle);

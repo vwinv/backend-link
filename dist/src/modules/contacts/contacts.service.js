@@ -73,8 +73,8 @@ let ContactsService = class ContactsService {
         return (0, contacts_util_1.toContactResponse)(contact);
     }
     async createFromScan(userId, scanEventId, payload) {
-        const firstName = this.optionalString(payload?.firstName) ?? 'Contact';
-        const lastName = this.optionalString(payload?.lastName) ?? 'scanné';
+        const firstName = this.optionalString(payload?.firstName) ?? '';
+        const lastName = this.optionalString(payload?.lastName) ?? '';
         const email = this.optionalString(payload?.email);
         const phone = this.optionalString(payload?.phone);
         const jobTitle = this.optionalString(payload?.jobTitle);
