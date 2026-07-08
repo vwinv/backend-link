@@ -21,11 +21,12 @@ export class AppleWalletService {
     }
 
     const buffers = this.loadPassAssets();
+    const passphrase = this.walletConfig.appleSignerKeyPassphrase;
     const certificates = {
       wwdr: fs.readFileSync(this.walletConfig.appleWwdrCertPath),
       signerCert: fs.readFileSync(this.walletConfig.appleSignerCertPath),
       signerKey: fs.readFileSync(this.walletConfig.appleSignerKeyPath),
-      signerKeyPassphrase: this.walletConfig.appleSignerKeyPassphrase,
+      ...(passphrase ? { signerKeyPassphrase: passphrase } : {}),
     };
 
     const fullName = `${card.firstName} ${card.lastName}`.trim();
