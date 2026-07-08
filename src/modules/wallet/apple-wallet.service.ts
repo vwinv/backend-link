@@ -160,18 +160,33 @@ export class AppleWalletService {
 
   private loadPassAssets(): Record<string, Buffer> {
     const assetsDir = this.walletConfig.walletAssetsDir();
-    const iconPath = path.join(assetsDir, 'icon.png');
-    const logoPath = path.join(assetsDir, 'logo.png');
 
-    if (!fs.existsSync(iconPath) || !fs.existsSync(logoPath)) {
+    // icon.png est le seul fichier obligatoire pour qu'iOS accepte le pass.
+    const requiredAssets = ['icon.png'];
+    const optionalAssets = [
+      'icon@2x.png',
+      'icon@3x.png',
+      'logo.png',
+      'logo@2x.png',
+      'logo@3x.png',
+    ];
+
+    const missing = requiredAssets.filter(
+      (name) => !fs.existsSync(path.join(assetsDir, name)),
+    );
+    if (missing.length > 0) {
       throw new BadRequestException(
-        'Images wallet manquantes dans backend-link/wallet-assets (icon.png, logo.png).',
+        `Images wallet manquantes dans backend-link/wallet-assets (${missing.join(', ')}).`,
       );
     }
 
-    return {
-      'icon.png': fs.readFileSync(iconPath),
-      'logo.png': fs.readFileSync(logoPath),
-    };
+    const buffers: Record<string, Buffer> = {};
+    for (const name of [...requiredAssets, ...optionalAssets]) {
+      const filePath = path.join(assetsDir, name);
+      if (fs.existsSync(filePath)) {
+        buffers[name] = fs.readFileSync(filePath);
+      }
+    }
+    return buffers;
   }
 }
