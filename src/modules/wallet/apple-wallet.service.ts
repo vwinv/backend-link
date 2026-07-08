@@ -13,6 +13,32 @@ import { WalletConfig } from './wallet.config';
 export class AppleWalletService {
   constructor(private readonly walletConfig: WalletConfig) {}
 
+  async selfTest(): Promise<{ ok: boolean; bytes?: number; magic?: string; error?: string }> {
+    try {
+      const dummyCard = {
+        id: 'selftest-000',
+        slug: 'selftest',
+        firstName: 'Self',
+        lastName: 'Test',
+        jobTitle: 'Diagnostic',
+        company: 'DropOne',
+        email: 'test@dropone.pro',
+        phone: '+000000000',
+      } as unknown as BusinessCard;
+      const buffer = await this.generatePass(dummyCard);
+      return {
+        ok: true,
+        bytes: buffer.length,
+        magic: buffer.subarray(0, 4).toString('hex'),
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
   async generatePass(card: BusinessCard): Promise<Buffer> {
     if (!this.walletConfig.isAppleConfigured()) {
       throw new BadRequestException(
