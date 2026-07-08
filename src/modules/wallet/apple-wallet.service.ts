@@ -14,20 +14,27 @@ import { WalletConfig } from './wallet.config';
 export class AppleWalletService {
   constructor(private readonly walletConfig: WalletConfig) {}
 
+  private buildDummyCard(): BusinessCard {
+    return {
+      id: 'selftest-000',
+      slug: 'selftest',
+      firstName: 'Self',
+      lastName: 'Test',
+      jobTitle: 'Diagnostic',
+      company: 'DropOne',
+      email: 'test@dropone.pro',
+      phone: '+000000000',
+    } as unknown as BusinessCard;
+  }
+
+  async selfTestBuffer(): Promise<Buffer> {
+    return this.generatePass(this.buildDummyCard());
+  }
+
   async selfTest(): Promise<Record<string, unknown>> {
     const certs = this.inspectCertificates();
     try {
-      const dummyCard = {
-        id: 'selftest-000',
-        slug: 'selftest',
-        firstName: 'Self',
-        lastName: 'Test',
-        jobTitle: 'Diagnostic',
-        company: 'DropOne',
-        email: 'test@dropone.pro',
-        phone: '+000000000',
-      } as unknown as BusinessCard;
-      const buffer = await this.generatePass(dummyCard);
+      const buffer = await this.selfTestBuffer();
       return {
         ok: true,
         bytes: buffer.length,
