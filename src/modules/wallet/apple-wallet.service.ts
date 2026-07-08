@@ -4,6 +4,7 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { BusinessCard } from '@prisma/client';
+import { X509Certificate } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { PKPass } from 'passkit-generator';
@@ -13,7 +14,8 @@ import { WalletConfig } from './wallet.config';
 export class AppleWalletService {
   constructor(private readonly walletConfig: WalletConfig) {}
 
-  async selfTest(): Promise<{ ok: boolean; bytes?: number; magic?: string; error?: string }> {
+  async selfTest(): Promise<Record<string, unknown>> {
+    const certs = this.inspectCertificates();
     try {
       const dummyCard = {
         id: 'selftest-000',
@@ -30,13 +32,38 @@ export class AppleWalletService {
         ok: true,
         bytes: buffer.length,
         magic: buffer.subarray(0, 4).toString('hex'),
+        certs,
       };
     } catch (error) {
       return {
         ok: false,
         error: error instanceof Error ? error.message : String(error),
+        certs,
       };
     }
+  }
+
+  private inspectCertificates(): Record<string, unknown> {
+    const readSubject = (
+      filePath: string,
+    ): { subject?: string; issuer?: string; isCA?: boolean; error?: string } => {
+      try {
+        const pem = fs.readFileSync(filePath, 'utf8');
+        const cert = new X509Certificate(pem);
+        return {
+          subject: cert.subject.replace(/\n/g, ' | '),
+          issuer: cert.issuer.replace(/\n/g, ' | '),
+          isCA: cert.ca,
+        };
+      } catch (error) {
+        return { error: error instanceof Error ? error.message : String(error) };
+      }
+    };
+
+    return {
+      signerCert: readSubject(this.walletConfig.appleSignerCertPath),
+      wwdrCert: readSubject(this.walletConfig.appleWwdrCertPath),
+    };
   }
 
   async generatePass(card: BusinessCard): Promise<Buffer> {
