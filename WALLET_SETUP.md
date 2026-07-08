@@ -105,6 +105,24 @@ Ajoutez `certs/` à `.gitignore` si ce n’est pas déjà fait.
    # attendu : pass_certificate.pem, pass_private_key.pem, AppleWWDRCAG4.pem
    ```
 
+   **Vérification approfondie (fortement recommandée)** — détecte le piège classique où le mauvais fichier a été exporté :
+   ```bash
+   cd backend-link/certs
+   # 1) Le cert Pass doit avoir "Pass Type ID: pass.xxx" comme sujet
+   openssl x509 -in pass_certificate.pem -noout -subject
+   # 2) Le WWDR doit avoir "Apple Worldwide Developer Relations..." comme sujet
+   #    (PAS "Pass Type ID" — sinon vous avez exporté le mauvais fichier)
+   openssl x509 -in AppleWWDRCAG4.pem -noout -subject
+   # 3) Le cert et la clé doivent avoir le MÊME hash de modulus
+   openssl x509 -in pass_certificate.pem -noout -modulus | openssl md5
+   openssl rsa  -in pass_private_key.pem -noout -modulus | openssl md5
+   ```
+   Si `AppleWWDRCAG4.pem` affiche « Pass Type ID », re-téléchargez le vrai WWDR :
+   ```bash
+   curl -sSL -o AppleWWDRCAG4.cer https://www.apple.com/certificateauthority/AppleWWDRCAG4.cer
+   openssl x509 -inform der -in AppleWWDRCAG4.cer -out AppleWWDRCAG4.pem
+   ```
+
 5. **Variables `.env` backend**
 
 ```env
@@ -115,6 +133,29 @@ APPLE_PASS_SIGNER_CERT_PATH=./certs/pass_certificate.pem
 APPLE_PASS_SIGNER_KEY_PATH=./certs/pass_private_key.pem
 APPLE_PASS_SIGNER_KEY_PASSPHRASE=
 ```
+
+6. **Déploiement Render (production)**
+
+   Render ne versionne pas le dossier `certs/`. Il faut uploader les PEM en **Secret Files** et pointer les chemins vers `/etc/secrets/`.
+
+   - Dashboard Render → service backend → **Environment** → **Secret Files** :
+     - `pass_certificate.pem` (contenu de `certs/pass_certificate.pem`)
+     - `pass_private_key.pem`
+     - `AppleWWDRCAG4.pem`
+     - `dropone-xxxx.json` (service account Google, si Google Wallet)
+   - **Environment Variables** :
+   ```env
+   APPLE_TEAM_ID=3G878MZ2JV
+   APPLE_PASS_TYPE_ID=pass.com.mega.dropone
+   APPLE_WWDR_CERT_PATH=/etc/secrets/AppleWWDRCAG4.pem
+   APPLE_PASS_SIGNER_CERT_PATH=/etc/secrets/pass_certificate.pem
+   APPLE_PASS_SIGNER_KEY_PATH=/etc/secrets/pass_private_key.pem
+   APPLE_PASS_SIGNER_KEY_PASSPHRASE=
+   GOOGLE_WALLET_ISSUER_ID=<issuer id>
+   GOOGLE_WALLET_SERVICE_ACCOUNT_PATH=/etc/secrets/dropone-xxxx.json
+   GOOGLE_WALLET_ORIGINS=https://dropone.pro
+   ```
+   - **Save Changes** → Render redéploie automatiquement.
 
 ### Configuration Xcode (app Flutter iOS)
 
