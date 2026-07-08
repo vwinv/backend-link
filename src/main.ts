@@ -51,7 +51,7 @@ async function bootstrap() {
     }
   };
 
-  const appleTeamId = configService.get<string>('mobile.appleTeamId', 'CMU6AB64K7');
+  const appleTeamId = configService.get<string>('mobile.appleTeamId', '3G878MZ2JV');
   const appleBundleId = configService.get<string>(
     'mobile.appleBundleId',
     'com.mega.dropone',

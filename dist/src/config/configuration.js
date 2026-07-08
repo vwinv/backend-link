@@ -64,7 +64,7 @@ exports.default = () => ({
             `${process.env.APP_PUBLIC_URL ?? 'http://localhost:3000'}/premium/cancel`,
     },
     mobile: {
-        appleTeamId: process.env.APPLE_TEAM_ID ?? 'CMU6AB64K7',
+        appleTeamId: process.env.APPLE_TEAM_ID ?? '3G878MZ2JV',
         appleBundleId: process.env.APPLE_CLIENT_ID ?? 'com.mega.dropone',
         androidPackageName: process.env.ANDROID_APP_PACKAGE ?? 'com.mega.dropone',
         androidSha256Fingerprints: (process.env.ANDROID_APP_SHA256_CERT ?? '')

@@ -40,7 +40,7 @@ async function bootstrap() {
             return undefined;
         }
     };
-    const appleTeamId = configService.get('mobile.appleTeamId', 'CMU6AB64K7');
+    const appleTeamId = configService.get('mobile.appleTeamId', '3G878MZ2JV');
     const appleBundleId = configService.get('mobile.appleBundleId', 'com.mega.dropone');
     const appleAppId = `${appleTeamId}.${appleBundleId}`;
     const androidPackageName = configService.get('mobile.androidPackageName', 'com.mega.dropone');
