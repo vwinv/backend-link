@@ -12,9 +12,6 @@ export class WalletStatusController {
     summary: 'Diagnostic : état de configuration du wallet (aucun secret exposé)',
   })
   status() {
-    return {
-      apple: this.walletConfig.isAppleConfigured(),
-      google: this.walletConfig.isGoogleConfigured(),
-    };
+    return this.walletConfig.describe();
   }
 }
