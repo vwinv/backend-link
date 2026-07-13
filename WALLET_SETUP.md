@@ -162,8 +162,9 @@ APPLE_PASS_SIGNER_KEY_PASSPHRASE=
 1. Ouvrir `link/ios/Runner.xcworkspace` dans Xcode
 2. Cible **Runner** → **Signing & Capabilities**
 3. **+ Capability** → **Wallet**
-4. Cocher votre **Pass Type ID** (`pass.com.megasn.link`)
-5. Builder et tester sur un **iPhone physique** (le simulateur ne gère pas toujours PassKit correctement)
+4. Cocher votre **Pass Type ID** (`pass.com.mega.dropone`)
+5. Dans Apple Developer → Identifiers → App ID `com.mega.dropone` → activer **Wallet** si besoin, puis laisser Xcode régénérer le profil
+6. Builder et tester sur un **iPhone physique** (le simulateur ne gère pas PassKit correctement)
 
 ### Test iOS
 
