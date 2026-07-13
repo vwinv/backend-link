@@ -37,7 +37,7 @@ export class WalletStatusController {
     res.setHeader('Content-Type', 'application/vnd.apple.pkpass');
     res.setHeader(
       'Content-Disposition',
-      'attachment; filename="dropone-selftest.pkpass"',
+      'inline; filename="dropone-selftest.pkpass"',
     );
     res.setHeader('Content-Length', buffer.length);
     res.send(buffer);
