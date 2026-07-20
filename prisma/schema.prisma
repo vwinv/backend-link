@@ -121,6 +121,7 @@ model User {
   savedCards      SavedCard[]
   shareEvents     ShareEvent[]
   cardSaveEvents  CardSaveEvent[]
+  cardViews       CardView[]
   aiScanEvents    AiScanEvent[]
   contacts        Contact[]
 
@@ -404,15 +405,20 @@ model SavedCard {
 }
 
 model CardView {
-  id        String   @id @default(cuid())
-  cardId    String
-  ipAddress String?
-  userAgent String?
-  referrer  String?
-  viewedAt  DateTime @default(now())
+  id           String   @id @default(cuid())
+  cardId       String
+  viewerUserId String?
+  source       String?
+  ipAddress    String?
+  userAgent    String?
+  referrer     String?
+  viewedAt     DateTime @default(now())
 
-  card BusinessCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  card   BusinessCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  viewer User?        @relation(fields: [viewerUserId], references: [id], onDelete: SetNull)
 
+  @@index([cardId, viewedAt])
+  @@index([viewerUserId])
   @@map("card_views")
 }
 

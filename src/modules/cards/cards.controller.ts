@@ -9,6 +9,7 @@ import {
   Patch,
   Post,
   Put,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -138,5 +139,19 @@ export class CardsController {
     @Param('id') id: string,
   ) {
     return this.cardsService.getAnalytics(user.userId, id);
+  }
+
+  @Get(':id/visitors')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Liste des visiteurs de la carte' })
+  getVisitors(
+    @CurrentUser() user: { userId: string },
+    @Param('id') id: string,
+    @Query('filter') filter?: string,
+  ) {
+    const normalized =
+      filter === 'dropone' || filter === 'guest' ? filter : 'all';
+    return this.cardsService.getVisitors(user.userId, id, normalized);
   }
 }

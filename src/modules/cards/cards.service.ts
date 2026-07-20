@@ -240,6 +240,133 @@ export class CardsService {
     return { views, shares, saved: contactsSaved + publicSaves };
   }
 
+  async getVisitors(
+    userId: string,
+    id: string,
+    filter: 'all' | 'dropone' | 'guest' = 'all',
+  ) {
+    await this.findOne(userId, id);
+
+    const countedShareMethods: ShareMethod[] = [
+      ShareMethod.LINK,
+      ShareMethod.EMAIL,
+      ShareMethod.WHATSAPP,
+      ShareMethod.AIRDROP,
+    ];
+
+    const viewWhere =
+      filter === 'dropone'
+        ? { cardId: id, viewerUserId: { not: null } }
+        : filter === 'guest'
+          ? { cardId: id, viewerUserId: null }
+          : { cardId: id };
+
+    const [
+      views,
+      dropOneCount,
+      guestCount,
+      registeredGroups,
+      shares,
+      contactsSaved,
+      publicSaves,
+      rawVisitors,
+    ] = await Promise.all([
+      this.prisma.cardView.count({ where: { cardId: id } }),
+      this.prisma.cardView.count({
+        where: { cardId: id, viewerUserId: { not: null } },
+      }),
+      this.prisma.cardView.count({
+        where: { cardId: id, viewerUserId: null },
+      }),
+      this.prisma.cardView.groupBy({
+        by: ['viewerUserId'],
+        where: { cardId: id, viewerUserId: { not: null } },
+      }),
+      this.prisma.shareEvent.count({
+        where: {
+          cardId: id,
+          method: { in: countedShareMethods },
+        },
+      }),
+      this.prisma.contact.count({
+        where: {
+          linkedCardId: id,
+          source: ContactSource.EXCHANGE,
+        },
+      }),
+      this.prisma.cardSaveEvent.count({ where: { cardId: id } }),
+      this.prisma.cardView.findMany({
+        where: viewWhere,
+        orderBy: { viewedAt: 'desc' },
+        take: 200,
+        include: {
+          viewer: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              avatarUrl: true,
+              businessCards: {
+                where: { isActive: true },
+                orderBy: { kind: 'asc' },
+                take: 1,
+                select: {
+                  jobTitle: true,
+                  company: true,
+                  avatarUrl: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+    ]);
+
+    const uniqueVisitors = registeredGroups.length + guestCount;
+
+    const visitors = rawVisitors.map((view) => {
+      const viewer = view.viewer;
+      const profileCard = viewer?.businessCards[0];
+      const firstName = viewer?.firstName?.trim() ?? '';
+      const lastName = viewer?.lastName?.trim() ?? '';
+      const displayName =
+        viewer != null
+          ? `${firstName} ${lastName}`.trim() || 'Membre DropOne'
+          : 'Visiteur anonyme';
+      const job = profileCard?.jobTitle?.trim() ?? '';
+      const company = profileCard?.company?.trim() ?? '';
+      const subtitle = [job, company].filter(Boolean).join(' · ');
+      const initials =
+        viewer != null
+          ? `${firstName[0] ?? ''}${lastName[0] ?? firstName[1] ?? ''}`.toUpperCase() ||
+            'DO'
+          : '?';
+
+      return {
+        id: view.id,
+        viewedAt: view.viewedAt.toISOString(),
+        isDropOneUser: viewer != null,
+        source: view.source ?? 'link',
+        displayName,
+        subtitle,
+        avatarUrl: profileCard?.avatarUrl ?? viewer?.avatarUrl ?? null,
+        initials,
+      };
+    });
+
+    return {
+      summary: {
+        views,
+        uniqueVisitors,
+        saved: contactsSaved + publicSaves,
+        shares,
+        dropOneCount,
+        guestCount,
+      },
+      visitors,
+    };
+  }
+
   findSharedWithMe(userId: string) {
     return this.contactsService.findExchangeContacts(userId);
   }

@@ -125,7 +125,10 @@ export class SharingService {
     }
 
     await this.prisma.cardView.create({
-      data: { cardId },
+      data: {
+        cardId,
+        viewerUserId: viewerUserId || null,
+      },
     });
   }
 
