@@ -4,6 +4,7 @@ import {
 } from '@nestjs/common';
 import { WalletType } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { EntitlementsService } from '../subscriptions/entitlements.service';
 import { AppleWalletService } from './apple-wallet.service';
 import { GoogleWalletService } from './google-wallet.service';
 import { SaveToWalletDto } from './dto/save-to-wallet.dto';
@@ -14,6 +15,7 @@ export class WalletService {
     private readonly prisma: PrismaService,
     private readonly appleWalletService: AppleWalletService,
     private readonly googleWalletService: GoogleWalletService,
+    private readonly entitlementsService: EntitlementsService,
   ) {}
 
   async addCardToWallet(userId: string, cardId: string, dto: SaveToWalletDto) {
@@ -24,6 +26,8 @@ export class WalletService {
     if (!card) {
       throw new NotFoundException('Carte introuvable');
     }
+
+    await this.entitlementsService.assertCanUseWallet(userId, cardId);
 
     if (dto.walletType === WalletType.APPLE_WALLET) {
       const passBuffer = await this.appleWalletService.generatePass(card);

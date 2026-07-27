@@ -13,16 +13,19 @@ exports.WalletService = void 0;
 const common_1 = require("@nestjs/common");
 const client_1 = require("@prisma/client");
 const prisma_service_1 = require("../../prisma/prisma.service");
+const entitlements_service_1 = require("../subscriptions/entitlements.service");
 const apple_wallet_service_1 = require("./apple-wallet.service");
 const google_wallet_service_1 = require("./google-wallet.service");
 let WalletService = class WalletService {
     prisma;
     appleWalletService;
     googleWalletService;
-    constructor(prisma, appleWalletService, googleWalletService) {
+    entitlementsService;
+    constructor(prisma, appleWalletService, googleWalletService, entitlementsService) {
         this.prisma = prisma;
         this.appleWalletService = appleWalletService;
         this.googleWalletService = googleWalletService;
+        this.entitlementsService = entitlementsService;
     }
     async addCardToWallet(userId, cardId, dto) {
         const card = await this.prisma.businessCard.findFirst({
@@ -31,6 +34,7 @@ let WalletService = class WalletService {
         if (!card) {
             throw new common_1.NotFoundException('Carte introuvable');
         }
+        await this.entitlementsService.assertCanUseWallet(userId, cardId);
         if (dto.walletType === client_1.WalletType.APPLE_WALLET) {
             const passBuffer = await this.appleWalletService.generatePass(card);
             const passId = card.id;
@@ -105,6 +109,7 @@ exports.WalletService = WalletService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
         apple_wallet_service_1.AppleWalletService,
-        google_wallet_service_1.GoogleWalletService])
+        google_wallet_service_1.GoogleWalletService,
+        entitlements_service_1.EntitlementsService])
 ], WalletService);
 //# sourceMappingURL=wallet.service.js.map

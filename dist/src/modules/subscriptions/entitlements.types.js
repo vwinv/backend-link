@@ -7,6 +7,10 @@ exports.DEFAULT_ENTITLEMENTS = {
     canCustomize: false,
     maxTeamMembers: 0,
     hasPortfolio: false,
+    hasWallet: false,
+    hasAnalytics: false,
+    hasVisitorInsights: false,
+    hasSocialLinks: false,
     maxAiScans: 0,
 };
 //# sourceMappingURL=entitlements.types.js.map

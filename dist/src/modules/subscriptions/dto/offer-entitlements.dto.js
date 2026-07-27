@@ -17,6 +17,10 @@ class OfferEntitlementsDto {
     canCustomize;
     maxTeamMembers;
     hasPortfolio;
+    hasWallet;
+    hasAnalytics;
+    hasVisitorInsights;
+    hasSocialLinks;
     maxAiScans;
 }
 exports.OfferEntitlementsDto = OfferEntitlementsDto;
@@ -31,7 +35,7 @@ __decorate([
 __decorate([
     (0, swagger_1.ApiProperty)({
         example: 5,
-        description: 'Nombre max de membres équipe (0 si offre personnelle)',
+        description: 'Nombre max de membres équipe (0 = perso, -1 = illimité)',
     }),
     __metadata("design:type", Number)
 ], OfferEntitlementsDto.prototype, "maxTeamMembers", void 0);
@@ -39,6 +43,25 @@ __decorate([
     (0, swagger_1.ApiProperty)({ example: true }),
     __metadata("design:type", Boolean)
 ], OfferEntitlementsDto.prototype, "hasPortfolio", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: true }),
+    __metadata("design:type", Boolean)
+], OfferEntitlementsDto.prototype, "hasWallet", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: true }),
+    __metadata("design:type", Boolean)
+], OfferEntitlementsDto.prototype, "hasAnalytics", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        example: true,
+        description: 'Visiteurs détaillés / historique (Premium Plus+)',
+    }),
+    __metadata("design:type", Boolean)
+], OfferEntitlementsDto.prototype, "hasVisitorInsights", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: true }),
+    __metadata("design:type", Boolean)
+], OfferEntitlementsDto.prototype, "hasSocialLinks", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({
         example: -1,

@@ -8,6 +8,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SharingModule = void 0;
 const common_1 = require("@nestjs/common");
+const auth_module_1 = require("../auth/auth.module");
 const sharing_controller_1 = require("./sharing.controller");
 const sharing_service_1 = require("./sharing.service");
 let SharingModule = class SharingModule {
@@ -15,6 +16,7 @@ let SharingModule = class SharingModule {
 exports.SharingModule = SharingModule;
 exports.SharingModule = SharingModule = __decorate([
     (0, common_1.Module)({
+        imports: [auth_module_1.AuthModule],
         controllers: [sharing_controller_1.SharingController],
         providers: [sharing_service_1.SharingService],
         exports: [sharing_service_1.SharingService],

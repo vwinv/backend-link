@@ -26,6 +26,67 @@ let EntitlementsService = class EntitlementsService {
         }
         return this.mapOfferToEntitlements(subscription.offer);
     }
+    async getEntitlementsForCard(userId, cardId) {
+        const card = await this.prisma.businessCard.findFirst({
+            where: { id: cardId, ownerId: userId, isActive: true },
+            select: { kind: true, teamId: true },
+        });
+        if (!card) {
+            throw new common_1.NotFoundException('Carte introuvable');
+        }
+        if (card.kind === client_1.CardKind.MEMBER && card.teamId) {
+            const team = await this.prisma.team.findFirst({
+                where: { id: card.teamId, isActive: true },
+                select: { ownerId: true },
+            });
+            if (team) {
+                return this.getUserEntitlements(team.ownerId);
+            }
+        }
+        return this.getUserEntitlements(userId);
+    }
+    async assertCanCustomize(userId, cardId) {
+        const entitlements = await this.getEntitlementsForCard(userId, cardId);
+        if (!entitlements.canCustomize) {
+            throw new common_1.ForbiddenException('La personnalisation avancée nécessite une offre Premium');
+        }
+    }
+    async assertCanUseWallet(userId, cardId) {
+        const entitlements = await this.getEntitlementsForCard(userId, cardId);
+        if (!entitlements.hasWallet) {
+            throw new common_1.ForbiddenException('L’ajout au Wallet nécessite une offre Premium');
+        }
+    }
+    async assertHasAnalytics(userId, cardId) {
+        const entitlements = await this.getEntitlementsForCard(userId, cardId);
+        if (!entitlements.hasAnalytics) {
+            throw new common_1.ForbiddenException('Les statistiques de consultation nécessitent une offre Premium');
+        }
+    }
+    async assertHasVisitorInsights(userId, cardId) {
+        const entitlements = await this.getEntitlementsForCard(userId, cardId);
+        if (!entitlements.hasVisitorInsights) {
+            throw new common_1.ForbiddenException('L’historique des visiteurs nécessite Premium Plus');
+        }
+    }
+    async assertCanEditSocialLinks(userId, cardId) {
+        const entitlements = await this.getEntitlementsForCard(userId, cardId);
+        if (!entitlements.hasSocialLinks) {
+            throw new common_1.ForbiddenException('Les réseaux sociaux nécessitent une offre Premium');
+        }
+    }
+    async assertHasPortfolio(userId) {
+        const entitlements = await this.getUserEntitlements(userId);
+        if (!entitlements.hasPortfolio) {
+            throw new common_1.ForbiddenException('Le portfolio nécessite une offre Premium');
+        }
+    }
+    async assertHasTeamAccess(userId) {
+        const entitlements = await this.getUserEntitlements(userId);
+        if (!this.hasTeamAccess(entitlements)) {
+            throw new common_1.ForbiddenException('Un abonnement équipe actif est requis pour créer une équipe');
+        }
+    }
     async getTeamSeatsQuota(userId, teamId) {
         await this.assertTeamAccess(userId, teamId);
         const team = await this.prisma.team.findFirst({
@@ -47,21 +108,24 @@ let EntitlementsService = class EntitlementsService {
         });
         const used = memberCount + pendingInviteCount;
         const max = entitlements.maxTeamMembers;
-        const hasTeamPlan = entitlements.audience === client_1.OfferAudience.TEAM && max > 0;
+        const hasTeamPlan = this.hasTeamAccess(entitlements);
+        const isUnlimited = max < 0;
         return {
             used,
             max,
-            canAddMember: hasTeamPlan && used < max,
+            canAddMember: hasTeamPlan && (isUnlimited || used < max),
         };
     }
     async assertCanAddTeamMember(userId, teamId) {
-        await this.assertOwner(userId, teamId);
+        await this.assertOwnerOrAdmin(userId, teamId);
         const seats = await this.getTeamSeatsQuota(userId, teamId);
         if (!seats.canAddMember) {
-            if (seats.max <= 0) {
+            if (seats.max === 0) {
                 throw new common_1.ForbiddenException('Un abonnement équipe actif est requis pour ajouter des membres');
             }
-            throw new common_1.BadRequestException(`Limite de ${seats.max} sièges atteinte. Passez à une offre supérieure pour en ajouter.`);
+            throw new common_1.BadRequestException(seats.max < 0
+                ? 'Impossible d’ajouter un membre pour le moment'
+                : `Limite de ${seats.max} sièges atteinte. Passez à une offre supérieure pour en ajouter.`);
         }
     }
     async getAiScanQuota(userId) {
@@ -112,6 +176,10 @@ let EntitlementsService = class EntitlementsService {
             quota: updatedQuota,
         };
     }
+    hasTeamAccess(entitlements) {
+        return (entitlements.audience === client_1.OfferAudience.TEAM &&
+            entitlements.maxTeamMembers !== 0);
+    }
     async findActiveSubscription(userId) {
         return this.prisma.subscription.findFirst({
             where: {
@@ -137,6 +205,10 @@ let EntitlementsService = class EntitlementsService {
             canCustomize: offer.canCustomize,
             maxTeamMembers: offer.maxTeamMembers,
             hasPortfolio: offer.hasPortfolio,
+            hasWallet: offer.hasWallet ?? false,
+            hasAnalytics: offer.hasAnalytics ?? false,
+            hasVisitorInsights: offer.hasVisitorInsights ?? false,
+            hasSocialLinks: offer.hasSocialLinks ?? false,
             maxAiScans: offer.maxAiScans,
         };
     }
@@ -172,12 +244,26 @@ let EntitlementsService = class EntitlementsService {
             throw new common_1.ForbiddenException('Accès à l’équipe refusé');
         }
     }
-    async assertOwner(userId, teamId) {
+    async assertOwnerOrAdmin(userId, teamId) {
         const team = await this.prisma.team.findFirst({
-            where: { id: teamId, ownerId: userId, isActive: true },
+            where: { id: teamId, isActive: true },
+            select: { id: true, ownerId: true },
         });
         if (!team) {
-            throw new common_1.ForbiddenException('Action réservée au propriétaire de l’équipe');
+            throw new common_1.ForbiddenException('Équipe introuvable');
+        }
+        if (team.ownerId === userId) {
+            return;
+        }
+        const membership = await this.prisma.teamMember.findUnique({
+            where: {
+                teamId_userId: { teamId, userId },
+            },
+            select: { role: true },
+        });
+        if (membership?.role !== client_1.TeamMemberRole.ADMIN &&
+            membership?.role !== client_1.TeamMemberRole.OWNER) {
+            throw new common_1.ForbiddenException('Action réservée aux administrateurs de l’équipe');
         }
     }
 };

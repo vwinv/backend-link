@@ -31,12 +31,22 @@ const stripePriceIds: Record<string, string | undefined> = {
   price_link_premium_monthly: process.env.STRIPE_PRICE_LINK_PREMIUM_MONTHLY,
   price_link_premium_yearly: process.env.STRIPE_PRICE_LINK_PREMIUM_YEARLY,
   price_link_premium_lifetime: process.env.STRIPE_PRICE_LINK_PREMIUM_LIFETIME,
+  price_link_premium_plus_monthly:
+    process.env.STRIPE_PRICE_LINK_PREMIUM_PLUS_MONTHLY,
+  price_link_premium_plus_yearly:
+    process.env.STRIPE_PRICE_LINK_PREMIUM_PLUS_YEARLY,
+  price_link_premium_plus_lifetime:
+    process.env.STRIPE_PRICE_LINK_PREMIUM_PLUS_LIFETIME,
   price_link_premium_team_monthly:
     process.env.STRIPE_PRICE_LINK_PREMIUM_TEAM_MONTHLY,
   price_link_premium_team_yearly:
     process.env.STRIPE_PRICE_LINK_PREMIUM_TEAM_YEARLY,
   price_link_premium_team_lifetime:
     process.env.STRIPE_PRICE_LINK_PREMIUM_TEAM_LIFETIME,
+  price_link_business_monthly: process.env.STRIPE_PRICE_LINK_BUSINESS_MONTHLY,
+  price_link_business_yearly: process.env.STRIPE_PRICE_LINK_BUSINESS_YEARLY,
+  price_link_business_lifetime:
+    process.env.STRIPE_PRICE_LINK_BUSINESS_LIFETIME,
 };
 
 type OfferSeed = {
@@ -48,22 +58,39 @@ type OfferSeed = {
   canCustomize: boolean;
   maxTeamMembers: number;
   hasPortfolio: boolean;
+  hasWallet: boolean;
+  hasAnalytics: boolean;
+  hasVisitorInsights: boolean;
+  hasSocialLinks: boolean;
   maxAiScans: number;
   sortOrder: number;
   prices: PriceSeed[];
 };
+
+const personalPremiumFlags = {
+  canCustomize: true,
+  maxTeamMembers: 0,
+  hasPortfolio: true,
+  hasWallet: true,
+  hasAnalytics: true,
+  hasSocialLinks: true,
+} as const;
+
+const premiumPlusFlags = {
+  ...personalPremiumFlags,
+  hasVisitorInsights: true,
+} as const;
 
 const offers: OfferSeed[] = [
   {
     id: 'offer_link_premium',
     title: 'DropOne Premium',
     slug: 'link-premium',
-    subtitle: 'Carte personnelle enrichie',
+    subtitle: 'Carte personnalisée, wallet, stats et réseaux',
     audience: OfferAudience.PERSONAL,
-    canCustomize: true,
-    maxTeamMembers: 0,
-    hasPortfolio: true,
-    maxAiScans: -1,
+    ...personalPremiumFlags,
+    hasVisitorInsights: false,
+    maxAiScans: 5,
     sortOrder: 1,
     prices: [
       {
@@ -91,16 +118,54 @@ const offers: OfferSeed[] = [
     ],
   },
   {
-    id: 'offer_link_premium_team',
-    title: 'DropOne Premium Équipe',
-    slug: 'link-premium-equipe',
-    subtitle: 'Espace équipe et cartes professionnelles',
-    audience: OfferAudience.TEAM,
-    canCustomize: true,
-    maxTeamMembers: 5,
-    hasPortfolio: true,
+    id: 'offer_link_premium_plus',
+    title: 'DropOne Premium Plus',
+    slug: 'link-premium-plus',
+    subtitle: 'Stats détaillées, visiteurs et scans IA illimités',
+    audience: OfferAudience.PERSONAL,
+    ...premiumPlusFlags,
     maxAiScans: -1,
     sortOrder: 2,
+    prices: [
+      {
+        id: 'price_link_premium_plus_monthly',
+        billingType: OfferBillingType.MONTHLY,
+        priceAmount: 6000,
+        sortOrder: 1,
+      },
+      {
+        id: 'price_link_premium_plus_yearly',
+        billingType: OfferBillingType.YEARLY,
+        priceAmount: 54000,
+        priceLabel: '54 000 FCFA / an',
+        discountPercent: 40,
+        badgeLabel: 'Populaire',
+        isPopular: true,
+        sortOrder: 2,
+      },
+      {
+        id: 'price_link_premium_plus_lifetime',
+        billingType: OfferBillingType.LIFETIME,
+        priceAmount: 149000,
+        sortOrder: 3,
+      },
+    ],
+  },
+  {
+    id: 'offer_link_premium_team',
+    title: 'DropOne Starter',
+    slug: 'link-premium-equipe',
+    subtitle: 'Jusqu’à 10 membres · Premium Plus pour l’équipe',
+    audience: OfferAudience.TEAM,
+    canCustomize: true,
+    maxTeamMembers: 10,
+    hasPortfolio: true,
+    hasWallet: true,
+    hasAnalytics: true,
+    hasVisitorInsights: true,
+    hasSocialLinks: true,
+    maxAiScans: -1,
+    sortOrder: 3,
     prices: [
       {
         id: 'price_link_premium_team_monthly',
@@ -126,6 +191,46 @@ const offers: OfferSeed[] = [
       },
     ],
   },
+  {
+    id: 'offer_link_business',
+    title: 'DropOne Business',
+    slug: 'link-entreprise-business',
+    subtitle: 'Membres illimités · tableau de bord web (bientôt)',
+    audience: OfferAudience.TEAM,
+    canCustomize: true,
+    maxTeamMembers: -1,
+    hasPortfolio: true,
+    hasWallet: true,
+    hasAnalytics: true,
+    hasVisitorInsights: true,
+    hasSocialLinks: true,
+    maxAiScans: -1,
+    sortOrder: 4,
+    prices: [
+      {
+        id: 'price_link_business_monthly',
+        billingType: OfferBillingType.MONTHLY,
+        priceAmount: 15000,
+        sortOrder: 1,
+      },
+      {
+        id: 'price_link_business_yearly',
+        billingType: OfferBillingType.YEARLY,
+        priceAmount: 120000,
+        priceLabel: '120 000 FCFA / an',
+        discountPercent: 40,
+        badgeLabel: 'Populaire',
+        isPopular: true,
+        sortOrder: 2,
+      },
+      {
+        id: 'price_link_business_lifetime',
+        billingType: OfferBillingType.LIFETIME,
+        priceAmount: 299000,
+        sortOrder: 3,
+      },
+    ],
+  },
 ];
 
 async function main() {
@@ -139,6 +244,10 @@ async function main() {
         canCustomize: offer.canCustomize,
         maxTeamMembers: offer.maxTeamMembers,
         hasPortfolio: offer.hasPortfolio,
+        hasWallet: offer.hasWallet,
+        hasAnalytics: offer.hasAnalytics,
+        hasVisitorInsights: offer.hasVisitorInsights,
+        hasSocialLinks: offer.hasSocialLinks,
         maxAiScans: offer.maxAiScans,
         sortOrder: offer.sortOrder,
         isActive: true,
@@ -152,6 +261,10 @@ async function main() {
         canCustomize: offer.canCustomize,
         maxTeamMembers: offer.maxTeamMembers,
         hasPortfolio: offer.hasPortfolio,
+        hasWallet: offer.hasWallet,
+        hasAnalytics: offer.hasAnalytics,
+        hasVisitorInsights: offer.hasVisitorInsights,
+        hasSocialLinks: offer.hasSocialLinks,
         maxAiScans: offer.maxAiScans,
         sortOrder: offer.sortOrder,
         isActive: true,
@@ -203,7 +316,7 @@ async function main() {
     }
   }
 
-  console.log(`✔ ${offers.length} offres Premium configurées`);
+  console.log(`✔ ${offers.length} offres configurées (Free = sans abonnement)`);
 }
 
 main()

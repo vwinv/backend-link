@@ -6,8 +6,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { TeamInviteStatus, TeamMemberRole } from '@prisma/client';
+import { AuthProvider, CardKind, TeamInviteStatus, TeamMemberRole } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
+import { randomBytes } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
+import { CardsService } from '../cards/cards.service';
 import { MailService } from '../mail/mail.service';
 import { EntitlementsService } from '../subscriptions/entitlements.service';
 import {
@@ -25,6 +28,7 @@ export class TeamsService {
     private readonly prisma: PrismaService,
     private readonly entitlementsService: EntitlementsService,
     private readonly mailService: MailService,
+    private readonly cardsService: CardsService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -47,6 +51,8 @@ export class TeamsService {
   }
 
   async create(userId: string, dto: CreateTeamDto) {
+    await this.entitlementsService.assertHasTeamAccess(userId);
+
     const existingOwnedTeam = await this.prisma.team.findFirst({
       where: { ownerId: userId, isActive: true },
     });
@@ -95,7 +101,7 @@ export class TeamsService {
   }
 
   async findAllForUser(userId: string) {
-    return this.prisma.team.findMany({
+    const teams = await this.prisma.team.findMany({
       where: {
         isActive: true,
         OR: [
@@ -105,6 +111,14 @@ export class TeamsService {
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    return Promise.all(
+      teams.map(async (team) => {
+        const entitlements =
+          await this.entitlementsService.getUserEntitlements(team.ownerId);
+        return { ...team, entitlements };
+      }),
+    );
   }
 
   async findOneForUser(userId: string, id: string) {
@@ -240,7 +254,7 @@ export class TeamsService {
       );
     }
 
-    const existingUser = await this.prisma.user.findUnique({
+    let existingUser = await this.prisma.user.findUnique({
       where: { email },
     });
 
@@ -276,19 +290,56 @@ export class TeamsService {
       throw new BadRequestException('Le rôle propriétaire ne peut pas être attribué par invitation');
     }
 
+    // Seul le propriétaire peut inviter un admin.
+    if (role === TeamMemberRole.ADMIN) {
+      const team = await this.prisma.team.findFirst({
+        where: { id, ownerId: userId, isActive: true },
+      });
+      if (!team) {
+        throw new BadRequestException(
+          'Seul le propriétaire peut inviter un administrateur',
+        );
+      }
+    }
+
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30);
+
+    let createdUserId: string | null = null;
+    let temporaryPassword: string | undefined;
+
+    if (!existingUser) {
+      temporaryPassword = this.generateTemporaryPassword();
+      const passwordHash = await bcrypt.hash(temporaryPassword, 10);
+      const firstName =
+        dto.firstName?.trim() ||
+        email.split('@')[0]?.trim() ||
+        'Membre';
+      const lastName = dto.lastName?.trim() || '';
+
+      existingUser = await this.prisma.user.create({
+        data: {
+          email,
+          passwordHash,
+          authProvider: AuthProvider.LOCAL,
+          firstName,
+          lastName,
+          avatarUrl: dto.avatarUrl?.trim() || null,
+        },
+      });
+      createdUserId = existingUser.id;
+    }
 
     const invite = await this.prisma.teamInvite.create({
       data: {
         teamId: id,
         email,
-        firstName: dto.firstName?.trim() || null,
-        lastName: dto.lastName?.trim() || null,
+        firstName: dto.firstName?.trim() || existingUser.firstName || null,
+        lastName: dto.lastName?.trim() || existingUser.lastName || null,
         jobTitle: dto.jobTitle?.trim() || null,
         avatarUrl: dto.avatarUrl?.trim() || null,
         invitedById: userId,
-        inviteeUserId: existingUser?.id ?? null,
+        inviteeUserId: existingUser.id,
         role,
         status: TeamInviteStatus.PENDING,
         expiresAt,
@@ -315,9 +366,13 @@ export class TeamsService {
         inviterName: this.formatUserName(inviter),
         inviteId: invite.id,
         inviteUrl,
+        temporaryPassword,
       });
     } catch (error) {
       await this.prisma.teamInvite.delete({ where: { id: invite.id } });
+      if (createdUserId) {
+        await this.prisma.user.delete({ where: { id: createdUserId } });
+      }
 
       const message =
         error instanceof Error ? error.message : 'Envoi de l\'e-mail impossible';
@@ -325,6 +380,16 @@ export class TeamsService {
     }
 
     return invite;
+  }
+
+  private generateTemporaryPassword(length = 10): string {
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+    const bytes = randomBytes(length);
+    let password = '';
+    for (let i = 0; i < length; i += 1) {
+      password += alphabet[bytes[i]! % alphabet.length];
+    }
+    return password;
   }
 
   async renderTeamInvitePage(inviteId: string): Promise<string> {
@@ -400,8 +465,8 @@ export class TeamsService {
       throw new BadRequestException('Vous faites déjà partie de cette équipe');
     }
 
-    return this.prisma.$transaction(async (tx) => {
-      const member = await tx.teamMember.create({
+    const member = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.teamMember.create({
         data: {
           teamId: invite.teamId,
           userId,
@@ -429,8 +494,25 @@ export class TeamsService {
         },
       });
 
-      return member;
+      return created;
     });
+
+    try {
+      await this.cardsService.create(userId, {
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        phone: user.phone ?? undefined,
+        jobTitle: invite.jobTitle ?? undefined,
+        company: team.name,
+        kind: CardKind.MEMBER,
+        teamId: team.id,
+      });
+    } catch {
+      // Carte membre déjà présente ou création différée côté app.
+    }
+
+    return member;
   }
 
   async declineInvitation(userId: string, inviteId: string) {
@@ -452,7 +534,7 @@ export class TeamsService {
   }
 
   async cancelInvitation(userId: string, teamId: string, inviteId: string) {
-    await this.assertOwner(userId, teamId);
+    await this.assertOwnerOrAdmin(userId, teamId);
 
     const invite = await this.prisma.teamInvite.findFirst({
       where: {
@@ -490,7 +572,7 @@ export class TeamsService {
   }
 
   async removeMember(userId: string, id: string, memberId: string) {
-    await this.assertOwner(userId, id);
+    const actor = await this.assertOwnerOrAdmin(userId, id);
 
     const member = await this.prisma.teamMember.findFirst({
       where: { id: memberId, teamId: id },
@@ -506,6 +588,16 @@ export class TeamsService {
       );
     }
 
+    // Un admin ne peut retirer que des membres (pas d’autres admins).
+    if (
+      actor.role === TeamMemberRole.ADMIN &&
+      member.role !== TeamMemberRole.MEMBER
+    ) {
+      throw new BadRequestException(
+        'Un administrateur ne peut retirer que des membres',
+      );
+    }
+
     return this.prisma.teamMember.delete({ where: { id: memberId } });
   }
 
@@ -517,6 +609,42 @@ export class TeamsService {
     if (!team) {
       throw new BadRequestException('Action réservée au propriétaire de l’équipe');
     }
+  }
+
+  private async assertOwnerOrAdmin(
+    userId: string,
+    teamId: string,
+  ): Promise<{ role: TeamMemberRole }> {
+    const team = await this.prisma.team.findFirst({
+      where: { id: teamId, isActive: true },
+      select: { id: true, ownerId: true },
+    });
+
+    if (!team) {
+      throw new BadRequestException('Équipe introuvable');
+    }
+
+    if (team.ownerId === userId) {
+      return { role: TeamMemberRole.OWNER };
+    }
+
+    const membership = await this.prisma.teamMember.findUnique({
+      where: {
+        teamId_userId: { teamId, userId },
+      },
+      select: { role: true },
+    });
+
+    if (
+      membership?.role !== TeamMemberRole.ADMIN &&
+      membership?.role !== TeamMemberRole.OWNER
+    ) {
+      throw new BadRequestException(
+        'Action réservée aux administrateurs de l’équipe',
+      );
+    }
+
+    return { role: membership.role };
   }
 
   private async getAccessiblePendingInvite(

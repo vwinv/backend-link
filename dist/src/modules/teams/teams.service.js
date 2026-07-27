@@ -1,10 +1,43 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
@@ -13,7 +46,10 @@ exports.TeamsService = void 0;
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const client_1 = require("@prisma/client");
+const bcrypt = __importStar(require("bcrypt"));
+const crypto_1 = require("crypto");
 const prisma_service_1 = require("../../prisma/prisma.service");
+const cards_service_1 = require("../cards/cards.service");
 const mail_service_1 = require("../mail/mail.service");
 const entitlements_service_1 = require("../subscriptions/entitlements.service");
 const team_invite_page_1 = require("./team-invite-page");
@@ -21,11 +57,13 @@ let TeamsService = class TeamsService {
     prisma;
     entitlementsService;
     mailService;
+    cardsService;
     configService;
-    constructor(prisma, entitlementsService, mailService, configService) {
+    constructor(prisma, entitlementsService, mailService, cardsService, configService) {
         this.prisma = prisma;
         this.entitlementsService = entitlementsService;
         this.mailService = mailService;
+        this.cardsService = cardsService;
         this.configService = configService;
     }
     get appPublicUrl() {
@@ -40,6 +78,7 @@ let TeamsService = class TeamsService {
         return name || 'Un membre de l\'équipe';
     }
     async create(userId, dto) {
+        await this.entitlementsService.assertHasTeamAccess(userId);
         const existingOwnedTeam = await this.prisma.team.findFirst({
             where: { ownerId: userId, isActive: true },
         });
@@ -83,7 +122,7 @@ let TeamsService = class TeamsService {
         });
     }
     async findAllForUser(userId) {
-        return this.prisma.team.findMany({
+        const teams = await this.prisma.team.findMany({
             where: {
                 isActive: true,
                 OR: [
@@ -93,6 +132,10 @@ let TeamsService = class TeamsService {
             },
             orderBy: { createdAt: 'desc' },
         });
+        return Promise.all(teams.map(async (team) => {
+            const entitlements = await this.entitlementsService.getUserEntitlements(team.ownerId);
+            return { ...team, entitlements };
+        }));
     }
     async findOneForUser(userId, id) {
         const team = await this.prisma.team.findFirst({
@@ -209,7 +252,7 @@ let TeamsService = class TeamsService {
         if (inviter?.email === email) {
             throw new common_1.BadRequestException('Vous ne pouvez pas vous inviter vous-même');
         }
-        const existingUser = await this.prisma.user.findUnique({
+        let existingUser = await this.prisma.user.findUnique({
             where: { email },
         });
         if (existingUser) {
@@ -239,18 +282,47 @@ let TeamsService = class TeamsService {
         if (role === client_1.TeamMemberRole.OWNER) {
             throw new common_1.BadRequestException('Le rôle propriétaire ne peut pas être attribué par invitation');
         }
+        if (role === client_1.TeamMemberRole.ADMIN) {
+            const team = await this.prisma.team.findFirst({
+                where: { id, ownerId: userId, isActive: true },
+            });
+            if (!team) {
+                throw new common_1.BadRequestException('Seul le propriétaire peut inviter un administrateur');
+            }
+        }
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + 30);
+        let createdUserId = null;
+        let temporaryPassword;
+        if (!existingUser) {
+            temporaryPassword = this.generateTemporaryPassword();
+            const passwordHash = await bcrypt.hash(temporaryPassword, 10);
+            const firstName = dto.firstName?.trim() ||
+                email.split('@')[0]?.trim() ||
+                'Membre';
+            const lastName = dto.lastName?.trim() || '';
+            existingUser = await this.prisma.user.create({
+                data: {
+                    email,
+                    passwordHash,
+                    authProvider: client_1.AuthProvider.LOCAL,
+                    firstName,
+                    lastName,
+                    avatarUrl: dto.avatarUrl?.trim() || null,
+                },
+            });
+            createdUserId = existingUser.id;
+        }
         const invite = await this.prisma.teamInvite.create({
             data: {
                 teamId: id,
                 email,
-                firstName: dto.firstName?.trim() || null,
-                lastName: dto.lastName?.trim() || null,
+                firstName: dto.firstName?.trim() || existingUser.firstName || null,
+                lastName: dto.lastName?.trim() || existingUser.lastName || null,
                 jobTitle: dto.jobTitle?.trim() || null,
                 avatarUrl: dto.avatarUrl?.trim() || null,
                 invitedById: userId,
-                inviteeUserId: existingUser?.id ?? null,
+                inviteeUserId: existingUser.id,
                 role,
                 status: client_1.TeamInviteStatus.PENDING,
                 expiresAt,
@@ -275,14 +347,27 @@ let TeamsService = class TeamsService {
                 inviterName: this.formatUserName(inviter),
                 inviteId: invite.id,
                 inviteUrl,
+                temporaryPassword,
             });
         }
         catch (error) {
             await this.prisma.teamInvite.delete({ where: { id: invite.id } });
+            if (createdUserId) {
+                await this.prisma.user.delete({ where: { id: createdUserId } });
+            }
             const message = error instanceof Error ? error.message : 'Envoi de l\'e-mail impossible';
             throw new common_1.InternalServerErrorException(message);
         }
         return invite;
+    }
+    generateTemporaryPassword(length = 10) {
+        const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+        const bytes = (0, crypto_1.randomBytes)(length);
+        let password = '';
+        for (let i = 0; i < length; i += 1) {
+            password += alphabet[bytes[i] % alphabet.length];
+        }
+        return password;
     }
     async renderTeamInvitePage(inviteId) {
         const invite = await this.prisma.teamInvite.findUnique({
@@ -346,8 +431,8 @@ let TeamsService = class TeamsService {
             });
             throw new common_1.BadRequestException('Vous faites déjà partie de cette équipe');
         }
-        return this.prisma.$transaction(async (tx) => {
-            const member = await tx.teamMember.create({
+        const member = await this.prisma.$transaction(async (tx) => {
+            const created = await tx.teamMember.create({
                 data: {
                     teamId: invite.teamId,
                     userId,
@@ -373,8 +458,23 @@ let TeamsService = class TeamsService {
                     respondedAt: new Date(),
                 },
             });
-            return member;
+            return created;
         });
+        try {
+            await this.cardsService.create(userId, {
+                firstName: user.firstName,
+                lastName: user.lastName,
+                email: user.email,
+                phone: user.phone ?? undefined,
+                jobTitle: invite.jobTitle ?? undefined,
+                company: team.name,
+                kind: client_1.CardKind.MEMBER,
+                teamId: team.id,
+            });
+        }
+        catch {
+        }
+        return member;
     }
     async declineInvitation(userId, inviteId) {
         const user = await this.prisma.user.findUnique({ where: { id: userId } });
@@ -392,7 +492,7 @@ let TeamsService = class TeamsService {
         });
     }
     async cancelInvitation(userId, teamId, inviteId) {
-        await this.assertOwner(userId, teamId);
+        await this.assertOwnerOrAdmin(userId, teamId);
         const invite = await this.prisma.teamInvite.findFirst({
             where: {
                 id: inviteId,
@@ -419,7 +519,7 @@ let TeamsService = class TeamsService {
         });
     }
     async removeMember(userId, id, memberId) {
-        await this.assertOwner(userId, id);
+        const actor = await this.assertOwnerOrAdmin(userId, id);
         const member = await this.prisma.teamMember.findFirst({
             where: { id: memberId, teamId: id },
         });
@@ -428,6 +528,10 @@ let TeamsService = class TeamsService {
         }
         if (member.role === client_1.TeamMemberRole.OWNER) {
             throw new common_1.BadRequestException('Le propriétaire de l’équipe ne peut pas être retiré');
+        }
+        if (actor.role === client_1.TeamMemberRole.ADMIN &&
+            member.role !== client_1.TeamMemberRole.MEMBER) {
+            throw new common_1.BadRequestException('Un administrateur ne peut retirer que des membres');
         }
         return this.prisma.teamMember.delete({ where: { id: memberId } });
     }
@@ -438,6 +542,29 @@ let TeamsService = class TeamsService {
         if (!team) {
             throw new common_1.BadRequestException('Action réservée au propriétaire de l’équipe');
         }
+    }
+    async assertOwnerOrAdmin(userId, teamId) {
+        const team = await this.prisma.team.findFirst({
+            where: { id: teamId, isActive: true },
+            select: { id: true, ownerId: true },
+        });
+        if (!team) {
+            throw new common_1.BadRequestException('Équipe introuvable');
+        }
+        if (team.ownerId === userId) {
+            return { role: client_1.TeamMemberRole.OWNER };
+        }
+        const membership = await this.prisma.teamMember.findUnique({
+            where: {
+                teamId_userId: { teamId, userId },
+            },
+            select: { role: true },
+        });
+        if (membership?.role !== client_1.TeamMemberRole.ADMIN &&
+            membership?.role !== client_1.TeamMemberRole.OWNER) {
+            throw new common_1.BadRequestException('Action réservée aux administrateurs de l’équipe');
+        }
+        return { role: membership.role };
     }
     async getAccessiblePendingInvite(userId, inviteId, email) {
         const invite = await this.prisma.teamInvite.findUnique({
@@ -504,6 +631,7 @@ exports.TeamsService = TeamsService = __decorate([
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
         entitlements_service_1.EntitlementsService,
         mail_service_1.MailService,
+        cards_service_1.CardsService,
         config_1.ConfigService])
 ], TeamsService);
 //# sourceMappingURL=teams.service.js.map

@@ -18,23 +18,53 @@ function buildTeamInviteEmail(payload) {
     const inviterName = escapeHtml(payload.inviterName);
     const inviteUrl = escapeHtml(payload.inviteUrl);
     const to = payload.to.trim();
+    const temporaryPassword = payload.temporaryPassword?.trim();
     const subject = `${payload.inviterName} vous invite à rejoindre ${payload.teamName} sur DropOne`;
+    const credentialsText = temporaryPassword
+        ? [
+            'Vos identifiants DropOne :',
+            `E-mail : ${to}`,
+            `Mot de passe : ${temporaryPassword}`,
+            '',
+            'Nous vous recommandons de changer ce mot de passe après votre première connexion.',
+            '',
+        ]
+        : [];
+    const credentialsHtml = temporaryPassword
+        ? `
+              <div style="margin:0 0 24px;padding:16px 18px;background:#f2f2f7;border-radius:12px;">
+                <p style="margin:0 0 8px;font-size:14px;font-weight:600;color:#0c0d10;">Vos identifiants DropOne</p>
+                <p style="margin:0 0 6px;font-size:14px;line-height:1.5;color:#5b616e;">
+                  E-mail : <strong style="color:#0c0d10;">${escapeHtml(to)}</strong>
+                </p>
+                <p style="margin:0 0 10px;font-size:14px;line-height:1.5;color:#5b616e;">
+                  Mot de passe : <strong style="color:#0c0d10;letter-spacing:0.3px;">${escapeHtml(temporaryPassword)}</strong>
+                </p>
+                <p style="margin:0;font-size:12px;line-height:1.45;color:#9aa0ac;">
+                  Changez ce mot de passe après votre première connexion.
+                </p>
+              </div>`
+        : '';
     const text = [
         greetingName ? `Bonjour ${greetingName},` : 'Bonjour,',
         '',
         `${payload.inviterName} vous invite à rejoindre l'équipe « ${payload.teamName} » sur DropOne.`,
         '',
-        'Pour accepter l\'invitation :',
+        ...credentialsText,
+        'Pour accéder à votre carte :',
         '1. Installez l\'application DropOne sur votre téléphone',
-        `2. Connectez-vous avec l'adresse e-mail ${to}`,
+        `2. Connectez-vous avec l'adresse e-mail ${to}${temporaryPassword ? ' et le mot de passe ci-dessus' : ''}`,
         '3. Acceptez l\'invitation depuis l\'application',
         '',
         `Ou ouvrez ce lien : ${payload.inviteUrl}`,
         '',
-        'Si vous n\'avez pas encore de compte, créez-en un avec cette même adresse e-mail.',
-        '',
+        temporaryPassword
+            ? ''
+            : 'Si vous n\'avez pas encore de compte, créez-en un avec cette même adresse e-mail.',
         '— L\'équipe DropOne',
-    ].join('\n');
+    ]
+        .filter((line, index, lines) => !(line === '' && lines[index - 1] === ''))
+        .join('\n');
     const html = `<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -56,9 +86,11 @@ function buildTeamInviteEmail(payload) {
                 <strong>${inviterName}</strong> vous invite à rejoindre l'équipe
                 <strong>${teamName}</strong> sur DropOne.
               </p>
+              ${credentialsHtml}
               <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#5b616e;">
-                Connectez-vous dans l'application avec <strong>${escapeHtml(to)}</strong>
-                pour accepter l'invitation. Si vous n'avez pas encore de compte, créez-en un avec cette adresse.
+                Installez DropOne, puis connectez-vous avec <strong>${escapeHtml(to)}</strong>
+                ${temporaryPassword ? 'et le mot de passe ci-dessus' : ''}
+                pour accepter l'invitation et accéder à votre carte.
               </p>
               <p style="margin:0 0 28px;text-align:center;">
                 <a href="${inviteUrl}" style="display:inline-block;background:#0a6bff;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:14px 24px;border-radius:999px;">

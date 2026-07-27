@@ -22,6 +22,10 @@ class PremiumOfferResponseDto {
     canCustomize;
     maxTeamMembers;
     hasPortfolio;
+    hasWallet;
+    hasAnalytics;
+    hasVisitorInsights;
+    hasSocialLinks;
     maxAiScans;
     sortOrder;
     prices;
@@ -59,6 +63,22 @@ __decorate([
     (0, swagger_1.ApiProperty)({ example: true }),
     __metadata("design:type", Boolean)
 ], PremiumOfferResponseDto.prototype, "hasPortfolio", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: true }),
+    __metadata("design:type", Boolean)
+], PremiumOfferResponseDto.prototype, "hasWallet", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: true }),
+    __metadata("design:type", Boolean)
+], PremiumOfferResponseDto.prototype, "hasAnalytics", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: false }),
+    __metadata("design:type", Boolean)
+], PremiumOfferResponseDto.prototype, "hasVisitorInsights", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: true }),
+    __metadata("design:type", Boolean)
+], PremiumOfferResponseDto.prototype, "hasSocialLinks", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({ example: -1 }),
     __metadata("design:type", Number)

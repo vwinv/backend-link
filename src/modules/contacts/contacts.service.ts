@@ -19,6 +19,14 @@ export class ContactsService {
     const contacts = await this.prisma.contact.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
+      include: {
+        linkedCard: {
+          select: {
+            slug: true,
+            avatarUrl: true,
+          },
+        },
+      },
     });
 
     return contacts.map(toContactResponse);
@@ -28,6 +36,14 @@ export class ContactsService {
     const contacts = await this.prisma.contact.findMany({
       where: { userId, source: ContactSource.EXCHANGE },
       orderBy: { createdAt: 'desc' },
+      include: {
+        linkedCard: {
+          select: {
+            slug: true,
+            avatarUrl: true,
+          },
+        },
+      },
     });
 
     return contacts.map(toContactResponse);
@@ -60,7 +76,10 @@ export class ContactsService {
     });
 
     if (existing) {
-      return toContactResponse(existing);
+      return toContactResponse({
+        ...existing,
+        linkedCard: { slug: card.slug, avatarUrl: card.avatarUrl },
+      });
     }
 
     const contact = await this.prisma.contact.create({
@@ -78,7 +97,10 @@ export class ContactsService {
       },
     });
 
-    return toContactResponse(contact);
+    return toContactResponse({
+      ...contact,
+      linkedCard: { slug: card.slug, avatarUrl: card.avatarUrl },
+    });
   }
 
   async createFromScan(

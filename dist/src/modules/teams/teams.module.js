@@ -9,6 +9,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TeamsModule = void 0;
 const common_1 = require("@nestjs/common");
 const auth_module_1 = require("../auth/auth.module");
+const cards_module_1 = require("../cards/cards.module");
 const subscriptions_module_1 = require("../subscriptions/subscriptions.module");
 const teams_controller_1 = require("./teams.controller");
 const teams_service_1 = require("./teams.service");
@@ -17,7 +18,7 @@ let TeamsModule = class TeamsModule {
 exports.TeamsModule = TeamsModule;
 exports.TeamsModule = TeamsModule = __decorate([
     (0, common_1.Module)({
-        imports: [auth_module_1.AuthModule, subscriptions_module_1.SubscriptionsModule],
+        imports: [auth_module_1.AuthModule, subscriptions_module_1.SubscriptionsModule, cards_module_1.CardsModule],
         controllers: [teams_controller_1.TeamsController],
         providers: [teams_service_1.TeamsService],
         exports: [teams_service_1.TeamsService],

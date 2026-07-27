@@ -1,4 +1,5 @@
 import { PrismaService } from '../../prisma/prisma.service';
+import { EntitlementsService } from '../subscriptions/entitlements.service';
 import { AppleWalletService } from './apple-wallet.service';
 import { GoogleWalletService } from './google-wallet.service';
 import { SaveToWalletDto } from './dto/save-to-wallet.dto';
@@ -6,7 +7,8 @@ export declare class WalletService {
     private readonly prisma;
     private readonly appleWalletService;
     private readonly googleWalletService;
-    constructor(prisma: PrismaService, appleWalletService: AppleWalletService, googleWalletService: GoogleWalletService);
+    private readonly entitlementsService;
+    constructor(prisma: PrismaService, appleWalletService: AppleWalletService, googleWalletService: GoogleWalletService, entitlementsService: EntitlementsService);
     addCardToWallet(userId: string, cardId: string, dto: SaveToWalletDto): Promise<{
         walletType: "APPLE_WALLET";
         savedCardId: string;
@@ -20,16 +22,16 @@ export declare class WalletService {
     }>;
     findAll(userId: string): Promise<({
         card: {
-            id: string;
-            slug: string;
             firstName: string;
             lastName: string;
+            id: string;
             jobTitle: string | null;
             company: string | null;
+            slug: string;
         };
     } & {
-        userId: string;
         id: string;
+        userId: string;
         cardId: string;
         savedAt: Date;
         walletType: import(".prisma/client").$Enums.WalletType;

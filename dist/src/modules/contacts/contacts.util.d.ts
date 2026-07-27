@@ -1,10 +1,16 @@
 import type { Contact } from '@prisma/client';
 export declare const DEFAULT_AVATAR_COLOR = 683007;
+type ContactWithCard = Contact & {
+    linkedCard?: {
+        slug: string;
+        avatarUrl: string | null;
+    } | null;
+};
 export declare function buildContactInitials(firstName: string, lastName: string): string;
 export declare function buildContactSubtitle(jobTitle?: string | null, company?: string | null): string;
 export declare function resolveAvatarColor(seed: string, fallback?: number): number;
 export declare function formatRelativeTimeFr(date: Date): string;
-export declare function toContactResponse(contact: Contact): {
+export declare function toContactResponse(contact: ContactWithCard): {
     id: string;
     source: import(".prisma/client").$Enums.ContactSource;
     fullName: string;
@@ -15,8 +21,11 @@ export declare function toContactResponse(contact: Contact): {
     jobTitle: string | null;
     company: string | null;
     linkedCardId: string | null;
+    linkedCardSlug: string | null;
+    avatarUrl: string | null;
     avatarColor: number;
     addedAgo: string;
     sharedAgo: string;
     createdAt: string;
 };
+export {};

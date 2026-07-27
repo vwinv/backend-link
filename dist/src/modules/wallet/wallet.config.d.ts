@@ -15,6 +15,7 @@ export declare class WalletConfig {
     get googleOrigins(): string[];
     isAppleConfigured(): boolean;
     isGoogleConfigured(): boolean;
+    describe(): Record<string, unknown>;
     loadGoogleServiceAccount(): Record<string, unknown>;
     walletAssetsDir(): string;
     private fileExists;

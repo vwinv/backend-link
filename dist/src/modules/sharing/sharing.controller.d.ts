@@ -1,10 +1,14 @@
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
+import { JwtService } from '@nestjs/jwt';
 import { ShareCardDto } from './dto/share-card.dto';
 import { SharingService } from './sharing.service';
 export declare class SharingController {
     private readonly sharingService;
-    constructor(sharingService: SharingService);
-    getPublicCard(slug: string): Promise<{
+    private readonly jwtService;
+    constructor(sharingService: SharingService, jwtService: JwtService);
+    private resolveViewerUserId;
+    private resolveViewMeta;
+    getPublicCard(slug: string, req: Request): Promise<{
         slug: string;
         fullName: string;
         subtitle: string;
@@ -19,8 +23,8 @@ export declare class SharingController {
         ogDescription: string;
         ogImageUrl: string;
     }>;
-    renderPublicCardPage(slug: string, res: Response): Promise<Response<any, Record<string, any>>>;
-    recordPublicCardSave(slug: string): Promise<{
+    renderPublicCardPage(slug: string, req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    recordPublicCardSave(slug: string, req: Request): Promise<{
         ok: boolean;
     }>;
     shareCard(user: {
@@ -28,9 +32,9 @@ export declare class SharingController {
     }, id: string, dto: ShareCardDto): Promise<{
         id: string;
         createdAt: Date;
+        cardId: string;
         method: import(".prisma/client").$Enums.ShareMethod;
         metadata: import("@prisma/client/runtime/client").JsonValue;
-        cardId: string;
         userId: string | null;
     }>;
     getQrCode(id: string): {

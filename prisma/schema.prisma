@@ -87,6 +87,7 @@ enum SocialPlatform {
 enum CardKind {
   PERSONAL
   PROFESSIONAL
+  MEMBER
 }
 
 enum ContactSource {
@@ -228,7 +229,7 @@ model BusinessCard {
   cardSaves    CardSaveEvent[]
   contacts     Contact[]
 
-  @@unique([ownerId, kind])
+  @@index([ownerId, kind])
   @@map("business_cards")
 }
 
@@ -330,19 +331,23 @@ model Subscription {
 }
 
 model PremiumOffer {
-  id             String        @id @default(cuid())
-  title          String
-  slug           String        @unique
-  subtitle       String?
-  audience       OfferAudience @default(PERSONAL)
-  canCustomize   Boolean       @default(false)
-  maxTeamMembers Int           @default(0)
-  hasPortfolio   Boolean       @default(false)
-  maxAiScans     Int           @default(0)
-  sortOrder      Int           @default(0)
-  isActive       Boolean       @default(true)
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  id                  String        @id @default(cuid())
+  title               String
+  slug                String        @unique
+  subtitle            String?
+  audience            OfferAudience @default(PERSONAL)
+  canCustomize        Boolean       @default(false)
+  maxTeamMembers      Int           @default(0)
+  hasPortfolio        Boolean       @default(false)
+  hasWallet           Boolean       @default(false)
+  hasAnalytics        Boolean       @default(false)
+  hasVisitorInsights  Boolean       @default(false)
+  hasSocialLinks      Boolean       @default(false)
+  maxAiScans          Int           @default(0)
+  sortOrder           Int           @default(0)
+  isActive            Boolean       @default(true)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
 
   prices        PremiumOfferPrice[]
   subscriptions Subscription[]

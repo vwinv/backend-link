@@ -26,12 +26,12 @@ let SharingService = class SharingService {
     get appPublicUrl() {
         return this.configService.get('wallet.appPublicUrl', 'https://dropone.pro');
     }
-    async getPublicCard(slug, viewerUserId) {
+    async getPublicCard(slug, viewerUserId, meta) {
         const card = await this.findPublicCard(slug);
         if (!card) {
             throw new common_1.NotFoundException('Carte introuvable');
         }
-        await this.recordCardView(card.id, viewerUserId);
+        await this.recordCardView(card.id, viewerUserId, meta);
         return this.toPublicCardPayload(card);
     }
     renderPublicCardNotFoundPage() {
@@ -56,7 +56,10 @@ let SharingService = class SharingService {
             return null;
         }
         if (!options?.embed) {
-            await this.recordCardView(card.id, options?.viewerUserId);
+            await this.recordCardView(card.id, options?.viewerUserId, {
+                source: options?.source,
+                userAgent: options?.userAgent,
+            });
         }
         const fullName = `${card.firstName} ${card.lastName}`.trim();
         const subtitle = this.buildSubtitle(card);
@@ -102,7 +105,16 @@ let SharingService = class SharingService {
     getShareLink(id) {
         return { message: 'getShareLink', id };
     }
-    async recordCardView(cardId, viewerUserId) {
+    normalizeViewSource(source) {
+        const value = source?.trim().toLowerCase();
+        if (!value)
+            return null;
+        if (['qr', 'nfc', 'share', 'link', 'app'].includes(value)) {
+            return value;
+        }
+        return 'link';
+    }
+    async recordCardView(cardId, viewerUserId, meta) {
         if (viewerUserId) {
             const ownCard = await this.prisma.businessCard.findFirst({
                 where: { id: cardId, ownerId: viewerUserId },
@@ -113,7 +125,12 @@ let SharingService = class SharingService {
             }
         }
         await this.prisma.cardView.create({
-            data: { cardId },
+            data: {
+                cardId,
+                viewerUserId: viewerUserId || null,
+                source: this.normalizeViewSource(meta?.source),
+                userAgent: meta?.userAgent?.slice(0, 512) || null,
+            },
         });
     }
     async recordCardSave(slug, userId) {

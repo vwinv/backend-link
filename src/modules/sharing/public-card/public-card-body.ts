@@ -64,7 +64,7 @@ type ButtonSkin =
   | 'accent-dark'
   | 'outline-white-soft';
 
-type ActionIcon = 'share' | 'add' | 'phone' | 'mail' | 'portfolio';
+type ActionIcon = 'share' | 'add' | 'phone' | 'mail' | 'message' | 'portfolio';
 
 function resolveButtonSkins(layout: ProDesignLayout): {
   primary: ButtonSkin;
@@ -112,6 +112,7 @@ function renderActionIcon(icon: ActionIcon): string {
     add: `${svgOpen}<circle cx="9" cy="8" r="3.5"/><path d="M3.5 20v-.75A4.25 4.25 0 0 1 7.75 15h2.5"/><path d="M16 11h5"/><path d="M18.5 8.5v5"/></svg>`,
     phone: `${svgOpen}<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>`,
     mail: `${svgOpen}<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>`,
+    message: `${svgOpen}<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`,
     portfolio: `${svgOpen}<path d="m12 2.5 1.35 4.15h4.4l-3.55 2.58 1.35 4.15L12 10.8l-3.55 2.58 1.35-4.15-3.55-2.58h4.4L12 2.5z"/><path d="M5 19h14"/></svg>`,
   };
 
@@ -145,12 +146,11 @@ function renderActionButton(options: {
 }
 
 function renderActions(params: PublicCardPageParams): string {
-  const phoneHref = params.phone?.trim()
-    ? `href="tel:${escapeAttr(params.phone.trim())}"`
-    : '';
-  const emailHref = params.email?.trim()
-    ? `href="mailto:${escapeAttr(params.email.trim())}"`
-    : '';
+  const phone = params.phone?.trim() ?? '';
+  const email = params.email?.trim() ?? '';
+  const phoneHref = phone ? `href="tel:${escapeAttr(phone)}"` : '';
+  const smsHref = phone ? `href="sms:${escapeAttr(phone)}"` : '';
+  const emailHref = email ? `href="mailto:${escapeAttr(email)}"` : '';
   const vcardHref = `href="${escapeAttr(buildVCardDataUri(params))}" download="${escapeAttr(params.fullName.replace(/\s+/g, '_'))}.vcf"`;
 
   const skins = resolveButtonSkins(params.design.layout);
@@ -170,7 +170,7 @@ function renderActions(params: PublicCardPageParams): string {
         tag: 'a',
         attrs: `${vcardHref} data-save-contact`,
       })}
-      ${params.phone?.trim()
+      ${phone
         ? renderActionButton({
             skin: skins.secondary,
             icon: 'phone',
@@ -179,11 +179,20 @@ function renderActions(params: PublicCardPageParams): string {
             attrs: phoneHref,
           })
         : ''}
-      ${params.email?.trim()
+      ${phone
+        ? renderActionButton({
+            skin: skins.secondary,
+            icon: 'message',
+            label: 'M’envoyer un message',
+            tag: 'a',
+            attrs: smsHref,
+          })
+        : ''}
+      ${email
         ? renderActionButton({
             skin: skins.secondary,
             icon: 'mail',
-            label: 'M’écrire',
+            label: 'M’écrire par email',
             tag: 'a',
             attrs: emailHref,
           })

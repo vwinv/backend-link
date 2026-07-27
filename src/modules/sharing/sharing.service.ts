@@ -21,13 +21,17 @@ export class SharingService {
     );
   }
 
-  async getPublicCard(slug: string, viewerUserId?: string) {
+  async getPublicCard(
+    slug: string,
+    viewerUserId?: string,
+    meta?: { source?: string; userAgent?: string },
+  ) {
     const card = await this.findPublicCard(slug);
     if (!card) {
       throw new NotFoundException('Carte introuvable');
     }
 
-    await this.recordCardView(card.id, viewerUserId);
+    await this.recordCardView(card.id, viewerUserId, meta);
 
     return this.toPublicCardPayload(card);
   }
@@ -51,7 +55,12 @@ export class SharingService {
 
   async renderPublicCardPage(
     slug: string,
-    options?: { embed?: boolean; viewerUserId?: string },
+    options?: {
+      embed?: boolean;
+      viewerUserId?: string;
+      source?: string;
+      userAgent?: string;
+    },
   ): Promise<string | null> {
     const card = await this.findPublicCard(slug);
     if (!card) {
@@ -59,7 +68,10 @@ export class SharingService {
     }
 
     if (!options?.embed) {
-      await this.recordCardView(card.id, options?.viewerUserId);
+      await this.recordCardView(card.id, options?.viewerUserId, {
+        source: options?.source,
+        userAgent: options?.userAgent,
+      });
     }
 
     const fullName = `${card.firstName} ${card.lastName}`.trim();
@@ -113,7 +125,20 @@ export class SharingService {
     return { message: 'getShareLink', id };
   }
 
-  private async recordCardView(cardId: string, viewerUserId?: string) {
+  private normalizeViewSource(source?: string): string | null {
+    const value = source?.trim().toLowerCase();
+    if (!value) return null;
+    if (['qr', 'nfc', 'share', 'link', 'app'].includes(value)) {
+      return value;
+    }
+    return 'link';
+  }
+
+  private async recordCardView(
+    cardId: string,
+    viewerUserId?: string,
+    meta?: { source?: string; userAgent?: string },
+  ) {
     if (viewerUserId) {
       const ownCard = await this.prisma.businessCard.findFirst({
         where: { id: cardId, ownerId: viewerUserId },
@@ -128,6 +153,8 @@ export class SharingService {
       data: {
         cardId,
         viewerUserId: viewerUserId || null,
+        source: this.normalizeViewSource(meta?.source),
+        userAgent: meta?.userAgent?.slice(0, 512) || null,
       },
     });
   }

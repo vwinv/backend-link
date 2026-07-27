@@ -4,6 +4,10 @@ export interface UserEntitlements {
     canCustomize: boolean;
     maxTeamMembers: number;
     hasPortfolio: boolean;
+    hasWallet: boolean;
+    hasAnalytics: boolean;
+    hasVisitorInsights: boolean;
+    hasSocialLinks: boolean;
     maxAiScans: number;
 }
 export interface TeamSeatsQuota {

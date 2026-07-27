@@ -445,6 +445,10 @@ export class SubscriptionsService {
     canCustomize: boolean;
     maxTeamMembers: number;
     hasPortfolio: boolean;
+    hasWallet?: boolean;
+    hasAnalytics?: boolean;
+    hasVisitorInsights?: boolean;
+    hasSocialLinks?: boolean;
     maxAiScans: number;
   }) {
     const isTeam = offer?.audience === OfferAudience.TEAM;
@@ -453,14 +457,15 @@ export class SubscriptionsService {
       where: { slug: isTeam ? 'premium-team' : 'premium' },
       update: {
         ...(offer && {
-          maxTeamMembers: offer.maxTeamMembers,
+          maxTeamMembers: offer.maxTeamMembers < 0 ? 9999 : offer.maxTeamMembers,
           hasPortfolio: offer.hasPortfolio,
+          hasAnalytics: offer.hasAnalytics ?? true,
           features: this.buildPlanFeatures(offer),
         }),
       },
       create: {
         id: isTeam ? 'plan_premium_team' : 'plan_premium',
-        name: isTeam ? 'DropOne Premium Équipe' : 'DropOne Premium',
+        name: isTeam ? 'DropOne Équipe' : 'DropOne Premium',
         slug: isTeam ? 'premium-team' : 'premium',
         description: isTeam
           ? 'Espace équipe et cartes professionnelles DropOne'
@@ -468,16 +473,23 @@ export class SubscriptionsService {
         priceMonthly: 0,
         priceYearly: 0,
         maxCards: isTeam ? 10 : 2,
-        maxTeamMembers: offer?.maxTeamMembers ?? (isTeam ? 5 : 0),
+        maxTeamMembers:
+          offer?.maxTeamMembers != null && offer.maxTeamMembers < 0
+            ? 9999
+            : (offer?.maxTeamMembers ?? (isTeam ? 10 : 0)),
         hasPortfolio: offer?.hasPortfolio ?? true,
         hasCustomDomain: false,
-        hasAnalytics: true,
+        hasAnalytics: offer?.hasAnalytics ?? true,
         features: this.buildPlanFeatures(
           offer ?? {
             audience: isTeam ? OfferAudience.TEAM : OfferAudience.PERSONAL,
             canCustomize: true,
-            maxTeamMembers: isTeam ? 5 : 0,
+            maxTeamMembers: isTeam ? 10 : 0,
             hasPortfolio: true,
+            hasWallet: true,
+            hasAnalytics: true,
+            hasVisitorInsights: true,
+            hasSocialLinks: true,
             maxAiScans: -1,
           },
         ),
@@ -491,6 +503,10 @@ export class SubscriptionsService {
     canCustomize: boolean;
     maxTeamMembers: number;
     hasPortfolio: boolean;
+    hasWallet?: boolean;
+    hasAnalytics?: boolean;
+    hasVisitorInsights?: boolean;
+    hasSocialLinks?: boolean;
     maxAiScans: number;
   }) {
     const features = ['pro_designs'];
@@ -500,6 +516,18 @@ export class SubscriptionsService {
     }
     if (offer.hasPortfolio) {
       features.push('portfolio');
+    }
+    if (offer.hasWallet) {
+      features.push('wallet');
+    }
+    if (offer.hasAnalytics) {
+      features.push('analytics');
+    }
+    if (offer.hasVisitorInsights) {
+      features.push('visitor_insights');
+    }
+    if (offer.hasSocialLinks) {
+      features.push('social_links');
     }
     if (offer.audience === OfferAudience.TEAM) {
       features.push('team');
@@ -571,6 +599,10 @@ export class SubscriptionsService {
       canCustomize: boolean;
       maxTeamMembers: number;
       hasPortfolio: boolean;
+      hasWallet: boolean;
+      hasAnalytics: boolean;
+      hasVisitorInsights: boolean;
+      hasSocialLinks: boolean;
       maxAiScans: number;
     } | null;
     offerPrice?: { billingType: OfferBillingType } | null;
@@ -597,6 +629,10 @@ export class SubscriptionsService {
       canCustomize: boolean;
       maxTeamMembers: number;
       hasPortfolio: boolean;
+      hasWallet?: boolean;
+      hasAnalytics?: boolean;
+      hasVisitorInsights?: boolean;
+      hasSocialLinks?: boolean;
       maxAiScans: number;
     } | null,
   ) {
@@ -605,6 +641,10 @@ export class SubscriptionsService {
       canCustomize: offer?.canCustomize ?? false,
       maxTeamMembers: offer?.maxTeamMembers ?? 0,
       hasPortfolio: offer?.hasPortfolio ?? false,
+      hasWallet: offer?.hasWallet ?? false,
+      hasAnalytics: offer?.hasAnalytics ?? false,
+      hasVisitorInsights: offer?.hasVisitorInsights ?? false,
+      hasSocialLinks: offer?.hasSocialLinks ?? false,
       maxAiScans: offer?.maxAiScans ?? 0,
     };
   }
@@ -618,6 +658,10 @@ export class SubscriptionsService {
     canCustomize: boolean;
     maxTeamMembers: number;
     hasPortfolio: boolean;
+    hasWallet: boolean;
+    hasAnalytics: boolean;
+    hasVisitorInsights: boolean;
+    hasSocialLinks: boolean;
     maxAiScans: number;
     sortOrder: number;
     prices: Array<{
@@ -641,6 +685,10 @@ export class SubscriptionsService {
       canCustomize: offer.canCustomize,
       maxTeamMembers: offer.maxTeamMembers,
       hasPortfolio: offer.hasPortfolio,
+      hasWallet: offer.hasWallet,
+      hasAnalytics: offer.hasAnalytics,
+      hasVisitorInsights: offer.hasVisitorInsights,
+      hasSocialLinks: offer.hasSocialLinks,
       maxAiScans: offer.maxAiScans,
       sortOrder: offer.sortOrder,
       prices: offer.prices.map((price) => this.toOfferPriceResponse(price)),

@@ -27,6 +27,18 @@ export class PremiumOfferResponseDto {
   @ApiProperty({ example: true })
   hasPortfolio: boolean;
 
+  @ApiProperty({ example: true })
+  hasWallet: boolean;
+
+  @ApiProperty({ example: true })
+  hasAnalytics: boolean;
+
+  @ApiProperty({ example: false })
+  hasVisitorInsights: boolean;
+
+  @ApiProperty({ example: true })
+  hasSocialLinks: boolean;
+
   @ApiProperty({ example: -1 })
   maxAiScans: number;
 

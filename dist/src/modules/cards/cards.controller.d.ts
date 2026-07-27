@@ -9,52 +9,52 @@ export declare class CardsController {
     create(user: {
         userId: string;
     }, dto: CreateCardDto): Promise<{
+        email: string | null;
         firstName: string;
         lastName: string;
-        email: string | null;
-        phone: string | null;
-        jobTitle: string | null;
-        company: string | null;
+        avatarUrl: string | null;
         id: string;
+        phone: string | null;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        jobTitle: string | null;
+        teamId: string | null;
+        company: string | null;
         slug: string;
         ownerId: string;
-        teamId: string | null;
+        kind: import(".prisma/client").$Enums.CardKind;
         bio: string | null;
         website: string | null;
-        avatarUrl: string | null;
         coverImageUrl: string | null;
         logoUrl: string | null;
         theme: import("@prisma/client/runtime/client").JsonValue;
         isPublic: boolean;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        kind: import(".prisma/client").$Enums.CardKind;
     }>;
     findAll(user: {
         userId: string;
     }): Promise<{
+        email: string | null;
         firstName: string;
         lastName: string;
-        email: string | null;
-        phone: string | null;
-        jobTitle: string | null;
-        company: string | null;
+        avatarUrl: string | null;
         id: string;
+        phone: string | null;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        jobTitle: string | null;
+        teamId: string | null;
+        company: string | null;
         slug: string;
         ownerId: string;
-        teamId: string | null;
+        kind: import(".prisma/client").$Enums.CardKind;
         bio: string | null;
         website: string | null;
-        avatarUrl: string | null;
         coverImageUrl: string | null;
         logoUrl: string | null;
         theme: import("@prisma/client/runtime/client").JsonValue;
         isPublic: boolean;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        kind: import(".prisma/client").$Enums.CardKind;
     }[]>;
     findSharedWithMe(user: {
         userId: string;
@@ -69,6 +69,8 @@ export declare class CardsController {
         jobTitle: string | null;
         company: string | null;
         linkedCardId: string | null;
+        linkedCardSlug: string | null;
+        avatarUrl: string | null;
         avatarColor: number;
         addedAgo: string;
         sharedAgo: string;
@@ -77,77 +79,77 @@ export declare class CardsController {
     findOne(user: {
         userId: string;
     }, id: string): Promise<{
+        email: string | null;
         firstName: string;
         lastName: string;
-        email: string | null;
-        phone: string | null;
-        jobTitle: string | null;
-        company: string | null;
+        avatarUrl: string | null;
         id: string;
+        phone: string | null;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        jobTitle: string | null;
+        teamId: string | null;
+        company: string | null;
         slug: string;
         ownerId: string;
-        teamId: string | null;
+        kind: import(".prisma/client").$Enums.CardKind;
         bio: string | null;
         website: string | null;
-        avatarUrl: string | null;
         coverImageUrl: string | null;
         logoUrl: string | null;
         theme: import("@prisma/client/runtime/client").JsonValue;
         isPublic: boolean;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        kind: import(".prisma/client").$Enums.CardKind;
     }>;
     update(user: {
         userId: string;
     }, id: string, dto: UpdateCardDto): Promise<{
+        email: string | null;
         firstName: string;
         lastName: string;
-        email: string | null;
-        phone: string | null;
-        jobTitle: string | null;
-        company: string | null;
+        avatarUrl: string | null;
         id: string;
+        phone: string | null;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        jobTitle: string | null;
+        teamId: string | null;
+        company: string | null;
         slug: string;
         ownerId: string;
-        teamId: string | null;
+        kind: import(".prisma/client").$Enums.CardKind;
         bio: string | null;
         website: string | null;
-        avatarUrl: string | null;
         coverImageUrl: string | null;
         logoUrl: string | null;
         theme: import("@prisma/client/runtime/client").JsonValue;
         isPublic: boolean;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        kind: import(".prisma/client").$Enums.CardKind;
     }>;
     updateTheme(user: {
         userId: string;
     }, id: string, dto: UpdateCardThemeDto): Promise<{
+        email: string | null;
         firstName: string;
         lastName: string;
-        email: string | null;
-        phone: string | null;
-        jobTitle: string | null;
-        company: string | null;
+        avatarUrl: string | null;
         id: string;
+        phone: string | null;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        jobTitle: string | null;
+        teamId: string | null;
+        company: string | null;
         slug: string;
         ownerId: string;
-        teamId: string | null;
+        kind: import(".prisma/client").$Enums.CardKind;
         bio: string | null;
         website: string | null;
-        avatarUrl: string | null;
         coverImageUrl: string | null;
         logoUrl: string | null;
         theme: import("@prisma/client/runtime/client").JsonValue;
         isPublic: boolean;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        kind: import(".prisma/client").$Enums.CardKind;
     }>;
     remove(id: string): {
         message: string;
@@ -158,22 +160,22 @@ export declare class CardsController {
     }, id: string, dto: SyncSocialLinksDto): Promise<{
         id: string;
         createdAt: Date;
+        platform: import(".prisma/client").$Enums.SocialPlatform;
+        url: string;
+        label: string | null;
         order: number;
         cardId: string;
-        platform: import(".prisma/client").$Enums.SocialPlatform;
-        label: string | null;
-        url: string;
     }[]>;
     getSocialLinks(user: {
         userId: string;
     }, id: string): Promise<{
         id: string;
         createdAt: Date;
+        platform: import(".prisma/client").$Enums.SocialPlatform;
+        url: string;
+        label: string | null;
         order: number;
         cardId: string;
-        platform: import(".prisma/client").$Enums.SocialPlatform;
-        label: string | null;
-        url: string;
     }[]>;
     addSocialLink(id: string): {
         message: string;
@@ -186,9 +188,59 @@ export declare class CardsController {
     };
     getAnalytics(user: {
         userId: string;
-    }, id: string): Promise<{
+    }, id: string, days?: string, from?: string, to?: string): Promise<{
         views: number;
         shares: number;
         saved: number;
+        uniqueVisitors: number;
+        periodDays: number;
+        periodViews: number;
+        previousPeriodViews: number;
+        viewsChangePercent: number;
+        viewsSeries: {
+            date: string;
+            label: string;
+            count: number;
+        }[];
+        sources: {
+            key: "link" | "qr" | "share" | "nfc" | "app" | "other";
+            count: number;
+            percent: number;
+        }[];
+        sparklines: {
+            views: number[];
+            uniqueVisitors: number[];
+            saved: number[];
+            shares: number[];
+        };
+    }>;
+    getVisitors(user: {
+        userId: string;
+    }, id: string, filter?: string): Promise<{
+        summary: {
+            views: number;
+            uniqueVisitors: number;
+            saved: number;
+            shares: number;
+            dropOneCount: number;
+            guestCount: number;
+        };
+        visitors: {
+            id: string;
+            viewedAt: string;
+            isDropOneUser: boolean;
+            source: string;
+            displayName: string;
+            subtitle: string;
+            avatarUrl: string | null;
+            initials: string;
+            viewerUserId: string | null;
+            viewerCardSlug: string | null;
+            hasSaved: boolean;
+            hasShared: boolean;
+            durationSeconds: number | null;
+            locationLabel: string | null;
+            deviceLabel: string | null;
+        }[];
     }>;
 }

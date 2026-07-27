@@ -5,6 +5,10 @@ export interface UserEntitlements {
   canCustomize: boolean;
   maxTeamMembers: number;
   hasPortfolio: boolean;
+  hasWallet: boolean;
+  hasAnalytics: boolean;
+  hasVisitorInsights: boolean;
+  hasSocialLinks: boolean;
   maxAiScans: number;
 }
 
@@ -26,5 +30,9 @@ export const DEFAULT_ENTITLEMENTS: UserEntitlements = {
   canCustomize: false,
   maxTeamMembers: 0,
   hasPortfolio: false,
+  hasWallet: false,
+  hasAnalytics: false,
+  hasVisitorInsights: false,
+  hasSocialLinks: false,
   maxAiScans: 0,
 };

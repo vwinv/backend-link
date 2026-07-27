@@ -137,8 +137,16 @@ export class CardsController {
   getAnalytics(
     @CurrentUser() user: { userId: string },
     @Param('id') id: string,
+    @Query('days') days?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
   ) {
-    return this.cardsService.getAnalytics(user.userId, id);
+    const parsed = Number.parseInt(days ?? '7', 10);
+    return this.cardsService.getAnalytics(user.userId, id, {
+      days: Number.isFinite(parsed) ? parsed : 7,
+      from,
+      to,
+    });
   }
 
   @Get(':id/visitors')

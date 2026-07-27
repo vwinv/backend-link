@@ -21,6 +21,8 @@ export declare class ScansController {
             jobTitle: string | null;
             company: string | null;
             linkedCardId: string | null;
+            linkedCardSlug: string | null;
+            avatarUrl: string | null;
             avatarColor: number;
             addedAgo: string;
             sharedAgo: string;

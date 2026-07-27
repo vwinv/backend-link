@@ -42,7 +42,7 @@ function buildTeamInviteLandingPage(input) {
        </p>`
         : `<ol style="margin:0 0 24px;padding-left:20px;line-height:1.7;font-size:15px;color:#5b616e;">
          <li>Ouvrez l'application <strong>DropOne</strong> sur votre téléphone</li>
-         <li>Connectez-vous avec <strong>${inviteeEmail}</strong></li>
+         <li>Connectez-vous avec <strong>${inviteeEmail}</strong> et le mot de passe reçu par e-mail</li>
          <li>Acceptez l'invitation à l'équipe <strong>${teamName}</strong></li>
        </ol>`;
     return `<!DOCTYPE html>
@@ -63,7 +63,7 @@ function buildTeamInviteLandingPage(input) {
     <section style="background:#151518;border:1px solid #2a2a2e;border-radius:16px;padding:24px;">
       ${statusBlock}
       <p style="margin:0;font-size:14px;line-height:1.6;color:rgba(255,255,255,0.55);">
-        Pas encore de compte ? Créez-en un dans l'application avec la même adresse e-mail.
+        Votre mot de passe temporaire se trouve dans l'e-mail d'invitation.
       </p>
     </section>
   </main>

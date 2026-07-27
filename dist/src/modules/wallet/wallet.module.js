@@ -8,17 +8,20 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WalletModule = void 0;
 const common_1 = require("@nestjs/common");
+const subscriptions_module_1 = require("../subscriptions/subscriptions.module");
 const apple_wallet_service_1 = require("./apple-wallet.service");
 const google_wallet_service_1 = require("./google-wallet.service");
 const wallet_config_1 = require("./wallet.config");
 const wallet_controller_1 = require("./wallet.controller");
+const wallet_status_controller_1 = require("./wallet-status.controller");
 const wallet_service_1 = require("./wallet.service");
 let WalletModule = class WalletModule {
 };
 exports.WalletModule = WalletModule;
 exports.WalletModule = WalletModule = __decorate([
     (0, common_1.Module)({
-        controllers: [wallet_controller_1.WalletController],
+        imports: [subscriptions_module_1.SubscriptionsModule],
+        controllers: [wallet_controller_1.WalletController, wallet_status_controller_1.WalletStatusController],
         providers: [
             wallet_config_1.WalletConfig,
             apple_wallet_service_1.AppleWalletService,

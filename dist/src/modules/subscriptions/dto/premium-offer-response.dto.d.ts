@@ -9,6 +9,10 @@ export declare class PremiumOfferResponseDto {
     canCustomize: boolean;
     maxTeamMembers: number;
     hasPortfolio: boolean;
+    hasWallet: boolean;
+    hasAnalytics: boolean;
+    hasVisitorInsights: boolean;
+    hasSocialLinks: boolean;
     maxAiScans: number;
     sortOrder: number;
     prices: PremiumOfferPriceResponseDto[];

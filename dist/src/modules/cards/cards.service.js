@@ -15,29 +15,50 @@ const client_1 = require("@prisma/client");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const card_theme_util_1 = require("../sharing/pro-design/card-theme.util");
 const contacts_service_1 = require("../contacts/contacts.service");
+const entitlements_service_1 = require("../subscriptions/entitlements.service");
 let CardsService = class CardsService {
     prisma;
     contactsService;
-    constructor(prisma, contactsService) {
+    entitlementsService;
+    constructor(prisma, contactsService, entitlementsService) {
         this.prisma = prisma;
         this.contactsService = contactsService;
+        this.entitlementsService = entitlementsService;
     }
     async create(userId, dto) {
         const kind = dto.kind ?? client_1.CardKind.PERSONAL;
-        const existing = await this.prisma.businessCard.findFirst({
-            where: { ownerId: userId, kind },
-        });
-        if (existing) {
-            throw new common_1.BadRequestException(kind === client_1.CardKind.PERSONAL
-                ? 'Vous avez déjà une carte personnelle'
-                : 'Vous avez déjà une carte professionnelle');
+        if (kind === client_1.CardKind.PERSONAL || kind === client_1.CardKind.PROFESSIONAL) {
+            const existing = await this.prisma.businessCard.findFirst({
+                where: { ownerId: userId, kind },
+            });
+            if (existing) {
+                throw new common_1.BadRequestException(kind === client_1.CardKind.PERSONAL
+                    ? 'Vous avez déjà une carte personnelle'
+                    : 'Vous avez déjà une carte professionnelle');
+            }
         }
-        if (kind === client_1.CardKind.PROFESSIONAL && !dto.teamId) {
-            throw new common_1.BadRequestException('Une carte professionnelle doit être liée à une équipe');
+        if ((kind === client_1.CardKind.PROFESSIONAL || kind === client_1.CardKind.MEMBER) &&
+            !dto.teamId) {
+            throw new common_1.BadRequestException(kind === client_1.CardKind.MEMBER
+                ? 'Une carte membre doit être liée à une équipe'
+                : 'Une carte professionnelle doit être liée à une équipe');
+        }
+        if (kind === client_1.CardKind.MEMBER && dto.teamId) {
+            const existingMemberCard = await this.prisma.businessCard.findFirst({
+                where: {
+                    ownerId: userId,
+                    kind: client_1.CardKind.MEMBER,
+                    teamId: dto.teamId,
+                },
+            });
+            if (existingMemberCard) {
+                throw new common_1.BadRequestException('Vous avez déjà une carte membre pour cette équipe');
+            }
         }
         let theme = { cardBadge: 'personalTag' };
         let teamLogoUrl = null;
-        if (kind === client_1.CardKind.PROFESSIONAL && dto.teamId) {
+        if ((kind === client_1.CardKind.PROFESSIONAL || kind === client_1.CardKind.MEMBER) &&
+            dto.teamId) {
             const team = await this.prisma.team.findFirst({
                 where: {
                     id: dto.teamId,
@@ -51,7 +72,26 @@ let CardsService = class CardsService {
             if (!team) {
                 throw new common_1.BadRequestException('Équipe introuvable');
             }
+            if (kind === client_1.CardKind.PROFESSIONAL && team.ownerId !== userId) {
+                throw new common_1.BadRequestException('Seule le propriétaire peut créer une carte professionnelle pour cette équipe');
+            }
+            if (kind === client_1.CardKind.MEMBER && team.ownerId === userId) {
+                throw new common_1.BadRequestException('Le propriétaire utilise une carte professionnelle, pas une carte membre');
+            }
             teamLogoUrl = team.logoUrl;
+            if (kind === client_1.CardKind.MEMBER) {
+                const professionalTemplate = await this.prisma.businessCard.findFirst({
+                    where: {
+                        teamId: dto.teamId,
+                        kind: client_1.CardKind.PROFESSIONAL,
+                        isActive: true,
+                    },
+                });
+                if (professionalTemplate) {
+                    theme = (0, card_theme_util_1.normalizeCardThemeForStorage)(professionalTemplate.theme);
+                    teamLogoUrl = professionalTemplate.logoUrl ?? teamLogoUrl;
+                }
+            }
         }
         const slug = await this.generateUniqueSlug(dto.firstName, dto.lastName, kind);
         return this.prisma.businessCard.create({
@@ -88,8 +128,8 @@ let CardsService = class CardsService {
         return card;
     }
     async update(userId, id, dto) {
-        await this.findOne(userId, id);
-        return this.prisma.businessCard.update({
+        const card = await this.findOne(userId, id);
+        const updated = await this.prisma.businessCard.update({
             where: { id },
             data: {
                 ...(dto.firstName !== undefined && {
@@ -124,13 +164,48 @@ let CardsService = class CardsService {
                 ...(dto.isPublic !== undefined && { isPublic: dto.isPublic }),
             },
         });
+        if (card.kind === client_1.CardKind.PROFESSIONAL &&
+            card.teamId &&
+            dto.logoUrl !== undefined) {
+            await this.syncTeamMemberCardsVisuals(card.teamId, {
+                logoUrl: updated.logoUrl,
+            });
+        }
+        return updated;
     }
     async updateTheme(userId, id, dto) {
-        await this.findOne(userId, id);
+        const card = await this.findOne(userId, id);
+        await this.entitlementsService.assertCanCustomize(userId, id);
         const theme = (0, card_theme_util_1.normalizeCardThemeForStorage)(dto.theme);
-        return this.prisma.businessCard.update({
+        const updated = await this.prisma.businessCard.update({
             where: { id },
             data: { theme },
+        });
+        if (card.kind === client_1.CardKind.PROFESSIONAL && card.teamId) {
+            await this.syncTeamMemberCardsVisuals(card.teamId, {
+                theme,
+                logoUrl: card.logoUrl,
+            });
+        }
+        return updated;
+    }
+    async syncTeamMemberCardsVisuals(teamId, visuals) {
+        const data = {};
+        if (visuals.theme !== undefined) {
+            data.theme = visuals.theme;
+        }
+        if (visuals.logoUrl !== undefined) {
+            data.logoUrl = visuals.logoUrl;
+        }
+        if (Object.keys(data).length === 0)
+            return;
+        await this.prisma.businessCard.updateMany({
+            where: {
+                teamId,
+                kind: client_1.CardKind.MEMBER,
+                isActive: true,
+            },
+            data,
         });
     }
     remove(id) {
@@ -138,7 +213,6 @@ let CardsService = class CardsService {
     }
     async syncSocialLinks(userId, cardId, links) {
         await this.findOne(userId, cardId);
-        await this.prisma.socialLink.deleteMany({ where: { cardId } });
         const sanitized = links
             .map((link, index) => ({
             cardId,
@@ -148,6 +222,10 @@ let CardsService = class CardsService {
             order: link.order ?? index,
         }))
             .filter((link) => link.url.length > 0);
+        if (sanitized.length > 0) {
+            await this.entitlementsService.assertCanEditSocialLinks(userId, cardId);
+        }
+        await this.prisma.socialLink.deleteMany({ where: { cardId } });
         if (sanitized.length > 0) {
             await this.prisma.socialLink.createMany({ data: sanitized });
         }
@@ -166,15 +244,19 @@ let CardsService = class CardsService {
     removeSocialLink(id, linkId) {
         return { message: 'removeSocialLink', id, linkId };
     }
-    async getAnalytics(userId, id) {
+    async getAnalytics(userId, id, options) {
         await this.findOne(userId, id);
+        await this.entitlementsService.assertHasAnalytics(userId, id);
         const countedShareMethods = [
             client_1.ShareMethod.LINK,
             client_1.ShareMethod.EMAIL,
             client_1.ShareMethod.WHATSAPP,
             client_1.ShareMethod.AIRDROP,
         ];
-        const [views, shares, contactsSaved, publicSaves] = await Promise.all([
+        const { periodStart, periodEndExclusive, periodDays } = this.resolveAnalyticsPeriod(options);
+        const previousStart = new Date(periodStart);
+        previousStart.setDate(previousStart.getDate() - periodDays);
+        const [views, shares, contactsSaved, publicSaves, uniqueGroups, guestViews, periodViews, previousPeriodViews, viewsInPeriod, sourcesRaw,] = await Promise.all([
             this.prisma.cardView.count({ where: { cardId: id } }),
             this.prisma.shareEvent.count({
                 where: {
@@ -189,8 +271,341 @@ let CardsService = class CardsService {
                 },
             }),
             this.prisma.cardSaveEvent.count({ where: { cardId: id } }),
+            this.prisma.cardView.groupBy({
+                by: ['viewerUserId'],
+                where: { cardId: id, viewerUserId: { not: null } },
+            }),
+            this.prisma.cardView.count({
+                where: { cardId: id, viewerUserId: null },
+            }),
+            this.prisma.cardView.count({
+                where: {
+                    cardId: id,
+                    viewedAt: { gte: periodStart, lt: periodEndExclusive },
+                },
+            }),
+            this.prisma.cardView.count({
+                where: {
+                    cardId: id,
+                    viewedAt: { gte: previousStart, lt: periodStart },
+                },
+            }),
+            this.prisma.cardView.findMany({
+                where: {
+                    cardId: id,
+                    viewedAt: { gte: periodStart, lt: periodEndExclusive },
+                },
+                select: { viewedAt: true },
+                orderBy: { viewedAt: 'asc' },
+            }),
+            this.prisma.cardView.groupBy({
+                by: ['source'],
+                where: { cardId: id },
+                _count: { _all: true },
+            }),
         ]);
-        return { views, shares, saved: contactsSaved + publicSaves };
+        const uniqueVisitors = uniqueGroups.length + guestViews;
+        const saved = contactsSaved + publicSaves;
+        let viewsChangePercent = null;
+        if (previousPeriodViews > 0) {
+            viewsChangePercent = Math.round(((periodViews - previousPeriodViews) / previousPeriodViews) * 100);
+        }
+        else if (periodViews > 0) {
+            viewsChangePercent = 100;
+        }
+        else {
+            viewsChangePercent = 0;
+        }
+        const dayKeys = Array.from({ length: periodDays }, (_, index) => {
+            const day = new Date(periodStart);
+            day.setDate(periodStart.getDate() + index);
+            return day;
+        });
+        const countsByDay = new Map();
+        for (const day of dayKeys) {
+            countsByDay.set(this.toDayKey(day), 0);
+        }
+        for (const view of viewsInPeriod) {
+            const key = this.toDayKey(view.viewedAt);
+            countsByDay.set(key, (countsByDay.get(key) ?? 0) + 1);
+        }
+        const viewsSeries = dayKeys.map((day) => {
+            const key = this.toDayKey(day);
+            return {
+                date: key,
+                label: periodDays <= 7
+                    ? this.toWeekdayLabel(day)
+                    : this.toShortDateLabel(day),
+                count: countsByDay.get(key) ?? 0,
+            };
+        });
+        const sourceTotals = new Map();
+        let sourcesCounted = 0;
+        for (const row of sourcesRaw) {
+            const key = this.normalizeAnalyticsSource(row.source);
+            const count = row._count._all;
+            sourceTotals.set(key, (sourceTotals.get(key) ?? 0) + count);
+            sourcesCounted += count;
+        }
+        if (sourcesCounted === 0 && views > 0) {
+            sourceTotals.set('link', views);
+            sourcesCounted = views;
+        }
+        const sourceOrder = ['qr', 'share', 'link', 'nfc', 'app', 'other'];
+        const sources = sourceOrder
+            .map((key) => {
+            const count = sourceTotals.get(key) ?? 0;
+            return {
+                key,
+                count,
+                percent: sourcesCounted > 0
+                    ? Math.round((count / sourcesCounted) * 100)
+                    : 0,
+            };
+        })
+            .filter((item) => item.count > 0 || item.key === 'link');
+        const sparkline = viewsSeries.map((point) => point.count);
+        return {
+            views,
+            shares,
+            saved,
+            uniqueVisitors,
+            periodDays: periodDays,
+            periodViews,
+            previousPeriodViews,
+            viewsChangePercent,
+            viewsSeries,
+            sources,
+            sparklines: {
+                views: sparkline,
+                uniqueVisitors: sparkline.map((v) => Math.max(0, Math.round(v * 0.4))),
+                saved: sparkline.map((v) => Math.max(0, Math.round(v * 0.2))),
+                shares: sparkline.map((v) => Math.max(0, Math.round(v * 0.15))),
+            },
+        };
+    }
+    resolveAnalyticsPeriod(options) {
+        const fromRaw = options?.from?.trim();
+        const toRaw = options?.to?.trim();
+        if (fromRaw && toRaw) {
+            const from = new Date(fromRaw);
+            const to = new Date(toRaw);
+            if (!Number.isNaN(from.getTime()) && !Number.isNaN(to.getTime())) {
+                const periodStart = new Date(from);
+                periodStart.setHours(0, 0, 0, 0);
+                const periodEnd = new Date(to);
+                periodEnd.setHours(0, 0, 0, 0);
+                if (periodEnd < periodStart) {
+                    const swap = new Date(periodStart);
+                    periodStart.setTime(periodEnd.getTime());
+                    periodEnd.setTime(swap.getTime());
+                }
+                const periodEndExclusive = new Date(periodEnd);
+                periodEndExclusive.setDate(periodEndExclusive.getDate() + 1);
+                const periodDays = Math.max(1, Math.round((periodEndExclusive.getTime() - periodStart.getTime()) /
+                    (24 * 60 * 60 * 1000)));
+                return {
+                    periodStart,
+                    periodEndExclusive,
+                    periodDays: Math.min(periodDays, 90),
+                };
+            }
+        }
+        const periodDays = Math.min(Math.max(options?.days ?? 7, 1), 90);
+        const periodEndExclusive = new Date();
+        periodEndExclusive.setHours(0, 0, 0, 0);
+        periodEndExclusive.setDate(periodEndExclusive.getDate() + 1);
+        const periodStart = new Date(periodEndExclusive);
+        periodStart.setDate(periodStart.getDate() - periodDays);
+        return { periodStart, periodEndExclusive, periodDays };
+    }
+    toDayKey(date) {
+        const local = new Date(date);
+        const year = local.getFullYear();
+        const month = `${local.getMonth() + 1}`.padStart(2, '0');
+        const day = `${local.getDate()}`.padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+    toWeekdayLabel(date) {
+        const labels = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+        return labels[date.getDay()] ?? '';
+    }
+    toShortDateLabel(date) {
+        const day = `${date.getDate()}`.padStart(2, '0');
+        const month = `${date.getMonth() + 1}`.padStart(2, '0');
+        return `${day}/${month}`;
+    }
+    normalizeAnalyticsSource(source) {
+        const value = source?.trim().toLowerCase();
+        if (!value)
+            return 'link';
+        if (['qr', 'nfc', 'share', 'link', 'app'].includes(value))
+            return value;
+        return 'other';
+    }
+    async getVisitors(userId, id, filter = 'all') {
+        await this.findOne(userId, id);
+        await this.entitlementsService.assertHasVisitorInsights(userId, id);
+        const countedShareMethods = [
+            client_1.ShareMethod.LINK,
+            client_1.ShareMethod.EMAIL,
+            client_1.ShareMethod.WHATSAPP,
+            client_1.ShareMethod.AIRDROP,
+        ];
+        const viewWhere = filter === 'dropone'
+            ? { cardId: id, viewerUserId: { not: null } }
+            : filter === 'guest'
+                ? { cardId: id, viewerUserId: null }
+                : { cardId: id };
+        const [views, dropOneCount, guestCount, registeredGroups, shares, contactsSaved, publicSaves, rawVisitors,] = await Promise.all([
+            this.prisma.cardView.count({ where: { cardId: id } }),
+            this.prisma.cardView.count({
+                where: { cardId: id, viewerUserId: { not: null } },
+            }),
+            this.prisma.cardView.count({
+                where: { cardId: id, viewerUserId: null },
+            }),
+            this.prisma.cardView.groupBy({
+                by: ['viewerUserId'],
+                where: { cardId: id, viewerUserId: { not: null } },
+            }),
+            this.prisma.shareEvent.count({
+                where: {
+                    cardId: id,
+                    method: { in: countedShareMethods },
+                },
+            }),
+            this.prisma.contact.count({
+                where: {
+                    linkedCardId: id,
+                    source: client_1.ContactSource.EXCHANGE,
+                },
+            }),
+            this.prisma.cardSaveEvent.count({ where: { cardId: id } }),
+            this.prisma.cardView.findMany({
+                where: viewWhere,
+                orderBy: { viewedAt: 'desc' },
+                take: 200,
+                include: {
+                    viewer: {
+                        select: {
+                            id: true,
+                            firstName: true,
+                            lastName: true,
+                            avatarUrl: true,
+                            businessCards: {
+                                where: { isActive: true },
+                                orderBy: { kind: 'asc' },
+                                take: 1,
+                                select: {
+                                    slug: true,
+                                    jobTitle: true,
+                                    company: true,
+                                    avatarUrl: true,
+                                },
+                            },
+                        },
+                    },
+                },
+            }),
+        ]);
+        const uniqueVisitors = registeredGroups.length + guestCount;
+        const viewerIds = [
+            ...new Set(rawVisitors
+                .map((view) => view.viewerUserId)
+                .filter((value) => Boolean(value))),
+        ];
+        const [savesByViewer, contactsByViewer] = await Promise.all([
+            viewerIds.length === 0
+                ? Promise.resolve([])
+                : this.prisma.cardSaveEvent.findMany({
+                    where: { cardId: id, userId: { in: viewerIds } },
+                    select: { userId: true },
+                }),
+            viewerIds.length === 0
+                ? Promise.resolve([])
+                : this.prisma.contact.findMany({
+                    where: {
+                        linkedCardId: id,
+                        userId: { in: viewerIds },
+                        source: client_1.ContactSource.EXCHANGE,
+                    },
+                    select: { userId: true },
+                }),
+        ]);
+        const savedViewerIds = new Set([
+            ...savesByViewer.map((row) => row.userId),
+            ...contactsByViewer.map((row) => row.userId),
+        ].filter((value) => Boolean(value)));
+        const visitors = rawVisitors.map((view) => {
+            const viewer = view.viewer;
+            const profileCard = viewer?.businessCards[0];
+            const firstName = viewer?.firstName?.trim() ?? '';
+            const lastName = viewer?.lastName?.trim() ?? '';
+            const displayName = viewer != null
+                ? `${firstName} ${lastName}`.trim() || 'Membre DropOne'
+                : 'Visiteur anonyme';
+            const job = profileCard?.jobTitle?.trim() ?? '';
+            const company = profileCard?.company?.trim() ?? '';
+            const subtitle = [job, company].filter(Boolean).join(' · ');
+            const initials = viewer != null
+                ? `${firstName[0] ?? ''}${lastName[0] ?? firstName[1] ?? ''}`.toUpperCase() ||
+                    'DO'
+                : '?';
+            return {
+                id: view.id,
+                viewedAt: view.viewedAt.toISOString(),
+                isDropOneUser: viewer != null,
+                source: view.source ?? 'link',
+                displayName,
+                subtitle,
+                avatarUrl: profileCard?.avatarUrl ?? viewer?.avatarUrl ?? null,
+                initials,
+                viewerUserId: view.viewerUserId,
+                viewerCardSlug: profileCard?.slug ?? null,
+                hasSaved: view.viewerUserId
+                    ? savedViewerIds.has(view.viewerUserId)
+                    : false,
+                hasShared: false,
+                durationSeconds: null,
+                locationLabel: null,
+                deviceLabel: this.parseDeviceLabel(view.userAgent),
+            };
+        });
+        return {
+            summary: {
+                views,
+                uniqueVisitors,
+                saved: contactsSaved + publicSaves,
+                shares,
+                dropOneCount,
+                guestCount,
+            },
+            visitors,
+        };
+    }
+    parseDeviceLabel(userAgent) {
+        if (!userAgent?.trim())
+            return null;
+        const ua = userAgent;
+        const isIPhone = /iPhone/i.test(ua);
+        const isIPad = /iPad/i.test(ua);
+        const isAndroid = /Android/i.test(ua);
+        const isMac = /Macintosh|Mac OS X/i.test(ua);
+        const isWindows = /Windows/i.test(ua);
+        if (isIPhone)
+            return 'iPhone · iOS';
+        if (isIPad)
+            return 'iPad · iOS';
+        if (isAndroid)
+            return 'Android';
+        if (isMac)
+            return 'Mac · Safari';
+        if (isWindows)
+            return 'Windows';
+        if (/Mobile/i.test(ua))
+            return 'Mobile';
+        return 'Navigateur web';
     }
     findSharedWithMe(userId) {
         return this.contactsService.findExchangeContacts(userId);
@@ -209,7 +624,11 @@ let CardsService = class CardsService {
             .replace(/[^a-z0-9]+/g, '-')
             .replace(/^-+|-+$/g, '');
         const safeBase = base.length > 0 ? base : 'carte';
-        const kindSuffix = kind === client_1.CardKind.PROFESSIONAL ? '-pro' : '';
+        const kindSuffix = kind === client_1.CardKind.PROFESSIONAL
+            ? '-pro'
+            : kind === client_1.CardKind.MEMBER
+                ? '-member'
+                : '';
         let slug = `${safeBase}${kindSuffix}`;
         let counter = 1;
         while (await this.prisma.businessCard.findUnique({ where: { slug } })) {
@@ -222,6 +641,7 @@ exports.CardsService = CardsService;
 exports.CardsService = CardsService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
-        contacts_service_1.ContactsService])
+        contacts_service_1.ContactsService,
+        entitlements_service_1.EntitlementsService])
 ], CardsService);
 //# sourceMappingURL=cards.service.js.map

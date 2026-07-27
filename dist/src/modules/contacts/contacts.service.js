@@ -23,6 +23,14 @@ let ContactsService = class ContactsService {
         const contacts = await this.prisma.contact.findMany({
             where: { userId },
             orderBy: { createdAt: 'desc' },
+            include: {
+                linkedCard: {
+                    select: {
+                        slug: true,
+                        avatarUrl: true,
+                    },
+                },
+            },
         });
         return contacts.map(contacts_util_1.toContactResponse);
     }
@@ -30,6 +38,14 @@ let ContactsService = class ContactsService {
         const contacts = await this.prisma.contact.findMany({
             where: { userId, source: client_1.ContactSource.EXCHANGE },
             orderBy: { createdAt: 'desc' },
+            include: {
+                linkedCard: {
+                    select: {
+                        slug: true,
+                        avatarUrl: true,
+                    },
+                },
+            },
         });
         return contacts.map(contacts_util_1.toContactResponse);
     }
@@ -54,7 +70,10 @@ let ContactsService = class ContactsService {
             },
         });
         if (existing) {
-            return (0, contacts_util_1.toContactResponse)(existing);
+            return (0, contacts_util_1.toContactResponse)({
+                ...existing,
+                linkedCard: { slug: card.slug, avatarUrl: card.avatarUrl },
+            });
         }
         const contact = await this.prisma.contact.create({
             data: {
@@ -70,7 +89,10 @@ let ContactsService = class ContactsService {
                 avatarColor: (0, contacts_util_1.resolveAvatarColor)(`${card.firstName}${card.lastName}`),
             },
         });
-        return (0, contacts_util_1.toContactResponse)(contact);
+        return (0, contacts_util_1.toContactResponse)({
+            ...contact,
+            linkedCard: { slug: card.slug, avatarUrl: card.avatarUrl },
+        });
     }
     async createFromScan(userId, scanEventId, payload) {
         const firstName = this.optionalString(payload?.firstName) ?? '';

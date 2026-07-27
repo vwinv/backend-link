@@ -18,6 +18,10 @@ export declare class SubscriptionsService {
         canCustomize: boolean;
         maxTeamMembers: number;
         hasPortfolio: boolean;
+        hasWallet: boolean;
+        hasAnalytics: boolean;
+        hasVisitorInsights: boolean;
+        hasSocialLinks: boolean;
         maxAiScans: number;
         sortOrder: number;
         prices: {
@@ -41,6 +45,10 @@ export declare class SubscriptionsService {
         canCustomize: boolean;
         maxTeamMembers: number;
         hasPortfolio: boolean;
+        hasWallet: boolean;
+        hasAnalytics: boolean;
+        hasVisitorInsights: boolean;
+        hasSocialLinks: boolean;
         maxAiScans: number;
         sortOrder: number;
         prices: {
@@ -73,6 +81,10 @@ export declare class SubscriptionsService {
             canCustomize: boolean;
             maxTeamMembers: number;
             hasPortfolio: boolean;
+            hasWallet: boolean;
+            hasAnalytics: boolean;
+            hasVisitorInsights: boolean;
+            hasSocialLinks: boolean;
             maxAiScans: number;
         };
         currentPeriodEnd: string | null;
@@ -95,6 +107,10 @@ export declare class SubscriptionsService {
             canCustomize: boolean;
             maxTeamMembers: number;
             hasPortfolio: boolean;
+            hasWallet: boolean;
+            hasAnalytics: boolean;
+            hasVisitorInsights: boolean;
+            hasSocialLinks: boolean;
             maxAiScans: number;
         };
         currentPeriodEnd: string | null;

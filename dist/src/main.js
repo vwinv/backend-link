@@ -11,6 +11,7 @@ const app_module_1 = require("./app.module");
 const sharing_service_1 = require("./modules/sharing/sharing.service");
 const teams_service_1 = require("./modules/teams/teams.service");
 const premium_payment_page_1 = require("./modules/subscriptions/premium-payment-page");
+const privacy_policy_page_1 = require("./modules/legal/privacy-policy-page");
 async function bootstrap() {
     const app = await core_1.NestFactory.create(app_module_1.AppModule, {
         rawBody: true,
@@ -81,6 +82,9 @@ async function bootstrap() {
     expressApp.get('/premium/cancel', (_req, res) => {
         res.status(200).type('text/html; charset=utf-8').send((0, premium_payment_page_1.buildPremiumCancelPage)());
     });
+    expressApp.get('/privacy', (_req, res) => {
+        res.status(200).type('text/html; charset=utf-8').send((0, privacy_policy_page_1.buildPrivacyPolicyPage)());
+    });
     expressApp.get('/team-invites/:inviteId', async (req, res) => {
         const inviteId = String(req.params.inviteId);
         const html = await teamsService.renderTeamInvitePage(inviteId);
@@ -90,9 +94,13 @@ async function bootstrap() {
         const slug = String(req.params.slug);
         const embed = req.query.embed === '1' || req.query.embed === 'true';
         const viewerUserId = resolveViewerUserId(req);
+        const source = typeof req.query.source === 'string' ? req.query.source : undefined;
+        const userAgentHeader = req.headers['user-agent'];
         const html = await sharingService.renderPublicCardPage(slug, {
             embed,
             viewerUserId,
+            source,
+            userAgent: typeof userAgentHeader === 'string' ? userAgentHeader : undefined,
         });
         if (!html) {
             res
@@ -121,6 +129,7 @@ async function bootstrap() {
     await app.listen(port);
     console.log(`🚀 DropOne API running on http://localhost:${port}/${apiPrefix}`);
     console.log(`🃏 Public cards: http://localhost:${port}/cards/{slug}`);
+    console.log(`🔒 Privacy policy: http://localhost:${port}/privacy`);
     console.log(`✉️ Team invites: http://localhost:${port}/team-invites/{inviteId}`);
     console.log(`📚 Swagger docs: http://localhost:${port}/docs`);
 }

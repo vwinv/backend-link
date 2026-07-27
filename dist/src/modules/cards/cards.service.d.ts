@@ -5,37 +5,40 @@ import { SocialLinkItemDto } from './dto/social-link-item.dto';
 import { UpdateCardDto } from './dto/update-card.dto';
 import { UpdateCardThemeDto } from './dto/update-card-theme.dto';
 import { ContactsService } from '../contacts/contacts.service';
+import { EntitlementsService } from '../subscriptions/entitlements.service';
 export declare class CardsService {
     private readonly prisma;
     private readonly contactsService;
-    constructor(prisma: PrismaService, contactsService: ContactsService);
+    private readonly entitlementsService;
+    constructor(prisma: PrismaService, contactsService: ContactsService, entitlementsService: EntitlementsService);
     create(userId: string, dto: CreateCardDto): Promise<BusinessCard>;
     findAll(userId: string): Promise<{
+        email: string | null;
         firstName: string;
         lastName: string;
-        email: string | null;
-        phone: string | null;
-        jobTitle: string | null;
-        company: string | null;
+        avatarUrl: string | null;
         id: string;
+        phone: string | null;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        jobTitle: string | null;
+        teamId: string | null;
+        company: string | null;
         slug: string;
         ownerId: string;
-        teamId: string | null;
+        kind: import(".prisma/client").$Enums.CardKind;
         bio: string | null;
         website: string | null;
-        avatarUrl: string | null;
         coverImageUrl: string | null;
         logoUrl: string | null;
         theme: import("@prisma/client/runtime/client").JsonValue;
         isPublic: boolean;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        kind: import(".prisma/client").$Enums.CardKind;
     }[]>;
     findOne(userId: string, id: string): Promise<BusinessCard>;
     update(userId: string, id: string, dto: UpdateCardDto): Promise<BusinessCard>;
     updateTheme(userId: string, id: string, dto: UpdateCardThemeDto): Promise<BusinessCard>;
+    private syncTeamMemberCardsVisuals;
     remove(id: string): {
         message: string;
         id: string;
@@ -43,20 +46,20 @@ export declare class CardsService {
     syncSocialLinks(userId: string, cardId: string, links: SocialLinkItemDto[]): Promise<{
         id: string;
         createdAt: Date;
+        platform: import(".prisma/client").$Enums.SocialPlatform;
+        url: string;
+        label: string | null;
         order: number;
         cardId: string;
-        platform: import(".prisma/client").$Enums.SocialPlatform;
-        label: string | null;
-        url: string;
     }[]>;
     getSocialLinks(userId: string, cardId: string): Promise<{
         id: string;
         createdAt: Date;
+        platform: import(".prisma/client").$Enums.SocialPlatform;
+        url: string;
+        label: string | null;
         order: number;
         cardId: string;
-        platform: import(".prisma/client").$Enums.SocialPlatform;
-        label: string | null;
-        url: string;
     }[]>;
     addSocialLink(id: string): {
         message: string;
@@ -67,11 +70,69 @@ export declare class CardsService {
         id: string;
         linkId: string;
     };
-    getAnalytics(userId: string, id: string): Promise<{
+    getAnalytics(userId: string, id: string, options?: {
+        days?: number;
+        from?: string;
+        to?: string;
+    }): Promise<{
         views: number;
         shares: number;
         saved: number;
+        uniqueVisitors: number;
+        periodDays: number;
+        periodViews: number;
+        previousPeriodViews: number;
+        viewsChangePercent: number;
+        viewsSeries: {
+            date: string;
+            label: string;
+            count: number;
+        }[];
+        sources: {
+            key: "link" | "qr" | "share" | "nfc" | "app" | "other";
+            count: number;
+            percent: number;
+        }[];
+        sparklines: {
+            views: number[];
+            uniqueVisitors: number[];
+            saved: number[];
+            shares: number[];
+        };
     }>;
+    private resolveAnalyticsPeriod;
+    private toDayKey;
+    private toWeekdayLabel;
+    private toShortDateLabel;
+    private normalizeAnalyticsSource;
+    getVisitors(userId: string, id: string, filter?: 'all' | 'dropone' | 'guest'): Promise<{
+        summary: {
+            views: number;
+            uniqueVisitors: number;
+            saved: number;
+            shares: number;
+            dropOneCount: number;
+            guestCount: number;
+        };
+        visitors: {
+            id: string;
+            viewedAt: string;
+            isDropOneUser: boolean;
+            source: string;
+            displayName: string;
+            subtitle: string;
+            avatarUrl: string | null;
+            initials: string;
+            viewerUserId: string | null;
+            viewerCardSlug: string | null;
+            hasSaved: boolean;
+            hasShared: boolean;
+            durationSeconds: number | null;
+            locationLabel: string | null;
+            deviceLabel: string | null;
+        }[];
+    }>;
+    private parseDeviceLabel;
     findSharedWithMe(userId: string): Promise<{
         id: string;
         source: import(".prisma/client").$Enums.ContactSource;
@@ -83,6 +144,8 @@ export declare class CardsService {
         jobTitle: string | null;
         company: string | null;
         linkedCardId: string | null;
+        linkedCardSlug: string | null;
+        avatarUrl: string | null;
         avatarColor: number;
         addedAgo: string;
         sharedAgo: string;

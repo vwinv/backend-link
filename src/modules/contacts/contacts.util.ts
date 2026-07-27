@@ -6,6 +6,13 @@ const AVATAR_COLORS = [
 
 export const DEFAULT_AVATAR_COLOR = 0x0a6bff;
 
+type ContactWithCard = Contact & {
+  linkedCard?: {
+    slug: string;
+    avatarUrl: string | null;
+  } | null;
+};
+
 export function buildContactInitials(firstName: string, lastName: string): string {
   const first = firstName.trim();
   const last = lastName.trim();
@@ -57,7 +64,7 @@ export function formatRelativeTimeFr(date: Date): string {
   return `Il y a ${years} an${years > 1 ? 's' : ''}`;
 }
 
-export function toContactResponse(contact: Contact) {
+export function toContactResponse(contact: ContactWithCard) {
   const fullName = `${contact.firstName} ${contact.lastName}`.trim();
 
   return {
@@ -71,6 +78,8 @@ export function toContactResponse(contact: Contact) {
     jobTitle: contact.jobTitle,
     company: contact.company,
     linkedCardId: contact.linkedCardId,
+    linkedCardSlug: contact.linkedCard?.slug ?? null,
+    avatarUrl: contact.linkedCard?.avatarUrl ?? null,
     avatarColor: contact.avatarColor,
     addedAgo: formatRelativeTimeFr(contact.createdAt),
     sharedAgo: formatRelativeTimeFr(contact.createdAt),

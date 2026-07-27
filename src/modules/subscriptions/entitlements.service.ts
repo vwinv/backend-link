@@ -2,12 +2,15 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   BillingPeriod,
+  CardKind,
   OfferAudience,
   SubscriptionStatus,
   TeamInviteStatus,
+  TeamMemberRole,
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
@@ -28,6 +31,106 @@ export class EntitlementsService {
     }
 
     return this.mapOfferToEntitlements(subscription.offer);
+  }
+
+  /**
+   * Droits effectifs pour une carte :
+   * - carte membre → offre du propriétaire de l'équipe
+   * - sinon → offre personnelle de l'utilisateur
+   */
+  async getEntitlementsForCard(
+    userId: string,
+    cardId: string,
+  ): Promise<UserEntitlements> {
+    const card = await this.prisma.businessCard.findFirst({
+      where: { id: cardId, ownerId: userId, isActive: true },
+      select: { kind: true, teamId: true },
+    });
+
+    if (!card) {
+      throw new NotFoundException('Carte introuvable');
+    }
+
+    if (card.kind === CardKind.MEMBER && card.teamId) {
+      const team = await this.prisma.team.findFirst({
+        where: { id: card.teamId, isActive: true },
+        select: { ownerId: true },
+      });
+      if (team) {
+        return this.getUserEntitlements(team.ownerId);
+      }
+    }
+
+    return this.getUserEntitlements(userId);
+  }
+
+  async assertCanCustomize(userId: string, cardId: string): Promise<void> {
+    const entitlements = await this.getEntitlementsForCard(userId, cardId);
+    if (!entitlements.canCustomize) {
+      throw new ForbiddenException(
+        'La personnalisation avancée nécessite une offre Premium',
+      );
+    }
+  }
+
+  async assertCanUseWallet(userId: string, cardId: string): Promise<void> {
+    const entitlements = await this.getEntitlementsForCard(userId, cardId);
+    if (!entitlements.hasWallet) {
+      throw new ForbiddenException(
+        'L’ajout au Wallet nécessite une offre Premium',
+      );
+    }
+  }
+
+  async assertHasAnalytics(userId: string, cardId: string): Promise<void> {
+    const entitlements = await this.getEntitlementsForCard(userId, cardId);
+    if (!entitlements.hasAnalytics) {
+      throw new ForbiddenException(
+        'Les statistiques de consultation nécessitent une offre Premium',
+      );
+    }
+  }
+
+  async assertHasVisitorInsights(
+    userId: string,
+    cardId: string,
+  ): Promise<void> {
+    const entitlements = await this.getEntitlementsForCard(userId, cardId);
+    if (!entitlements.hasVisitorInsights) {
+      throw new ForbiddenException(
+        'L’historique des visiteurs nécessite Premium Plus',
+      );
+    }
+  }
+
+  async assertCanEditSocialLinks(
+    userId: string,
+    cardId: string,
+  ): Promise<void> {
+    const entitlements = await this.getEntitlementsForCard(userId, cardId);
+    if (!entitlements.hasSocialLinks) {
+      throw new ForbiddenException(
+        'Les réseaux sociaux nécessitent une offre Premium',
+      );
+    }
+  }
+
+  async assertHasPortfolio(userId: string): Promise<void> {
+    const entitlements = await this.getUserEntitlements(userId);
+    if (!entitlements.hasPortfolio) {
+      throw new ForbiddenException(
+        'Le portfolio nécessite une offre Premium',
+      );
+    }
+  }
+
+  async assertHasTeamAccess(userId: string): Promise<void> {
+    const entitlements = await this.getUserEntitlements(userId);
+    if (!this.hasTeamAccess(entitlements)) {
+      throw new ForbiddenException(
+        'Un abonnement équipe actif est requis pour créer une équipe',
+      );
+    }
   }
 
   async getTeamSeatsQuota(
@@ -58,29 +161,31 @@ export class EntitlementsService {
     const used = memberCount + pendingInviteCount;
 
     const max = entitlements.maxTeamMembers;
-    const hasTeamPlan =
-      entitlements.audience === OfferAudience.TEAM && max > 0;
+    const hasTeamPlan = this.hasTeamAccess(entitlements);
+    const isUnlimited = max < 0;
 
     return {
       used,
       max,
-      canAddMember: hasTeamPlan && used < max,
+      canAddMember: hasTeamPlan && (isUnlimited || used < max),
     };
   }
 
   async assertCanAddTeamMember(userId: string, teamId: string): Promise<void> {
-    await this.assertOwner(userId, teamId);
+    await this.assertOwnerOrAdmin(userId, teamId);
 
     const seats = await this.getTeamSeatsQuota(userId, teamId);
     if (!seats.canAddMember) {
-      if (seats.max <= 0) {
+      if (seats.max === 0) {
         throw new ForbiddenException(
           'Un abonnement équipe actif est requis pour ajouter des membres',
         );
       }
 
       throw new BadRequestException(
-        `Limite de ${seats.max} sièges atteinte. Passez à une offre supérieure pour en ajouter.`,
+        seats.max < 0
+          ? 'Impossible d’ajouter un membre pour le moment'
+          : `Limite de ${seats.max} sièges atteinte. Passez à une offre supérieure pour en ajouter.`,
       );
     }
   }
@@ -148,6 +253,13 @@ export class EntitlementsService {
     };
   }
 
+  private hasTeamAccess(entitlements: UserEntitlements): boolean {
+    return (
+      entitlements.audience === OfferAudience.TEAM &&
+      entitlements.maxTeamMembers !== 0
+    );
+  }
+
   private async findActiveSubscription(userId: string) {
     return this.prisma.subscription.findFirst({
       where: {
@@ -173,6 +285,10 @@ export class EntitlementsService {
     canCustomize: boolean;
     maxTeamMembers: number;
     hasPortfolio: boolean;
+    hasWallet?: boolean;
+    hasAnalytics?: boolean;
+    hasVisitorInsights?: boolean;
+    hasSocialLinks?: boolean;
     maxAiScans: number;
   }): UserEntitlements {
     return {
@@ -180,6 +296,10 @@ export class EntitlementsService {
       canCustomize: offer.canCustomize,
       maxTeamMembers: offer.maxTeamMembers,
       hasPortfolio: offer.hasPortfolio,
+      hasWallet: offer.hasWallet ?? false,
+      hasAnalytics: offer.hasAnalytics ?? false,
+      hasVisitorInsights: offer.hasVisitorInsights ?? false,
+      hasSocialLinks: offer.hasSocialLinks ?? false,
       maxAiScans: offer.maxAiScans,
     };
   }
@@ -226,14 +346,33 @@ export class EntitlementsService {
     }
   }
 
-  private async assertOwner(userId: string, teamId: string) {
+  private async assertOwnerOrAdmin(userId: string, teamId: string) {
     const team = await this.prisma.team.findFirst({
-      where: { id: teamId, ownerId: userId, isActive: true },
+      where: { id: teamId, isActive: true },
+      select: { id: true, ownerId: true },
     });
 
     if (!team) {
+      throw new ForbiddenException('Équipe introuvable');
+    }
+
+    if (team.ownerId === userId) {
+      return;
+    }
+
+    const membership = await this.prisma.teamMember.findUnique({
+      where: {
+        teamId_userId: { teamId, userId },
+      },
+      select: { role: true },
+    });
+
+    if (
+      membership?.role !== TeamMemberRole.ADMIN &&
+      membership?.role !== TeamMemberRole.OWNER
+    ) {
       throw new ForbiddenException(
-        'Action réservée au propriétaire de l’équipe',
+        'Action réservée aux administrateurs de l’équipe',
       );
     }
   }

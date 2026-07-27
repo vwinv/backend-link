@@ -14,6 +14,7 @@ import {
   buildPremiumCancelPage,
   buildPremiumSuccessPage,
 } from './modules/subscriptions/premium-payment-page';
+import { buildPrivacyPolicyPage } from './modules/legal/privacy-policy-page';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -111,6 +112,10 @@ async function bootstrap() {
     res.status(200).type('text/html; charset=utf-8').send(buildPremiumCancelPage());
   });
 
+  expressApp.get('/privacy', (_req: Request, res: Response) => {
+    res.status(200).type('text/html; charset=utf-8').send(buildPrivacyPolicyPage());
+  });
+
   expressApp.get('/team-invites/:inviteId', async (req: Request, res: Response) => {
     const inviteId = String(req.params.inviteId);
     const html = await teamsService.renderTeamInvitePage(inviteId);
@@ -121,9 +126,15 @@ async function bootstrap() {
     const slug = String(req.params.slug);
     const embed = req.query.embed === '1' || req.query.embed === 'true';
     const viewerUserId = resolveViewerUserId(req);
+    const source =
+      typeof req.query.source === 'string' ? req.query.source : undefined;
+    const userAgentHeader = req.headers['user-agent'];
     const html = await sharingService.renderPublicCardPage(slug, {
       embed,
       viewerUserId,
+      source,
+      userAgent:
+        typeof userAgentHeader === 'string' ? userAgentHeader : undefined,
     });
     if (!html) {
       res
@@ -161,6 +172,7 @@ async function bootstrap() {
 
   console.log(`🚀 DropOne API running on http://localhost:${port}/${apiPrefix}`);
   console.log(`🃏 Public cards: http://localhost:${port}/cards/{slug}`);
+  console.log(`🔒 Privacy policy: http://localhost:${port}/privacy`);
   console.log(`✉️ Team invites: http://localhost:${port}/team-invites/{inviteId}`);
   console.log(`📚 Swagger docs: http://localhost:${port}/docs`);
 }

@@ -10,6 +10,7 @@ exports.CardsModule = void 0;
 const common_1 = require("@nestjs/common");
 const auth_module_1 = require("../auth/auth.module");
 const contacts_module_1 = require("../contacts/contacts.module");
+const subscriptions_module_1 = require("../subscriptions/subscriptions.module");
 const cards_controller_1 = require("./cards.controller");
 const cards_service_1 = require("./cards.service");
 let CardsModule = class CardsModule {
@@ -17,7 +18,7 @@ let CardsModule = class CardsModule {
 exports.CardsModule = CardsModule;
 exports.CardsModule = CardsModule = __decorate([
     (0, common_1.Module)({
-        imports: [auth_module_1.AuthModule, contacts_module_1.ContactsModule],
+        imports: [auth_module_1.AuthModule, contacts_module_1.ContactsModule, subscriptions_module_1.SubscriptionsModule],
         controllers: [cards_controller_1.CardsController],
         providers: [cards_service_1.CardsService],
         exports: [cards_service_1.CardsService],

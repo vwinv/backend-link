@@ -17,18 +17,45 @@ const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
 const current_user_decorator_1 = require("../auth/decorators/current-user.decorator");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
+const jwt_1 = require("@nestjs/jwt");
 const share_card_dto_1 = require("./dto/share-card.dto");
 const sharing_service_1 = require("./sharing.service");
 let SharingController = class SharingController {
     sharingService;
-    constructor(sharingService) {
+    jwtService;
+    constructor(sharingService, jwtService) {
         this.sharingService = sharingService;
+        this.jwtService = jwtService;
     }
-    getPublicCard(slug) {
-        return this.sharingService.getPublicCard(slug);
+    resolveViewerUserId(req) {
+        const authorization = req.headers.authorization;
+        if (!authorization?.startsWith('Bearer ')) {
+            return undefined;
+        }
+        try {
+            const payload = this.jwtService.verify(authorization.slice('Bearer '.length));
+            return payload.sub;
+        }
+        catch {
+            return undefined;
+        }
     }
-    async renderPublicCardPage(slug, res) {
-        const html = await this.sharingService.renderPublicCardPage(slug);
+    resolveViewMeta(req) {
+        const source = typeof req.query.source === 'string' ? req.query.source : undefined;
+        const userAgent = req.headers['user-agent'];
+        return {
+            source,
+            userAgent: typeof userAgent === 'string' ? userAgent : undefined,
+        };
+    }
+    getPublicCard(slug, req) {
+        return this.sharingService.getPublicCard(slug, this.resolveViewerUserId(req), this.resolveViewMeta(req));
+    }
+    async renderPublicCardPage(slug, req, res) {
+        const html = await this.sharingService.renderPublicCardPage(slug, {
+            viewerUserId: this.resolveViewerUserId(req),
+            ...this.resolveViewMeta(req),
+        });
         if (!html) {
             return res
                 .status(404)
@@ -37,8 +64,8 @@ let SharingController = class SharingController {
         }
         return res.status(200).type('text/html; charset=utf-8').send(html);
     }
-    recordPublicCardSave(slug) {
-        return this.sharingService.recordCardSave(slug);
+    recordPublicCardSave(slug, req) {
+        return this.sharingService.recordCardSave(slug, this.resolveViewerUserId(req));
     }
     shareCard(user, id, dto) {
         return this.sharingService.shareCard(user.userId, id, dto);
@@ -55,8 +82,9 @@ __decorate([
     (0, common_1.Get)('public/:slug'),
     (0, swagger_1.ApiOperation)({ summary: 'Afficher une carte publique par slug (JSON)' }),
     __param(0, (0, common_1.Param)('slug')),
+    __param(1, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], SharingController.prototype, "getPublicCard", null);
 __decorate([
@@ -64,9 +92,10 @@ __decorate([
     (0, common_1.Header)('Content-Type', 'text/html; charset=utf-8'),
     (0, swagger_1.ApiOperation)({ summary: 'Page HTML publique de la carte' }),
     __param(0, (0, common_1.Param)('slug')),
-    __param(1, (0, common_1.Res)()),
+    __param(1, (0, common_1.Req)()),
+    __param(2, (0, common_1.Res)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:paramtypes", [String, Object, Object]),
     __metadata("design:returntype", Promise)
 ], SharingController.prototype, "renderPublicCardPage", null);
 __decorate([
@@ -75,8 +104,9 @@ __decorate([
         summary: 'Enregistrer qu’un visiteur a sauvegardé la carte (page publique)',
     }),
     __param(0, (0, common_1.Param)('slug')),
+    __param(1, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], SharingController.prototype, "recordPublicCardSave", null);
 __decorate([
@@ -110,6 +140,7 @@ __decorate([
 exports.SharingController = SharingController = __decorate([
     (0, swagger_1.ApiTags)('Sharing'),
     (0, common_1.Controller)('sharing'),
-    __metadata("design:paramtypes", [sharing_service_1.SharingService])
+    __metadata("design:paramtypes", [sharing_service_1.SharingService,
+        jwt_1.JwtService])
 ], SharingController);
 //# sourceMappingURL=sharing.controller.js.map

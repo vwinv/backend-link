@@ -101,6 +101,27 @@ let WalletConfig = class WalletConfig {
             this.googleServiceAccountPath &&
             this.fileExists(this.googleServiceAccountPath));
     }
+    describe() {
+        return {
+            apple: {
+                configured: this.isAppleConfigured(),
+                teamIdSet: Boolean(this.appleTeamId),
+                passTypeIdSet: Boolean(this.applePassTypeId),
+                signerCertPath: this.appleSignerCertPath || null,
+                signerCertExists: this.fileExists(this.appleSignerCertPath),
+                signerKeyPath: this.appleSignerKeyPath || null,
+                signerKeyExists: this.fileExists(this.appleSignerKeyPath),
+                wwdrCertPath: this.appleWwdrCertPath || null,
+                wwdrCertExists: this.fileExists(this.appleWwdrCertPath),
+            },
+            google: {
+                configured: this.isGoogleConfigured(),
+                issuerIdSet: Boolean(this.googleIssuerId),
+                serviceAccountPath: this.googleServiceAccountPath || null,
+                serviceAccountExists: this.fileExists(this.googleServiceAccountPath),
+            },
+        };
+    }
     loadGoogleServiceAccount() {
         const raw = fs.readFileSync(this.googleServiceAccountPath, 'utf8');
         return JSON.parse(raw);

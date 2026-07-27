@@ -5,4 +5,5 @@ export type TeamInviteEmailPayload = {
     inviterName: string;
     inviteId: string;
     inviteUrl: string;
+    temporaryPassword?: string;
 };

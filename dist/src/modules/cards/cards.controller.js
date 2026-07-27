@@ -60,8 +60,17 @@ let CardsController = class CardsController {
     removeSocialLink(id, linkId) {
         return this.cardsService.removeSocialLink(id, linkId);
     }
-    getAnalytics(user, id) {
-        return this.cardsService.getAnalytics(user.userId, id);
+    getAnalytics(user, id, days, from, to) {
+        const parsed = Number.parseInt(days ?? '7', 10);
+        return this.cardsService.getAnalytics(user.userId, id, {
+            days: Number.isFinite(parsed) ? parsed : 7,
+            from,
+            to,
+        });
+    }
+    getVisitors(user, id, filter) {
+        const normalized = filter === 'dropone' || filter === 'guest' ? filter : 'all';
+        return this.cardsService.getVisitors(user.userId, id, normalized);
     }
 };
 exports.CardsController = CardsController;
@@ -187,10 +196,25 @@ __decorate([
     (0, swagger_1.ApiOperation)({ summary: 'Statistiques de vues, partages et enregistrements' }),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Query)('days')),
+    __param(3, (0, common_1.Query)('from')),
+    __param(4, (0, common_1.Query)('to')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:paramtypes", [Object, String, String, String, String]),
     __metadata("design:returntype", void 0)
 ], CardsController.prototype, "getAnalytics", null);
+__decorate([
+    (0, common_1.Get)(':id/visitors'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({ summary: 'Liste des visiteurs de la carte' }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Query)('filter')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String]),
+    __metadata("design:returntype", void 0)
+], CardsController.prototype, "getVisitors", null);
 exports.CardsController = CardsController = __decorate([
     (0, swagger_1.ApiTags)('Business Cards'),
     (0, common_1.Controller)('cards'),

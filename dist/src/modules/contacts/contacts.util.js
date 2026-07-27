@@ -74,6 +74,8 @@ function toContactResponse(contact) {
         jobTitle: contact.jobTitle,
         company: contact.company,
         linkedCardId: contact.linkedCardId,
+        linkedCardSlug: contact.linkedCard?.slug ?? null,
+        avatarUrl: contact.linkedCard?.avatarUrl ?? null,
         avatarColor: contact.avatarColor,
         addedAgo: formatRelativeTimeFr(contact.createdAt),
         sharedAgo: formatRelativeTimeFr(contact.createdAt),
