@@ -22,20 +22,20 @@ export declare class WalletService {
     }>;
     findAll(userId: string): Promise<({
         card: {
+            id: string;
+            slug: string;
             firstName: string;
             lastName: string;
-            id: string;
             jobTitle: string | null;
             company: string | null;
-            slug: string;
         };
     } & {
         id: string;
         userId: string;
         cardId: string;
-        savedAt: Date;
         walletType: import(".prisma/client").$Enums.WalletType;
         passId: string | null;
+        savedAt: Date;
     })[]>;
     remove(userId: string, id: string): Promise<{
         message: string;

@@ -14,6 +14,7 @@ const common_1 = require("@nestjs/common");
 const client_1 = require("@prisma/client");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const card_theme_util_1 = require("../sharing/pro-design/card-theme.util");
+const pro_design_catalog_1 = require("../sharing/pro-design/pro-design-catalog");
 const contacts_service_1 = require("../contacts/contacts.service");
 const entitlements_service_1 = require("../subscriptions/entitlements.service");
 let CardsService = class CardsService {
@@ -175,8 +176,12 @@ let CardsService = class CardsService {
     }
     async updateTheme(userId, id, dto) {
         const card = await this.findOne(userId, id);
-        await this.entitlementsService.assertCanCustomize(userId, id);
         const theme = (0, card_theme_util_1.normalizeCardThemeForStorage)(dto.theme);
+        const proDesignId = theme.proDesignId != null ? String(theme.proDesignId).trim() : '';
+        const usesProDesign = proDesignId.length > 0 && proDesignId !== pro_design_catalog_1.DEFAULT_PRO_DESIGN_ID;
+        if (usesProDesign) {
+            await this.entitlementsService.assertCanCustomize(userId, id);
+        }
         const updated = await this.prisma.businessCard.update({
             where: { id },
             data: { theme },

@@ -1,7 +1,10 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import {
   BillingPeriod,
@@ -11,7 +14,11 @@ import {
 } from '@prisma/client';
 import type Stripe from 'stripe';
 import { PrismaService } from '../../prisma/prisma.service';
+import { paydunyaIpnCallbackUrl } from '../paydunya/paydunya-callback.util';
+import { PaydunyaService } from '../paydunya/paydunya.service';
+import type { PaydunyaSoftPayResponse } from '../paydunya/paydunya-softpay.types';
 import { CheckoutDto } from './dto/checkout.dto';
+import { SoftPaySubscriptionDto } from './dto/softpay-subscription.dto';
 import { SubscribeDto } from './dto/subscribe.dto';
 import { StripeService } from './stripe.service';
 
@@ -23,19 +30,24 @@ type ActivateSubscriptionInput = {
   offerPriceId?: string | null;
   stripeSubscriptionId?: string | null;
   stripeCheckoutSessionId?: string | null;
+  paydunyaInvoiceToken?: string | null;
   currentPeriodEnd?: Date | null;
 };
 
 @Injectable()
 export class SubscriptionsService {
+  private readonly logger = new Logger(SubscriptionsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly stripeService: StripeService,
+    private readonly paydunyaService: PaydunyaService,
   ) {}
 
   getPaymentConfig() {
     return {
-      paymentsEnabled: this.stripeService.isEnabled(),
+      paymentsEnabled: this.paydunyaService.isConfigured(),
+      provider: this.paydunyaService.isConfigured() ? 'paydunya' : 'none',
     };
   }
 
@@ -72,9 +84,9 @@ export class SubscriptionsService {
   }
 
   async createCheckout(userId: string, dto: CheckoutDto) {
-    if (!this.stripeService.isEnabled()) {
+    if (!this.paydunyaService.isConfigured()) {
       throw new BadRequestException(
-        'Le paiement Stripe est désactivé. Utilisez /subscriptions/subscribe pour les tests.',
+        'Le paiement PayDunya est désactivé. Utilisez /subscriptions/subscribe pour les tests.',
       );
     }
 
@@ -89,9 +101,10 @@ export class SubscriptionsService {
       );
     }
 
-    if (!price.stripePriceId?.trim()) {
+    const amount = Math.round(Number(price.priceAmount));
+    if (!Number.isFinite(amount) || amount <= 0) {
       throw new BadRequestException(
-        'Cette offre n’est pas encore configurée pour le paiement en ligne',
+        'Cette offre est gratuite. Utilisez /subscriptions/subscribe.',
       );
     }
 
@@ -100,37 +113,251 @@ export class SubscriptionsService {
       throw new NotFoundException('Utilisateur introuvable');
     }
 
-    const customerId = await this.ensureStripeCustomer(user);
+    const callbackUrl = paydunyaIpnCallbackUrl(this.logger);
+    const storeName =
+      process.env.PAYDUNYA_STORE_NAME?.trim() || 'Drop One';
 
-    const session = await this.stripeService.createCheckoutSession({
-      customerId,
-      stripePriceId: price.stripePriceId,
-      billingType: price.billingType,
-      userId,
-      offerSlug: offer.slug,
-      offerPriceId: price.id,
-      teamId: dto.teamId ?? null,
+    const inv = await this.paydunyaService.createCheckoutInvoice({
+      totalAmountFcfa: amount,
+      description: `${offer.title} — ${price.priceLabel ?? dto.billingType}`,
+      storeName,
+      callbackUrl,
+      returnUrl: process.env.PAYDUNYA_RETURN_URL?.trim() || undefined,
+      cancelUrl: process.env.PAYDUNYA_CANCEL_URL?.trim() || undefined,
+      customData: {
+        kind: 'subscription',
+        userId,
+        offerSlug: offer.slug,
+        offerPriceId: price.id,
+        billingType: price.billingType,
+        teamId: dto.teamId ?? '',
+      },
     });
 
-    if (!session.url) {
-      throw new BadRequestException('Impossible de créer la session de paiement');
-    }
-
     return {
-      checkoutUrl: session.url,
-      sessionId: session.id,
+      checkoutUrl: inv.checkoutUrl,
+      invoiceToken: inv.invoiceToken,
+      sessionId: inv.invoiceToken,
+      amountFcfa: amount,
+      description: offer.title,
     };
   }
 
-  async subscribe(userId: string, dto: SubscribeDto) {
-    if (this.stripeService.isEnabled()) {
-      throw new BadRequestException(
-        'Un paiement en ligne est requis pour souscrire à cette offre',
+  async softPay(userId: string, dto: SoftPaySubscriptionDto) {
+    if (!this.paydunyaService.isConfigured()) {
+      throw new ServiceUnavailableException(
+        'Paiement PayDunya non configuré sur le serveur',
       );
     }
 
-    this.stripeService.logDisabledCheckoutAttempt(userId);
+    const { offer, price } = await this.resolveOfferPrice(
+      dto.offerSlug,
+      dto.billingType,
+    );
 
+    const amount = Math.round(Number(price.priceAmount));
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new BadRequestException('Montant invalide pour SoftPay');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, firstName: true, lastName: true },
+    });
+    if (!user) {
+      throw new NotFoundException('Utilisateur introuvable');
+    }
+
+    const invoiceToken = dto.invoiceToken.trim();
+    const email = (dto.email?.trim() || user.email || 'contact@dropone.pro').slice(
+      0,
+      200,
+    );
+    const phone = dto.telephone.replace(/\s+/g, '');
+    const fullName =
+      `${dto.prenom} ${dto.nom}`.trim() ||
+      `${user.firstName} ${user.lastName}`.trim();
+
+    let soft: PaydunyaSoftPayResponse;
+    switch (dto.method) {
+      case 'orange_money_sn':
+        soft = await this.paydunyaService.softPayOrangeMoneySenegal({
+          customer_name: fullName,
+          customer_email: email,
+          phone_number: phone,
+          invoice_token: invoiceToken,
+        });
+        break;
+      case 'free_money_sn':
+        soft = await this.paydunyaService.softPayFreeMoneySenegal({
+          customer_name: fullName,
+          customer_email: email,
+          phone_number: phone,
+          payment_token: invoiceToken,
+        });
+        break;
+      case 'wave_sn':
+        soft = await this.paydunyaService.softPayWaveSenegal({
+          wave_senegal_fullName: fullName,
+          wave_senegal_email: email,
+          wave_senegal_phone: phone,
+          wave_senegal_payment_token: invoiceToken,
+        });
+        break;
+      default:
+        throw new BadRequestException('Moyen de paiement inconnu');
+    }
+
+    if (!soft.success) {
+      throw new BadRequestException(
+        typeof soft.message === 'string' && soft.message.trim()
+          ? soft.message
+          : 'Paiement mobile refusé par PayDunya',
+      );
+    }
+
+    return {
+      amountFcfa: amount,
+      invoiceToken,
+      description: offer.title,
+      softPay: {
+        url: soft.url,
+        other_url: soft.other_url,
+        return_url: soft.return_url,
+        message: soft.message,
+        fees: soft.fees,
+        currency: soft.currency,
+      },
+    };
+  }
+
+  async confirmPaydunyaPayment(userId: string, invoiceToken: string) {
+    const token = invoiceToken?.trim();
+    if (!token) {
+      return { paid: false, error: 'missing_token' };
+    }
+
+    const existing = await this.prisma.subscription.findFirst({
+      where: { paydunyaInvoiceToken: token, userId },
+      include: { plan: true, offer: true, offerPrice: true },
+    });
+    if (existing) {
+      return {
+        paid: true,
+        subscription: this.toSubscriptionResponse(existing),
+      };
+    }
+
+    const confirmed = await this.paydunyaService.confirmCheckoutInvoice(token);
+    if (!confirmed) {
+      return { paid: false, error: 'confirm_failed' };
+    }
+    if (!this.paydunyaService.verifyIpnHash(confirmed.hash)) {
+      return { paid: false, error: 'invalid_hash' };
+    }
+    if (confirmed.status !== 'completed') {
+      return { paid: false, error: `status_${confirmed.status}` };
+    }
+
+    const custom = confirmed.customData;
+    const kind = String(custom['kind'] ?? '').toLowerCase();
+    if (kind !== 'subscription') {
+      return { paid: false, error: 'not_subscription_invoice' };
+    }
+
+    const customUserId = String(custom['userId'] ?? '').trim();
+    if (!customUserId || customUserId !== userId) {
+      return { paid: false, error: 'user_mismatch' };
+    }
+
+    const offerSlug = String(custom['offerSlug'] ?? '').trim();
+    const billingType = String(
+      custom['billingType'] ?? '',
+    ).trim() as OfferBillingType;
+    if (!offerSlug || !billingType) {
+      return { paid: false, error: 'invalid_custom_data' };
+    }
+
+    const { offer, price } = await this.resolveOfferPrice(offerSlug, billingType);
+    const expected = Math.round(Number(price.priceAmount));
+    const paid = Math.round(confirmed.totalAmount);
+    if (Math.abs(paid - expected) > 1) {
+      return { paid: false, error: 'amount_mismatch' };
+    }
+
+    const subscription = await this.activateSubscription({
+      userId,
+      offerSlug: offer.slug,
+      billingType: price.billingType,
+      teamId: String(custom['teamId'] ?? '').trim() || null,
+      offerPriceId: price.id,
+      paydunyaInvoiceToken: confirmed.invoiceToken,
+      currentPeriodEnd: this.computePeriodEnd(price.billingType),
+    });
+
+    return {
+      paid: true,
+      subscription: this.toSubscriptionResponse(subscription),
+    };
+  }
+
+  async handlePaydunyaIpn(body: Record<string, unknown>) {
+    const parsed = this.normalizePaydunyaIpnPayload(body);
+    if (!parsed) {
+      this.logger.warn('IPN PayDunya: payload non reconnu');
+      return { ok: false as const, error: 'invalid_payload' };
+    }
+
+    if (!this.paydunyaService.verifyIpnHash(parsed.hash)) {
+      this.logger.warn('IPN PayDunya: hash refusé');
+      throw new ForbiddenException('Notification PayDunya non authentifiée');
+    }
+
+    if (parsed.status.toLowerCase() !== 'completed') {
+      return {
+        ok: true as const,
+        ignored: true as const,
+        status: parsed.status,
+      };
+    }
+
+    const existing = await this.prisma.subscription.findFirst({
+      where: { paydunyaInvoiceToken: parsed.invoiceToken },
+    });
+    if (existing) {
+      return { ok: true as const, alreadyProcessed: true as const };
+    }
+
+    const { offer, price } = await this.resolveOfferPrice(
+      parsed.offerSlug,
+      parsed.billingType,
+    );
+    const expected = Math.round(Number(price.priceAmount));
+    const paid = Math.round(parsed.totalAmount);
+    if (Math.abs(paid - expected) > 1) {
+      this.logger.warn(
+        `IPN PayDunya: écart montant payé=${paid} attendu=${expected}`,
+      );
+      return { ok: false as const, error: 'amount_mismatch' };
+    }
+
+    await this.activateSubscription({
+      userId: parsed.userId,
+      offerSlug: offer.slug,
+      billingType: price.billingType,
+      teamId: parsed.teamId,
+      offerPriceId: price.id,
+      paydunyaInvoiceToken: parsed.invoiceToken,
+      currentPeriodEnd: this.computePeriodEnd(price.billingType),
+    });
+
+    this.logger.log(
+      `IPN PayDunya abonnement activé userId=${parsed.userId} offer=${offer.slug}`,
+    );
+    return { ok: true as const };
+  }
+
+  async subscribe(userId: string, dto: SubscribeDto) {
     const { offer, price } = await this.resolveOfferPrice(
       dto.offerSlug,
       dto.billingType,
@@ -140,6 +367,19 @@ export class SubscriptionsService {
       throw new BadRequestException(
         'Cette offre ne couvre pas un espace équipe',
       );
+    }
+
+    const amount = Math.round(Number(price.priceAmount));
+    const isFree = !Number.isFinite(amount) || amount <= 0;
+
+    if (this.paydunyaService.isConfigured() && !isFree) {
+      throw new BadRequestException(
+        'Un paiement PayDunya SoftPay est requis pour souscrire à cette offre',
+      );
+    }
+
+    if (!isFree) {
+      this.stripeService.logDisabledCheckoutAttempt(userId);
     }
 
     const subscription = await this.activateSubscription({
@@ -248,6 +488,80 @@ export class SubscriptionsService {
     return customer.id;
   }
 
+  private normalizePaydunyaIpnPayload(body: Record<string, unknown>): {
+    hash: string;
+    status: string;
+    totalAmount: number;
+    invoiceToken: string;
+    userId: string;
+    offerSlug: string;
+    billingType: OfferBillingType;
+    teamId: string | null;
+  } | null {
+    let root: Record<string, unknown> = body;
+    const dataRaw = body?.data ?? body;
+
+    if (typeof dataRaw === 'string') {
+      try {
+        const parsed = JSON.parse(dataRaw) as unknown;
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          root = parsed as Record<string, unknown>;
+        }
+      } catch {
+        return null;
+      }
+    } else if (dataRaw && typeof dataRaw === 'object' && !Array.isArray(dataRaw)) {
+      root = dataRaw as Record<string, unknown>;
+    } else {
+      return null;
+    }
+
+    const hash = root.hash?.toString()?.trim() ?? '';
+    const status = root.status?.toString()?.trim() ?? '';
+    const inv = root.invoice;
+    let totalAmount = NaN;
+    let invoiceToken = '';
+    if (inv && typeof inv === 'object' && !Array.isArray(inv)) {
+      const invObj = inv as Record<string, unknown>;
+      totalAmount = Number(invObj.total_amount);
+      invoiceToken = invObj.token?.toString()?.trim() ?? '';
+    }
+
+    const custom = root.custom_data;
+    if (!custom || typeof custom !== 'object' || Array.isArray(custom)) {
+      return null;
+    }
+    const c = custom as Record<string, unknown>;
+    const kind = c.kind?.toString()?.trim().toLowerCase() ?? '';
+    const userId = c.userId?.toString()?.trim() ?? '';
+    const offerSlug = c.offerSlug?.toString()?.trim() ?? '';
+    const billingType = c.billingType?.toString()?.trim() as OfferBillingType;
+    const teamId = c.teamId?.toString()?.trim() || null;
+
+    if (
+      kind !== 'subscription' ||
+      !hash ||
+      !Number.isFinite(totalAmount) ||
+      !invoiceToken ||
+      !userId ||
+      !offerSlug ||
+      !billingType
+    ) {
+      return null;
+    }
+
+    return {
+      hash,
+      status,
+      totalAmount,
+      invoiceToken,
+      userId,
+      offerSlug,
+      billingType,
+      teamId,
+    };
+  }
+
   private async activateSubscription(input: ActivateSubscriptionInput) {
     const { offer, price } = await this.resolveOfferPrice(
       input.offerSlug,
@@ -292,6 +606,7 @@ export class SubscriptionsService {
         currentPeriodEnd,
         stripeSubscriptionId: input.stripeSubscriptionId ?? null,
         stripeCheckoutSessionId: input.stripeCheckoutSessionId ?? null,
+        paydunyaInvoiceToken: input.paydunyaInvoiceToken ?? null,
       },
       include: {
         plan: true,

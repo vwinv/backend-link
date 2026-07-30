@@ -13,17 +13,25 @@ exports.CheckoutSessionResponseDto = exports.PaymentConfigResponseDto = void 0;
 const swagger_1 = require("@nestjs/swagger");
 class PaymentConfigResponseDto {
     paymentsEnabled;
+    provider;
 }
 exports.PaymentConfigResponseDto = PaymentConfigResponseDto;
 __decorate([
     (0, swagger_1.ApiProperty)({
-        description: 'Si true, la souscription passe par Stripe Checkout. Sinon, activation immédiate (tests).',
+        description: 'Si true, la souscription passe par PayDunya SoftPay. Sinon, activation immédiate (tests).',
     }),
     __metadata("design:type", Boolean)
 ], PaymentConfigResponseDto.prototype, "paymentsEnabled", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 'paydunya', required: false }),
+    __metadata("design:type", String)
+], PaymentConfigResponseDto.prototype, "provider", void 0);
 class CheckoutSessionResponseDto {
     checkoutUrl;
+    invoiceToken;
     sessionId;
+    amountFcfa;
+    description;
 }
 exports.CheckoutSessionResponseDto = CheckoutSessionResponseDto;
 __decorate([
@@ -31,7 +39,19 @@ __decorate([
     __metadata("design:type", String)
 ], CheckoutSessionResponseDto.prototype, "checkoutUrl", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)(),
+    (0, swagger_1.ApiProperty)({ description: 'Token facture PayDunya (SoftPay)' }),
+    __metadata("design:type", String)
+], CheckoutSessionResponseDto.prototype, "invoiceToken", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: 'Alias de invoiceToken (compat)' }),
     __metadata("design:type", String)
 ], CheckoutSessionResponseDto.prototype, "sessionId", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    __metadata("design:type", Number)
+], CheckoutSessionResponseDto.prototype, "amountFcfa", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    __metadata("design:type", String)
+], CheckoutSessionResponseDto.prototype, "description", void 0);
 //# sourceMappingURL=payment-config-response.dto.js.map

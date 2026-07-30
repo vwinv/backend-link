@@ -13,12 +13,12 @@ export declare class CardsService {
     constructor(prisma: PrismaService, contactsService: ContactsService, entitlementsService: EntitlementsService);
     create(userId: string, dto: CreateCardDto): Promise<BusinessCard>;
     findAll(userId: string): Promise<{
+        id: string;
         email: string | null;
         firstName: string;
         lastName: string;
-        avatarUrl: string | null;
-        id: string;
         phone: string | null;
+        avatarUrl: string | null;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
@@ -46,8 +46,8 @@ export declare class CardsService {
     syncSocialLinks(userId: string, cardId: string, links: SocialLinkItemDto[]): Promise<{
         id: string;
         createdAt: Date;
-        platform: import(".prisma/client").$Enums.SocialPlatform;
         url: string;
+        platform: import(".prisma/client").$Enums.SocialPlatform;
         label: string | null;
         order: number;
         cardId: string;
@@ -55,8 +55,8 @@ export declare class CardsService {
     getSocialLinks(userId: string, cardId: string): Promise<{
         id: string;
         createdAt: Date;
-        platform: import(".prisma/client").$Enums.SocialPlatform;
         url: string;
+        platform: import(".prisma/client").$Enums.SocialPlatform;
         label: string | null;
         order: number;
         cardId: string;

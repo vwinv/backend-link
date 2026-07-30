@@ -32,10 +32,10 @@ export declare class SharingController {
     }, id: string, dto: ShareCardDto): Promise<{
         id: string;
         createdAt: Date;
-        cardId: string;
-        method: import(".prisma/client").$Enums.ShareMethod;
-        metadata: import("@prisma/client/runtime/client").JsonValue;
         userId: string | null;
+        method: import(".prisma/client").$Enums.ShareMethod;
+        cardId: string;
+        metadata: import("@prisma/client/runtime/client").JsonValue;
     }>;
     getQrCode(id: string): {
         message: string;

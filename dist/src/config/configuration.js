@@ -63,6 +63,14 @@ exports.default = () => ({
         cancelUrl: process.env.STRIPE_CANCEL_URL ??
             `${process.env.APP_PUBLIC_URL ?? 'http://localhost:3000'}/premium/cancel`,
     },
+    paydunya: {
+        enabled: process.env.PAYDUNYA_ENABLED !== 'false',
+        masterKey: process.env.PAYDUNYA_MASTER_KEY ?? '',
+        privateKey: process.env.PAYDUNYA_PRIVATE_KEY ?? '',
+        token: process.env.PAYDUNYA_TOKEN ?? '',
+        apiBaseUrl: process.env.PAYDUNYA_API_BASE_URL ?? 'https://app.paydunya.com',
+        storeName: process.env.PAYDUNYA_STORE_NAME ?? 'Drop One',
+    },
     mobile: {
         appleTeamId: process.env.APPLE_TEAM_ID ?? '3G878MZ2JV',
         appleBundleId: process.env.APPLE_CLIENT_ID ?? 'com.mega.dropone',

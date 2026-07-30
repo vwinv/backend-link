@@ -68,7 +68,7 @@ export class EntitlementsService {
     const entitlements = await this.getEntitlementsForCard(userId, cardId);
     if (!entitlements.canCustomize) {
       throw new ForbiddenException(
-        'La personnalisation avancée nécessite une offre Premium',
+        'Les designs professionnels nécessitent une offre Premium',
       );
     }
   }

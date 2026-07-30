@@ -318,6 +318,7 @@ model Subscription {
   cancelledAt      DateTime?
   stripeSubscriptionId   String? @unique
   stripeCheckoutSessionId String?
+  paydunyaInvoiceToken   String? @unique
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
 

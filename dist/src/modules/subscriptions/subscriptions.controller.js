@@ -20,6 +20,7 @@ const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const checkout_dto_1 = require("./dto/checkout.dto");
 const payment_config_response_dto_1 = require("./dto/payment-config-response.dto");
 const premium_offer_response_dto_1 = require("./dto/premium-offer-response.dto");
+const softpay_subscription_dto_1 = require("./dto/softpay-subscription.dto");
 const subscribe_dto_1 = require("./dto/subscribe.dto");
 const subscription_response_dto_1 = require("./dto/subscription-response.dto");
 const subscriptions_service_1 = require("./subscriptions.service");
@@ -46,6 +47,12 @@ let SubscriptionsController = class SubscriptionsController {
     createCheckout(user, dto) {
         return this.subscriptionsService.createCheckout(user.userId, dto);
     }
+    softPay(user, dto) {
+        return this.subscriptionsService.softPay(user.userId, dto);
+    }
+    confirmPaydunya(user, invoiceToken) {
+        return this.subscriptionsService.confirmPaydunyaPayment(user.userId, invoiceToken);
+    }
     subscribe(user, dto) {
         return this.subscriptionsService.subscribe(user.userId, dto);
     }
@@ -65,7 +72,7 @@ exports.SubscriptionsController = SubscriptionsController;
 __decorate([
     (0, common_1.Get)('config'),
     (0, swagger_1.ApiOperation)({
-        summary: 'Configuration paiement (Stripe activé ou mode test instantané)',
+        summary: 'Configuration paiement (PayDunya SoftPay activé ou mode test instantané)',
     }),
     (0, swagger_1.ApiResponse)({ status: 200, type: payment_config_response_dto_1.PaymentConfigResponseDto }),
     __metadata("design:type", Function),
@@ -111,7 +118,7 @@ __decorate([
     (0, common_1.Post)('checkout'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, swagger_1.ApiBearerAuth)(),
-    (0, swagger_1.ApiOperation)({ summary: 'Créer une session Stripe Checkout' }),
+    (0, swagger_1.ApiOperation)({ summary: 'Créer une facture PayDunya (préalable SoftPay)' }),
     (0, swagger_1.ApiResponse)({ status: 201, type: payment_config_response_dto_1.CheckoutSessionResponseDto }),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Body)()),
@@ -120,11 +127,37 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], SubscriptionsController.prototype, "createCheckout", null);
 __decorate([
+    (0, common_1.Post)('softpay'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({
+        summary: 'SoftPay Wave / Orange Money / Free Money (Sénégal)',
+    }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, softpay_subscription_dto_1.SoftPaySubscriptionDto]),
+    __metadata("design:returntype", void 0)
+], SubscriptionsController.prototype, "softPay", null);
+__decorate([
+    (0, common_1.Get)('paydunya/confirm'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Confirmer un paiement PayDunya (repli si IPN non reçu)',
+    }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Query)('invoiceToken')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], SubscriptionsController.prototype, "confirmPaydunya", null);
+__decorate([
     (0, common_1.Post)('subscribe'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, swagger_1.ApiBearerAuth)(),
     (0, swagger_1.ApiOperation)({
-        summary: 'Souscrire sans paiement (tests uniquement, si STRIPE_ENABLED=false)',
+        summary: 'Souscrire sans paiement (tests uniquement, si PayDunya non configuré)',
     }),
     (0, swagger_1.ApiResponse)({ status: 201, type: subscription_response_dto_1.SubscriptionResponseDto }),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
@@ -144,7 +177,7 @@ __decorate([
 ], SubscriptionsController.prototype, "cancel", null);
 __decorate([
     (0, common_1.Post)('webhook'),
-    (0, swagger_1.ApiOperation)({ summary: 'Webhook Stripe' }),
+    (0, swagger_1.ApiOperation)({ summary: 'Webhook Stripe (legacy)' }),
     __param(0, (0, common_1.Req)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),

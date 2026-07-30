@@ -10,6 +10,7 @@ import { SocialLinkItemDto } from './dto/social-link-item.dto';
 import { UpdateCardDto } from './dto/update-card.dto';
 import { UpdateCardThemeDto } from './dto/update-card-theme.dto';
 import { normalizeCardThemeForStorage } from '../sharing/pro-design/card-theme.util';
+import { DEFAULT_PRO_DESIGN_ID } from '../sharing/pro-design/pro-design-catalog';
 import { ContactsService } from '../contacts/contacts.service';
 import { EntitlementsService } from '../subscriptions/entitlements.service';
 
@@ -217,9 +218,17 @@ export class CardsService {
     dto: UpdateCardThemeDto,
   ): Promise<BusinessCard> {
     const card = await this.findOne(userId, id);
-    await this.entitlementsService.assertCanCustomize(userId, id);
-
     const theme = normalizeCardThemeForStorage(dto.theme);
+
+    // Styles / couleurs de base : gratuits.
+    // Designs pro (proDesignId hors défaut) : Premium.
+    const proDesignId =
+      theme.proDesignId != null ? String(theme.proDesignId).trim() : '';
+    const usesProDesign =
+      proDesignId.length > 0 && proDesignId !== DEFAULT_PRO_DESIGN_ID;
+    if (usesProDesign) {
+      await this.entitlementsService.assertCanCustomize(userId, id);
+    }
 
     const updated = await this.prisma.businessCard.update({
       where: { id },

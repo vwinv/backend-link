@@ -48,7 +48,7 @@ let EntitlementsService = class EntitlementsService {
     async assertCanCustomize(userId, cardId) {
         const entitlements = await this.getEntitlementsForCard(userId, cardId);
         if (!entitlements.canCustomize) {
-            throw new common_1.ForbiddenException('La personnalisation avancée nécessite une offre Premium');
+            throw new common_1.ForbiddenException('Les designs professionnels nécessitent une offre Premium');
         }
     }
     async assertCanUseWallet(userId, cardId) {

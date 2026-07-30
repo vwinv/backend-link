@@ -9,12 +9,12 @@ export declare class CardsController {
     create(user: {
         userId: string;
     }, dto: CreateCardDto): Promise<{
+        id: string;
         email: string | null;
         firstName: string;
         lastName: string;
-        avatarUrl: string | null;
-        id: string;
         phone: string | null;
+        avatarUrl: string | null;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
@@ -34,12 +34,12 @@ export declare class CardsController {
     findAll(user: {
         userId: string;
     }): Promise<{
+        id: string;
         email: string | null;
         firstName: string;
         lastName: string;
-        avatarUrl: string | null;
-        id: string;
         phone: string | null;
+        avatarUrl: string | null;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
@@ -79,12 +79,12 @@ export declare class CardsController {
     findOne(user: {
         userId: string;
     }, id: string): Promise<{
+        id: string;
         email: string | null;
         firstName: string;
         lastName: string;
-        avatarUrl: string | null;
-        id: string;
         phone: string | null;
+        avatarUrl: string | null;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
@@ -104,12 +104,12 @@ export declare class CardsController {
     update(user: {
         userId: string;
     }, id: string, dto: UpdateCardDto): Promise<{
+        id: string;
         email: string | null;
         firstName: string;
         lastName: string;
-        avatarUrl: string | null;
-        id: string;
         phone: string | null;
+        avatarUrl: string | null;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
@@ -129,12 +129,12 @@ export declare class CardsController {
     updateTheme(user: {
         userId: string;
     }, id: string, dto: UpdateCardThemeDto): Promise<{
+        id: string;
         email: string | null;
         firstName: string;
         lastName: string;
-        avatarUrl: string | null;
-        id: string;
         phone: string | null;
+        avatarUrl: string | null;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
@@ -160,8 +160,8 @@ export declare class CardsController {
     }, id: string, dto: SyncSocialLinksDto): Promise<{
         id: string;
         createdAt: Date;
-        platform: import(".prisma/client").$Enums.SocialPlatform;
         url: string;
+        platform: import(".prisma/client").$Enums.SocialPlatform;
         label: string | null;
         order: number;
         cardId: string;
@@ -171,8 +171,8 @@ export declare class CardsController {
     }, id: string): Promise<{
         id: string;
         createdAt: Date;
-        platform: import(".prisma/client").$Enums.SocialPlatform;
         url: string;
+        platform: import(".prisma/client").$Enums.SocialPlatform;
         label: string | null;
         order: number;
         cardId: string;

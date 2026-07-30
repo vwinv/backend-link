@@ -50,6 +50,14 @@ declare const _default: () => {
         successUrl: string;
         cancelUrl: string;
     };
+    paydunya: {
+        enabled: boolean;
+        masterKey: string;
+        privateKey: string;
+        token: string;
+        apiBaseUrl: string;
+        storeName: string;
+    };
     mobile: {
         appleTeamId: string;
         appleBundleId: string;

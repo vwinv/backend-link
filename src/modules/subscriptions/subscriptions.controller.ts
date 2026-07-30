@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -24,6 +25,7 @@ import {
   PaymentConfigResponseDto,
 } from './dto/payment-config-response.dto';
 import { PremiumOfferResponseDto } from './dto/premium-offer-response.dto';
+import { SoftPaySubscriptionDto } from './dto/softpay-subscription.dto';
 import { SubscribeDto } from './dto/subscribe.dto';
 import { SubscriptionResponseDto } from './dto/subscription-response.dto';
 import { SubscriptionsService } from './subscriptions.service';
@@ -35,7 +37,8 @@ export class SubscriptionsController {
 
   @Get('config')
   @ApiOperation({
-    summary: 'Configuration paiement (Stripe activé ou mode test instantané)',
+    summary:
+      'Configuration paiement (PayDunya SoftPay activé ou mode test instantané)',
   })
   @ApiResponse({ status: 200, type: PaymentConfigResponseDto })
   getPaymentConfig() {
@@ -74,7 +77,7 @@ export class SubscriptionsController {
   @Post('checkout')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Créer une session Stripe Checkout' })
+  @ApiOperation({ summary: 'Créer une facture PayDunya (préalable SoftPay)' })
   @ApiResponse({ status: 201, type: CheckoutSessionResponseDto })
   createCheckout(
     @CurrentUser() user: { userId: string },
@@ -83,12 +86,42 @@ export class SubscriptionsController {
     return this.subscriptionsService.createCheckout(user.userId, dto);
   }
 
+  @Post('softpay')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'SoftPay Wave / Orange Money / Free Money (Sénégal)',
+  })
+  softPay(
+    @CurrentUser() user: { userId: string },
+    @Body() dto: SoftPaySubscriptionDto,
+  ) {
+    return this.subscriptionsService.softPay(user.userId, dto);
+  }
+
+  @Get('paydunya/confirm')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      'Confirmer un paiement PayDunya (repli si IPN non reçu)',
+  })
+  confirmPaydunya(
+    @CurrentUser() user: { userId: string },
+    @Query('invoiceToken') invoiceToken: string,
+  ) {
+    return this.subscriptionsService.confirmPaydunyaPayment(
+      user.userId,
+      invoiceToken,
+    );
+  }
+
   @Post('subscribe')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary:
-      'Souscrire sans paiement (tests uniquement, si STRIPE_ENABLED=false)',
+      'Souscrire sans paiement (tests uniquement, si PayDunya non configuré)',
   })
   @ApiResponse({ status: 201, type: SubscriptionResponseDto })
   subscribe(
@@ -107,7 +140,7 @@ export class SubscriptionsController {
   }
 
   @Post('webhook')
-  @ApiOperation({ summary: 'Webhook Stripe' })
+  @ApiOperation({ summary: 'Webhook Stripe (legacy)' })
   webhook(@Req() request: RawBodyRequest<Request>) {
     const signature = request.headers['stripe-signature'];
     const payload = request.rawBody;

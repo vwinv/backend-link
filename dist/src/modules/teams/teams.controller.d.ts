@@ -9,12 +9,12 @@ export declare class TeamsController {
     create(user: {
         userId: string;
     }, dto: CreateTeamDto): Promise<{
+        description: string | null;
         id: string;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
         name: string;
-        description: string | null;
         slug: string;
         ownerId: string;
         logoUrl: string | null;
@@ -24,12 +24,12 @@ export declare class TeamsController {
         userId: string;
     }): Promise<{
         entitlements: import("../subscriptions/entitlements.types").UserEntitlements;
+        description: string | null;
         id: string;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
         name: string;
-        description: string | null;
         slug: string;
         ownerId: string;
         logoUrl: string | null;
@@ -45,16 +45,16 @@ export declare class TeamsController {
             brandColor: string | null;
         };
         invitedBy: {
+            id: string;
             firstName: string;
             lastName: string;
-            id: string;
         };
     } & {
+        id: string;
         email: string;
         firstName: string | null;
         lastName: string | null;
         avatarUrl: string | null;
-        id: string;
         role: import(".prisma/client").$Enums.TeamMemberRole;
         createdAt: Date;
         updatedAt: Date;
@@ -70,11 +70,11 @@ export declare class TeamsController {
         userId: string;
     }, inviteId: string): Promise<{
         user: {
+            id: string;
             email: string;
             firstName: string;
             lastName: string;
             avatarUrl: string | null;
-            id: string;
         };
     } & {
         id: string;
@@ -87,11 +87,11 @@ export declare class TeamsController {
     declineInvitation(user: {
         userId: string;
     }, inviteId: string): Promise<{
+        id: string;
         email: string;
         firstName: string | null;
         lastName: string | null;
         avatarUrl: string | null;
-        id: string;
         role: import(".prisma/client").$Enums.TeamMemberRole;
         createdAt: Date;
         updatedAt: Date;
@@ -109,11 +109,11 @@ export declare class TeamsController {
         seats: import("../subscriptions/entitlements.types").TeamSeatsQuota;
         members: ({
             user: {
+                id: string;
                 email: string;
                 firstName: string;
                 lastName: string;
                 avatarUrl: string | null;
-                id: string;
             };
         } & {
             id: string;
@@ -123,12 +123,12 @@ export declare class TeamsController {
             userId: string;
             joinedAt: Date;
         })[];
+        description: string | null;
         id: string;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
         name: string;
-        description: string | null;
         slug: string;
         ownerId: string;
         logoUrl: string | null;
@@ -137,12 +137,12 @@ export declare class TeamsController {
     update(user: {
         userId: string;
     }, id: string, dto: UpdateTeamDto): Promise<{
+        description: string | null;
         id: string;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
         name: string;
-        description: string | null;
         slug: string;
         ownerId: string;
         logoUrl: string | null;
@@ -151,12 +151,12 @@ export declare class TeamsController {
     remove(user: {
         userId: string;
     }, id: string): Promise<{
+        description: string | null;
         id: string;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
         name: string;
-        description: string | null;
         slug: string;
         ownerId: string;
         logoUrl: string | null;
@@ -167,11 +167,11 @@ export declare class TeamsController {
     }, id: string): Promise<{
         members: ({
             user: {
+                id: string;
                 email: string;
                 firstName: string;
                 lastName: string;
                 avatarUrl: string | null;
-                id: string;
             };
         } & {
             id: string;
@@ -182,11 +182,11 @@ export declare class TeamsController {
             joinedAt: Date;
         })[];
         pendingInvites: {
+            id: string;
             email: string;
             firstName: string | null;
             lastName: string | null;
             avatarUrl: string | null;
-            id: string;
             role: import(".prisma/client").$Enums.TeamMemberRole;
             createdAt: Date;
             updatedAt: Date;
@@ -210,11 +210,11 @@ export declare class TeamsController {
             brandColor: string | null;
         };
     } & {
+        id: string;
         email: string;
         firstName: string | null;
         lastName: string | null;
         avatarUrl: string | null;
-        id: string;
         role: import(".prisma/client").$Enums.TeamMemberRole;
         createdAt: Date;
         updatedAt: Date;
@@ -229,11 +229,11 @@ export declare class TeamsController {
     cancelInvitation(user: {
         userId: string;
     }, id: string, inviteId: string): Promise<{
+        id: string;
         email: string;
         firstName: string | null;
         lastName: string | null;
         avatarUrl: string | null;
-        id: string;
         role: import(".prisma/client").$Enums.TeamMemberRole;
         createdAt: Date;
         updatedAt: Date;

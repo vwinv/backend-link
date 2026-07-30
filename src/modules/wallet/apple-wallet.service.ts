@@ -10,7 +10,10 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { ZipFile } from 'yazl';
+import { parseCardTheme } from '../sharing/pro-design/card-theme.util';
 import { WalletConfig } from './wallet.config';
+import { resolveWalletCardPalette } from './wallet-card-style.util';
+import { generateWalletStripAssets } from './wallet-strip.generator';
 
 @Injectable()
 export class AppleWalletService {
@@ -26,6 +29,8 @@ export class AppleWalletService {
       company: 'DropOne',
       email: 'test@dropone.pro',
       phone: '+000000000',
+      theme: { style: 'noir', showQrCode: true },
+      avatarUrl: null,
     } as unknown as BusinessCard;
   }
 
@@ -36,25 +41,33 @@ export class AppleWalletService {
   async selfTest(): Promise<Record<string, unknown>> {
     const certs = this.inspectCertificates();
     try {
+      this.assertCertsMatchConfiguredIds();
       const buffer = await this.selfTestBuffer();
       return {
         ok: true,
         bytes: buffer.length,
         magic: buffer.subarray(0, 4).toString('hex'),
         zipMethod: this.firstZipMethod(buffer),
+        passTypeIdentifier: this.walletConfig.applePassTypeId,
+        teamIdentifier: this.walletConfig.appleTeamId,
         certs,
       };
     } catch (error) {
       return {
         ok: false,
         error: error instanceof Error ? error.message : String(error),
+        passTypeIdentifier: this.walletConfig.applePassTypeId,
+        teamIdentifier: this.walletConfig.appleTeamId,
         certs,
       };
     }
   }
 
   private firstZipMethod(buffer: Buffer): string {
-    if (buffer.length < 10 || buffer.subarray(0, 4).toString() !== 'PK\u0003\u0004') {
+    if (
+      buffer.length < 10 ||
+      buffer.subarray(0, 4).toString() !== 'PK\u0003\u0004'
+    ) {
       return 'unknown';
     }
     const method = buffer.readUInt16LE(8);
@@ -86,6 +99,45 @@ export class AppleWalletService {
     };
   }
 
+  private assertCertsMatchConfiguredIds(): void {
+    const signerPem = fs.readFileSync(
+      this.walletConfig.appleSignerCertPath,
+      'utf8',
+    );
+    const wwdrPem = fs.readFileSync(this.walletConfig.appleWwdrCertPath, 'utf8');
+    const signer = new X509Certificate(signerPem);
+    const wwdr = new X509Certificate(wwdrPem);
+
+    if (!/Worldwide Developer Relations/i.test(wwdr.subject)) {
+      throw new BadRequestException(
+        'APPLE_WWDR_CERT_PATH ne pointe pas vers le certificat WWDR Apple (mauvais fichier).',
+      );
+    }
+
+    const subject = signer.subject;
+    const uidMatch = /UID=([^/\n]+)/.exec(subject);
+    const ouMatch = /OU=([^/\n]+)/.exec(subject);
+    const certPassTypeId = uidMatch?.[1]?.trim() ?? '';
+    const certTeamId = ouMatch?.[1]?.trim() ?? '';
+
+    if (
+      certPassTypeId &&
+      certPassTypeId !== this.walletConfig.applePassTypeId
+    ) {
+      throw new BadRequestException(
+        `APPLE_PASS_TYPE_ID (${this.walletConfig.applePassTypeId}) ` +
+          `ne correspond pas au certificat (${certPassTypeId}).`,
+      );
+    }
+
+    if (certTeamId && certTeamId !== this.walletConfig.appleTeamId) {
+      throw new BadRequestException(
+        `APPLE_TEAM_ID (${this.walletConfig.appleTeamId}) ` +
+          `ne correspond pas au certificat (${certTeamId}).`,
+      );
+    }
+  }
+
   async generatePass(card: BusinessCard): Promise<Buffer> {
     if (!this.walletConfig.isAppleConfigured()) {
       throw new BadRequestException(
@@ -94,9 +146,11 @@ export class AppleWalletService {
     }
 
     try {
-      const files = this.buildPassFiles(card);
-      return await this.zipDeflate(files);
+      this.assertCertsMatchConfiguredIds();
+      const files = await this.buildPassFiles(card);
+      return await this.zipStore(files);
     } catch (error) {
+      if (error instanceof BadRequestException) throw error;
       const message =
         error instanceof Error ? error.message : 'Erreur inconnue Apple Wallet';
       throw new InternalServerErrorException(
@@ -105,12 +159,62 @@ export class AppleWalletService {
     }
   }
 
-  private buildPassFiles(card: BusinessCard): Record<string, Buffer> {
+  private initialsOf(card: BusinessCard): string {
+    const a = (card.firstName?.trim()?.[0] ?? '').toUpperCase();
+    const b = (card.lastName?.trim()?.[0] ?? '').toUpperCase();
+    const out = `${a}${b}`;
+    return out || 'XX';
+  }
+
+  private resolveAssetUrl(value: string | null | undefined): string | null {
+    const trimmed = value?.trim();
+    if (!trimmed) return null;
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed;
+    }
+    const base = this.walletConfig.appPublicUrl.replace(/\/$/, '');
+    const pathPart = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+    return `${base}${pathPart}`;
+  }
+
+  private async fetchImageBuffer(url: string | null): Promise<Buffer | null> {
+    if (!url) return null;
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
+      if (!res.ok) return null;
+      const ab = await res.arrayBuffer();
+      return Buffer.from(ab);
+    } catch {
+      return null;
+    }
+  }
+
+  private async buildPassFiles(
+    card: BusinessCard,
+  ): Promise<Record<string, Buffer>> {
     const fullName = `${card.firstName} ${card.lastName}`.trim() || 'DropOne';
     const subtitle = [card.jobTitle, card.company].filter(Boolean).join(' · ');
     const cardUrl = `${this.walletConfig.appPublicUrl}/cards/${card.slug}`;
+    const theme = parseCardTheme(card.theme);
+    const palette = resolveWalletCardPalette(card.theme);
+    const showQr = theme.showQrCode !== false;
 
-    const generic: Record<string, unknown> = {
+    const avatarBuffer = await this.fetchImageBuffer(
+      this.resolveAssetUrl(card.avatarUrl),
+    );
+
+    const stripAssets = await generateWalletStripAssets({
+      fullName,
+      subtitle,
+      email: card.email?.trim() || '',
+      phone: card.phone?.trim() || '',
+      initials: this.initialsOf(card),
+      showQr,
+      palette,
+      avatarBuffer,
+    });
+
+    const storeCard: Record<string, unknown> = {
       primaryFields: [
         {
           key: 'name',
@@ -121,7 +225,7 @@ export class AppleWalletService {
     };
 
     if (subtitle) {
-      generic.secondaryFields = [
+      storeCard.secondaryFields = [
         {
           key: 'role',
           label: 'Poste',
@@ -130,24 +234,11 @@ export class AppleWalletService {
       ];
     }
 
-    const auxiliaryFields: Array<Record<string, string>> = [];
-    if (card.email) {
-      auxiliaryFields.push({
-        key: 'email',
-        label: 'Email',
-        value: card.email,
-      });
-    }
-    if (card.phone) {
-      auxiliaryFields.push({
-        key: 'phone',
-        label: 'Téléphone',
-        value: card.phone,
-      });
-    }
-    if (auxiliaryFields.length > 0) {
-      generic.auxiliaryFields = auxiliaryFields;
-    }
+    const barcode = {
+      format: 'PKBarcodeFormatQR',
+      message: cardUrl,
+      messageEncoding: 'iso-8859-1',
+    };
 
     const passJson = {
       formatVersion: 1,
@@ -157,21 +248,17 @@ export class AppleWalletService {
       description: `Carte DropOne — ${fullName}`,
       serialNumber: card.id,
       logoText: 'DropOne',
-      foregroundColor: 'rgb(255, 255, 255)',
-      backgroundColor: 'rgb(13, 13, 13)',
-      labelColor: 'rgb(154, 160, 172)',
-      generic,
-      barcodes: [
-        {
-          format: 'PKBarcodeFormatQR',
-          message: cardUrl,
-          messageEncoding: 'iso-8859-1',
-        },
-      ],
+      foregroundColor: palette.passForeground,
+      backgroundColor: palette.passBackground,
+      labelColor: palette.passLabel,
+      storeCard,
+      barcode,
+      barcodes: [barcode],
     };
 
     const files: Record<string, Buffer> = {
       ...this.loadPassAssets(),
+      ...stripAssets,
       'pass.json': Buffer.from(JSON.stringify(passJson), 'utf8'),
     };
 
@@ -193,21 +280,23 @@ export class AppleWalletService {
     try {
       fs.writeFileSync(manifestPath, manifest);
       const args = [
-        'smime',
+        'cms',
         '-binary',
         '-sign',
-        '-certfile',
-        this.walletConfig.appleWwdrCertPath,
         '-signer',
         this.walletConfig.appleSignerCertPath,
         '-inkey',
         this.walletConfig.appleSignerKeyPath,
+        '-certfile',
+        this.walletConfig.appleWwdrCertPath,
         '-in',
         manifestPath,
         '-out',
         signaturePath,
         '-outform',
         'DER',
+        '-md',
+        'sha256',
       ];
 
       const passphrase = this.walletConfig.appleSignerKeyPassphrase;
@@ -222,7 +311,7 @@ export class AppleWalletService {
     }
   }
 
-  private zipDeflate(files: Record<string, Buffer>): Promise<Buffer> {
+  private zipStore(files: Record<string, Buffer>): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       const zip = new ZipFile();
       const chunks: Buffer[] = [];
@@ -231,7 +320,6 @@ export class AppleWalletService {
       zip.outputStream.on('error', reject);
       zip.outputStream.on('end', () => resolve(Buffer.concat(chunks)));
 
-      // Ordre stable recommandé : assets, pass.json, manifest, signature
       const ordered = Object.keys(files).sort((a, b) => {
         const rank = (name: string) => {
           if (name === 'pass.json') return 1;
@@ -243,7 +331,7 @@ export class AppleWalletService {
       });
 
       for (const name of ordered) {
-        zip.addBuffer(files[name], name, { compress: true });
+        zip.addBuffer(files[name], name, { compress: false });
       }
       zip.end();
     });

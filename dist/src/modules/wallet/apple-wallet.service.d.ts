@@ -8,9 +8,13 @@ export declare class AppleWalletService {
     selfTest(): Promise<Record<string, unknown>>;
     private firstZipMethod;
     private inspectCertificates;
+    private assertCertsMatchConfiguredIds;
     generatePass(card: BusinessCard): Promise<Buffer>;
+    private initialsOf;
+    private resolveAssetUrl;
+    private fetchImageBuffer;
     private buildPassFiles;
     private signManifest;
-    private zipDeflate;
+    private zipStore;
     private loadPassAssets;
 }
