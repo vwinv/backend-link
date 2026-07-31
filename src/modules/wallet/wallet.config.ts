@@ -8,7 +8,7 @@ export class WalletConfig {
   constructor(private readonly config: ConfigService) {}
 
   get appPublicUrl(): string {
-    return (this.config.get<string>('wallet.appPublicUrl') ?? 'https://dropone.pro').replace(
+    return (this.config.get<string>('wallet.appPublicUrl') ?? 'https://api.dropone.pro').replace(
       /\/$/,
       '',
     );

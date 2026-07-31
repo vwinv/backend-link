@@ -33,7 +33,7 @@ export default () => ({
     appPublicUrl:
       process.env.APP_PUBLIC_URL ??
       (process.env.NODE_ENV === 'production'
-        ? 'https://dropone.pro'
+        ? 'https://api.dropone.pro'
         : 'http://localhost:3000'),
     apple: {
       teamId: process.env.APPLE_TEAM_ID ?? '',

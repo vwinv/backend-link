@@ -17,7 +17,7 @@ export class SharingService {
   private get appPublicUrl(): string {
     return this.configService.get<string>(
       'wallet.appPublicUrl',
-      'https://dropone.pro',
+      'https://api.dropone.pro',
     );
   }
 

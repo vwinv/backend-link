@@ -10,10 +10,8 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { ZipFile } from 'yazl';
-import { parseCardTheme } from '../sharing/pro-design/card-theme.util';
 import { WalletConfig } from './wallet.config';
 import { resolveWalletCardPalette } from './wallet-card-style.util';
-import { generateWalletStripAssets } from './wallet-strip.generator';
 
 @Injectable()
 export class AppleWalletService {
@@ -159,62 +157,15 @@ export class AppleWalletService {
     }
   }
 
-  private initialsOf(card: BusinessCard): string {
-    const a = (card.firstName?.trim()?.[0] ?? '').toUpperCase();
-    const b = (card.lastName?.trim()?.[0] ?? '').toUpperCase();
-    const out = `${a}${b}`;
-    return out || 'XX';
-  }
-
-  private resolveAssetUrl(value: string | null | undefined): string | null {
-    const trimmed = value?.trim();
-    if (!trimmed) return null;
-    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-      return trimmed;
-    }
-    const base = this.walletConfig.appPublicUrl.replace(/\/$/, '');
-    const pathPart = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
-    return `${base}${pathPart}`;
-  }
-
-  private async fetchImageBuffer(url: string | null): Promise<Buffer | null> {
-    if (!url) return null;
-    try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
-      if (!res.ok) return null;
-      const ab = await res.arrayBuffer();
-      return Buffer.from(ab);
-    } catch {
-      return null;
-    }
-  }
-
   private async buildPassFiles(
     card: BusinessCard,
   ): Promise<Record<string, Buffer>> {
     const fullName = `${card.firstName} ${card.lastName}`.trim() || 'DropOne';
     const subtitle = [card.jobTitle, card.company].filter(Boolean).join(' · ');
     const cardUrl = `${this.walletConfig.appPublicUrl}/cards/${card.slug}`;
-    const theme = parseCardTheme(card.theme);
     const palette = resolveWalletCardPalette(card.theme);
-    const showQr = theme.showQrCode !== false;
 
-    const avatarBuffer = await this.fetchImageBuffer(
-      this.resolveAssetUrl(card.avatarUrl),
-    );
-
-    const stripAssets = await generateWalletStripAssets({
-      fullName,
-      subtitle,
-      email: card.email?.trim() || '',
-      phone: card.phone?.trim() || '',
-      initials: this.initialsOf(card),
-      showQr,
-      palette,
-      avatarBuffer,
-    });
-
-    const storeCard: Record<string, unknown> = {
+    const generic: Record<string, unknown> = {
       primaryFields: [
         {
           key: 'name',
@@ -225,7 +176,7 @@ export class AppleWalletService {
     };
 
     if (subtitle) {
-      storeCard.secondaryFields = [
+      generic.secondaryFields = [
         {
           key: 'role',
           label: 'Poste',
@@ -234,13 +185,33 @@ export class AppleWalletService {
       ];
     }
 
+    const auxiliaryFields: Array<Record<string, string>> = [];
+    if (card.email?.trim()) {
+      auxiliaryFields.push({
+        key: 'email',
+        label: 'Email',
+        value: card.email.trim(),
+      });
+    }
+    if (card.phone?.trim()) {
+      auxiliaryFields.push({
+        key: 'phone',
+        label: 'Téléphone',
+        value: card.phone.trim(),
+      });
+    }
+    if (auxiliaryFields.length > 0) {
+      generic.auxiliaryFields = auxiliaryFields;
+    }
+
     const barcode = {
       format: 'PKBarcodeFormatQR',
       message: cardUrl,
       messageEncoding: 'iso-8859-1',
     };
 
-    const passJson = {
+    // Format `generic` validé sur iPhone + couleurs du style app (CardStyle).
+    const passJson: Record<string, unknown> = {
       formatVersion: 1,
       passTypeIdentifier: this.walletConfig.applePassTypeId,
       teamIdentifier: this.walletConfig.appleTeamId,
@@ -251,14 +222,13 @@ export class AppleWalletService {
       foregroundColor: palette.passForeground,
       backgroundColor: palette.passBackground,
       labelColor: palette.passLabel,
-      storeCard,
+      generic,
       barcode,
       barcodes: [barcode],
     };
 
     const files: Record<string, Buffer> = {
       ...this.loadPassAssets(),
-      ...stripAssets,
       'pass.json': Buffer.from(JSON.stringify(passJson), 'utf8'),
     };
 

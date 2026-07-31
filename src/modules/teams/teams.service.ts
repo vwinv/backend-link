@@ -35,7 +35,7 @@ export class TeamsService {
   private get appPublicUrl(): string {
     return (
       this.configService.get<string>('wallet.appPublicUrl') ??
-      'https://dropone.pro'
+      'https://api.dropone.pro'
     ).replace(/\/$/, '');
   }
 
