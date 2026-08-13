@@ -12,7 +12,11 @@ import * as path from 'node:path';
 import { ZipFile } from 'yazl';
 import { WalletConfig } from './wallet.config';
 import { resolveWalletCardPalette } from './wallet-card-style.util';
-import { generateWalletLogoAssets } from './wallet-logo.generator';
+import {
+  generateWalletLeftLogoAssets,
+  generateWalletThumbnailAssets,
+  resolveDropOneIconPath,
+} from './wallet-logo.generator';
 
 /** Carte + logo équipe optionnel (fallback pro). */
 export type WalletPassCard = BusinessCard & {
@@ -187,16 +191,6 @@ export class AppleWalletService {
     return company ? company.toUpperCase() : 'XX';
   }
 
-  private companyInitials(card: WalletPassCard): string {
-    const company = card.company?.trim() ?? '';
-    if (!company) return '';
-    const parts = company.split(/\s+/).filter(Boolean);
-    if (parts.length >= 2) {
-      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-    }
-    return company.slice(0, 2).toUpperCase();
-  }
-
   private resolveAssetUrl(value: string | null | undefined): string | null {
     const trimmed = value?.trim();
     if (!trimmed) return null;
@@ -216,14 +210,11 @@ export class AppleWalletService {
     return `${this.walletConfig.appPublicUrl}${assetPath}`;
   }
 
-  private resolveLogoSourceUrl(card: WalletPassCard): string | null {
-    if (this.isProfessionalCard(card)) {
-      return (
-        this.resolveAssetUrl(card.logoUrl) ??
-        this.resolveAssetUrl(card.teamLogoUrl)
-      );
-    }
-    return this.resolveAssetUrl(card.avatarUrl);
+  private resolveTeamLogoUrl(card: WalletPassCard): string | null {
+    return (
+      this.resolveAssetUrl(card.logoUrl) ??
+      this.resolveAssetUrl(card.teamLogoUrl)
+    );
   }
 
   private async fetchImageBuffer(url: string): Promise<Buffer | null> {
@@ -267,13 +258,24 @@ export class AppleWalletService {
       ],
     };
 
+    const secondaryFields: Array<Record<string, string>> = [];
     if (subtitle) {
-      generic.secondaryFields = [
-        {
-          key: 'role',
-          value: subtitle,
-        },
-      ];
+      secondaryFields.push({
+        key: 'role',
+        value: subtitle,
+      });
+    }
+    const companyAddress =
+      professional && card.address?.trim() ? card.address.trim() : '';
+    if (companyAddress) {
+      secondaryFields.push({
+        key: 'address',
+        label: 'Adresse',
+        value: companyAddress,
+      });
+    }
+    if (secondaryFields.length > 0) {
+      generic.secondaryFields = secondaryFields;
     }
 
     const auxiliaryFields: Array<Record<string, string>> = [];
@@ -301,8 +303,7 @@ export class AppleWalletService {
       messageEncoding: 'iso-8859-1',
     };
 
-    // Format `generic` validé sur iPhone + couleurs du style app (CardStyle).
-    // Pas de logoText DropOne : l’image (photo / logo / avatar) le remplace.
+    // Format `generic` : logo à gauche, thumbnail (photo) à droite.
     const passJson: Record<string, unknown> = {
       formatVersion: 1,
       passTypeIdentifier: this.walletConfig.applePassTypeId,
@@ -318,24 +319,40 @@ export class AppleWalletService {
       barcodes: [barcode],
     };
 
-    const logoSourceUrl = this.resolveLogoSourceUrl(card);
-    const imageBuffer = logoSourceUrl
-      ? await this.fetchImageBuffer(logoSourceUrl)
+    const avatarUrl = this.resolveAssetUrl(card.avatarUrl);
+    const avatarBuffer = avatarUrl
+      ? await this.fetchImageBuffer(avatarUrl)
       : null;
 
-    const logoAssets = await generateWalletLogoAssets({
-      mode: professional ? 'company' : 'avatar',
-      imageBuffer,
-      initials: professional
-        ? this.companyInitials(card) || this.initialsOf(card)
-        : this.initialsOf(card),
+    const thumbnailAssets = await generateWalletThumbnailAssets({
+      imageBuffer: avatarBuffer,
+      initials: this.initialsOf(card),
       accentHex: palette.accentHex,
       textHex: palette.primaryTextHex,
     });
 
+    let leftLogoAssets: Record<string, Buffer> = {};
+    if (professional) {
+      const teamLogoUrl = this.resolveTeamLogoUrl(card);
+      const teamLogoBuffer = teamLogoUrl
+        ? await this.fetchImageBuffer(teamLogoUrl)
+        : null;
+      leftLogoAssets = await generateWalletLeftLogoAssets(teamLogoBuffer);
+    }
+
+    if (Object.keys(leftLogoAssets).length === 0) {
+      const dropOnePath = resolveDropOneIconPath();
+      if (dropOnePath) {
+        leftLogoAssets = await generateWalletLeftLogoAssets(
+          fs.readFileSync(dropOnePath),
+        );
+      }
+    }
+
     const files: Record<string, Buffer> = {
       ...this.loadPassAssets({ omitBrandLogos: true }),
-      ...logoAssets,
+      ...leftLogoAssets,
+      ...thumbnailAssets,
       'pass.json': Buffer.from(JSON.stringify(passJson), 'utf8'),
     };
 

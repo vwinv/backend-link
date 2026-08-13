@@ -1,11 +1,18 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import {
   BillingPeriod,
+  OfferAudience,
+  OfferBillingType,
   Prisma,
   SubscriptionStatus,
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AdminSubscriptionsQueryDto } from './dto/admin-subscriptions-query.dto';
+import { CreateAdminSubscriptionDto } from './dto/create-admin-subscription.dto';
 
 @Injectable()
 export class AdminSubscriptionsService {
@@ -207,44 +214,7 @@ export class AdminSubscriptionsService {
     ]);
 
     return {
-      data: rows.map((row) => ({
-        id: row.id,
-        status: row.status,
-        billingPeriod: row.billingPeriod,
-        currentPeriodEnd: row.currentPeriodEnd,
-        cancelledAt: row.cancelledAt,
-        createdAt: row.createdAt,
-        updatedAt: row.updatedAt,
-        paymentProvider: row.stripeSubscriptionId
-          ? 'stripe'
-          : row.paydunyaInvoiceToken
-            ? 'paydunya'
-            : null,
-        user: row.user
-          ? {
-              id: row.user.id,
-              email: row.user.email,
-              firstName: row.user.firstName,
-              lastName: row.user.lastName,
-              avatarUrl: row.user.avatarUrl,
-              fullName:
-                `${row.user.firstName} ${row.user.lastName}`.trim() ||
-                row.user.email,
-            }
-          : null,
-        team: row.team,
-        offer: row.offer,
-        plan: row.plan,
-        price: row.offerPrice
-          ? {
-              id: row.offerPrice.id,
-              billingType: row.offerPrice.billingType,
-              amount: Number(row.offerPrice.priceAmount),
-              currency: row.offerPrice.currency,
-              label: row.offerPrice.priceLabel,
-            }
-          : null,
-      })),
+      data: rows.map((row) => this.serialize(row)),
       meta: {
         total,
         page,
@@ -255,16 +225,320 @@ export class AdminSubscriptionsService {
   }
 
   async listOffers() {
-    return this.prisma.premiumOffer.findMany({
-      where: { isActive: true, listedInApp: true },
+    const offers = await this.prisma.premiumOffer.findMany({
+      where: { isActive: true },
       orderBy: [{ sortOrder: 'asc' }, { title: 'asc' }],
       select: {
         id: true,
         title: true,
         slug: true,
         audience: true,
+        minSeats: true,
+        listedInApp: true,
+        prices: {
+          where: { isActive: true },
+          orderBy: { sortOrder: 'asc' },
+          select: {
+            id: true,
+            billingType: true,
+            priceAmount: true,
+            pricePerSeat: true,
+            currency: true,
+            priceLabel: true,
+          },
+        },
       },
     });
+
+    return offers.map((offer) => ({
+      ...offer,
+      prices: offer.prices.map((price) => ({
+        id: price.id,
+        billingType: price.billingType,
+        amount: Number(price.priceAmount),
+        pricePerSeat:
+          price.pricePerSeat == null ? null : Number(price.pricePerSeat),
+        currency: price.currency,
+        label: price.priceLabel,
+      })),
+    }));
+  }
+
+  async create(dto: CreateAdminSubscriptionDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: dto.userId },
+      select: { id: true, isActive: true },
+    });
+    if (!user) {
+      throw new NotFoundException('Client introuvable');
+    }
+    if (!user.isActive) {
+      throw new BadRequestException('Ce compte client est désactivé');
+    }
+
+    const offer = await this.prisma.premiumOffer.findUnique({
+      where: { id: dto.offerId },
+      include: {
+        prices: { where: { isActive: true } },
+      },
+    });
+    if (!offer || !offer.isActive) {
+      throw new BadRequestException('Offre introuvable ou inactive');
+    }
+
+    const price = offer.prices.find((item) => item.id === dto.offerPriceId);
+    if (!price) {
+      throw new BadRequestException('Tarif introuvable pour cette offre');
+    }
+
+    let teamId = dto.teamId?.trim() || null;
+    if (offer.audience === OfferAudience.TEAM) {
+      if (teamId) {
+        const team = await this.prisma.team.findFirst({
+          where: { id: teamId, isActive: true },
+          select: { id: true },
+        });
+        if (!team) {
+          throw new BadRequestException('Équipe introuvable');
+        }
+      } else {
+        const ownedTeam = await this.prisma.team.findFirst({
+          where: { ownerId: user.id, isActive: true },
+          select: { id: true },
+          orderBy: { createdAt: 'asc' },
+        });
+        teamId = ownedTeam?.id ?? null;
+      }
+    } else {
+      teamId = null;
+    }
+
+    const minSeats = Math.max(1, offer.minSeats ?? 1);
+    const purchasedSeats =
+      offer.audience === OfferAudience.TEAM
+        ? Math.max(minSeats, dto.purchasedSeats ?? minSeats)
+        : null;
+
+    const plan = await this.ensurePremiumPlan(offer.audience);
+    const billingPeriod = this.mapBillingPeriod(price.billingType);
+    const currentPeriodEnd = dto.currentPeriodEnd
+      ? new Date(dto.currentPeriodEnd)
+      : this.computePeriodEnd(price.billingType);
+
+    if (Number.isNaN(currentPeriodEnd.getTime())) {
+      throw new BadRequestException('Date de fin invalide');
+    }
+
+    await this.prisma.subscription.updateMany({
+      where: {
+        userId: user.id,
+        status: {
+          in: [
+            SubscriptionStatus.TRIAL,
+            SubscriptionStatus.ACTIVE,
+            SubscriptionStatus.PAST_DUE,
+          ],
+        },
+      },
+      data: {
+        status: SubscriptionStatus.CANCELLED,
+        cancelledAt: new Date(),
+      },
+    });
+
+    const created = await this.prisma.subscription.create({
+      data: {
+        userId: user.id,
+        teamId,
+        planId: plan.id,
+        offerId: offer.id,
+        offerPriceId: price.id,
+        purchasedSeats,
+        status: dto.status ?? SubscriptionStatus.ACTIVE,
+        billingPeriod,
+        currentPeriodEnd,
+      },
+      select: {
+        id: true,
+        status: true,
+        billingPeriod: true,
+        currentPeriodEnd: true,
+        cancelledAt: true,
+        createdAt: true,
+        updatedAt: true,
+        stripeSubscriptionId: true,
+        paydunyaInvoiceToken: true,
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            avatarUrl: true,
+          },
+        },
+        team: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
+        offer: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            audience: true,
+          },
+        },
+        offerPrice: {
+          select: {
+            id: true,
+            billingType: true,
+            priceAmount: true,
+            currency: true,
+            priceLabel: true,
+          },
+        },
+        plan: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
+      },
+    });
+
+    return this.serialize(created);
+  }
+
+  private serialize(row: {
+    id: string;
+    status: SubscriptionStatus;
+    billingPeriod: BillingPeriod;
+    currentPeriodEnd: Date | null;
+    cancelledAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+    stripeSubscriptionId: string | null;
+    paydunyaInvoiceToken: string | null;
+    user: {
+      id: string;
+      email: string;
+      firstName: string;
+      lastName: string;
+      avatarUrl: string | null;
+    } | null;
+    team: { id: string; name: string; slug: string } | null;
+    offer: {
+      id: string;
+      title: string;
+      slug: string;
+      audience: OfferAudience;
+    } | null;
+    offerPrice: {
+      id: string;
+      billingType: OfferBillingType;
+      priceAmount: { toString(): string } | number;
+      currency: string;
+      priceLabel: string | null;
+    } | null;
+    plan: { id: string; name: string; slug: string } | null;
+  }) {
+    return {
+      id: row.id,
+      status: row.status,
+      billingPeriod: row.billingPeriod,
+      currentPeriodEnd: row.currentPeriodEnd,
+      cancelledAt: row.cancelledAt,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      paymentProvider: row.stripeSubscriptionId
+        ? 'stripe'
+        : row.paydunyaInvoiceToken
+          ? 'paydunya'
+          : null,
+      user: row.user
+        ? {
+            id: row.user.id,
+            email: row.user.email,
+            firstName: row.user.firstName,
+            lastName: row.user.lastName,
+            avatarUrl: row.user.avatarUrl,
+            fullName:
+              `${row.user.firstName} ${row.user.lastName}`.trim() ||
+              row.user.email,
+          }
+        : null,
+      team: row.team,
+      offer: row.offer,
+      plan: row.plan,
+      price: row.offerPrice
+        ? {
+            id: row.offerPrice.id,
+            billingType: row.offerPrice.billingType,
+            amount: Number(row.offerPrice.priceAmount),
+            currency: row.offerPrice.currency,
+            label: row.offerPrice.priceLabel,
+          }
+        : null,
+    };
+  }
+
+  private async ensurePremiumPlan(audience: OfferAudience) {
+    const isTeam = audience === OfferAudience.TEAM;
+    const slug = isTeam ? 'premium-team' : 'premium';
+    const existing = await this.prisma.plan.findUnique({ where: { slug } });
+    if (existing) return existing;
+
+    return this.prisma.plan.create({
+      data: {
+        id: isTeam ? 'plan_premium_team' : 'plan_premium',
+        name: isTeam ? 'DropOne Équipe' : 'DropOne Premium',
+        slug,
+        description: isTeam
+          ? 'Espace équipe et cartes professionnelles DropOne'
+          : 'Accès complet aux fonctionnalités Premium DropOne',
+        priceMonthly: 0,
+        priceYearly: 0,
+        maxCards: isTeam ? 10 : 2,
+        maxTeamMembers: isTeam ? 10 : 0,
+        hasPortfolio: true,
+        hasCustomDomain: false,
+        hasAnalytics: true,
+        features: ['pro_designs', 'wallet', 'analytics'],
+        isActive: true,
+      },
+    });
+  }
+
+  private mapBillingPeriod(billingType: OfferBillingType): BillingPeriod {
+    switch (billingType) {
+      case OfferBillingType.YEARLY:
+      case OfferBillingType.LIFETIME:
+        return BillingPeriod.YEARLY;
+      case OfferBillingType.MONTHLY:
+      default:
+        return BillingPeriod.MONTHLY;
+    }
+  }
+
+  private computePeriodEnd(billingType: OfferBillingType): Date {
+    const end = new Date();
+    switch (billingType) {
+      case OfferBillingType.YEARLY:
+        end.setFullYear(end.getFullYear() + 1);
+        return end;
+      case OfferBillingType.LIFETIME:
+        end.setFullYear(end.getFullYear() + 100);
+        return end;
+      case OfferBillingType.MONTHLY:
+      default:
+        end.setMonth(end.getMonth() + 1);
+        return end;
+    }
   }
 
   private async buildRevenueTotals() {

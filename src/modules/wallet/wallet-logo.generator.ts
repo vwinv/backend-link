@@ -1,3 +1,5 @@
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import sharp from 'sharp';
 
 export type WalletLogoMode = 'avatar' | 'company';
@@ -27,23 +29,19 @@ function truncate(value: string, max: number): string {
   return t.slice(0, max);
 }
 
-/**
- * Tailles PassKit logo (hauteur max ~50 pt) :
- * 1x 50×50 / 2x 100×100 / 3x 150×150 pour un avatar carré.
- * Pour un logo entreprise large : 160×50 / 320×100 / 480×150.
- */
-const SIZES = {
-  avatar: [
-    { name: 'logo.png', size: 50 },
-    { name: 'logo@2x.png', size: 100 },
-    { name: 'logo@3x.png', size: 150 },
-  ],
-  company: [
-    { name: 'logo.png', width: 160, height: 50 },
-    { name: 'logo@2x.png', width: 320, height: 100 },
-    { name: 'logo@3x.png', width: 480, height: 150 },
-  ],
-} as const;
+/** Logo gauche PassKit (hauteur ~50 pt). */
+const LOGO_SIZES = [
+  { name: 'logo.png', width: 160, height: 50 },
+  { name: 'logo@2x.png', width: 320, height: 100 },
+  { name: 'logo@3x.png', width: 480, height: 150 },
+] as const;
+
+/** Thumbnail droite PassKit (90 pt) — photo plus grande que l’ancien logo 50 pt. */
+const THUMBNAIL_SIZES = [
+  { name: 'thumbnail.png', size: 90 },
+  { name: 'thumbnail@2x.png', size: 180 },
+  { name: 'thumbnail@3x.png', size: 270 },
+] as const;
 
 async function circleMask(size: number): Promise<Buffer> {
   const svg = Buffer.from(
@@ -85,7 +83,7 @@ async function circularImage(buffer: Buffer, size: number): Promise<Buffer> {
     .toBuffer();
 }
 
-async function companyLogoImage(
+async function leftLogoImage(
   buffer: Buffer,
   width: number,
   height: number,
@@ -98,7 +96,6 @@ async function companyLogoImage(
     .png()
     .toBuffer();
 
-  // Cadre transparent aux dimensions PassKit pour un placement stable.
   return sharp({
     create: {
       width,
@@ -107,49 +104,52 @@ async function companyLogoImage(
       background: { r: 0, g: 0, b: 0, alpha: 0 },
     },
   })
-    .composite([{ input: fitted, gravity: 'centre' }])
+    .composite([{ input: fitted, gravity: 'west' }])
     .png()
     .toBuffer();
 }
 
-/**
- * Remplace le logo DropOne du pass par la photo / le logo entreprise / les initiales.
- */
-export async function generateWalletLogoAssets(
-  input: WalletLogoInput,
+export function resolveDropOneIconPath(): string | null {
+  const candidates = [
+    path.join(process.cwd(), 'wallet-assets', 'logo.png'),
+    path.join(process.cwd(), '..', 'link', 'assets', 'icone.png'),
+    path.join(process.cwd(), '..', 'link', 'assets', 'logo.png'),
+  ];
+  return candidates.find((filePath) => fs.existsSync(filePath)) ?? null;
+}
+
+export async function generateWalletLeftLogoAssets(
+  imageBuffer: Buffer | null,
 ): Promise<Record<string, Buffer>> {
-  const { mode, imageBuffer, initials, accentHex, textHex } = input;
   const result: Record<string, Buffer> = {};
+  if (!imageBuffer || imageBuffer.length === 0) return result;
 
-  if (mode === 'company' && imageBuffer && imageBuffer.length > 0) {
-    for (const spec of SIZES.company) {
-      try {
-        result[spec.name] = await companyLogoImage(
-          imageBuffer,
-          spec.width,
-          spec.height,
-        );
-      } catch {
-        // ignore cette résolution
-      }
-    }
-    if (Object.keys(result).length > 0) return result;
-
-    // Repli : logo carré / circulaire si le format large échoue.
-    for (const spec of SIZES.avatar) {
-      try {
-        result[spec.name] = await circularImage(imageBuffer, spec.size);
-      } catch {
-        // ignore
-      }
-    }
-    if (Object.keys(result).length > 0) return result;
-  }
-
-  // Avatar photo, ou initiales (perso sans photo / pro sans logo).
-  for (const spec of SIZES.avatar) {
+  for (const spec of LOGO_SIZES) {
     try {
-      if (imageBuffer && imageBuffer.length > 0 && mode === 'avatar') {
+      result[spec.name] = await leftLogoImage(
+        imageBuffer,
+        spec.width,
+        spec.height,
+      );
+    } catch {
+      // ignore cette résolution
+    }
+  }
+  return result;
+}
+
+export async function generateWalletThumbnailAssets(input: {
+  imageBuffer?: Buffer | null;
+  initials: string;
+  accentHex: string;
+  textHex: string;
+}): Promise<Record<string, Buffer>> {
+  const result: Record<string, Buffer> = {};
+  const { imageBuffer, initials, accentHex, textHex } = input;
+
+  for (const spec of THUMBNAIL_SIZES) {
+    try {
+      if (imageBuffer && imageBuffer.length > 0) {
         result[spec.name] = await circularImage(imageBuffer, spec.size);
       } else {
         result[spec.name] = await initialsAvatar(
@@ -168,6 +168,17 @@ export async function generateWalletLogoAssets(
       );
     }
   }
-
   return result;
+}
+
+/**
+ * @deprecated Conservé pour les appels existants — préfère left logo + thumbnail.
+ */
+export async function generateWalletLogoAssets(
+  input: WalletLogoInput,
+): Promise<Record<string, Buffer>> {
+  if (input.mode === 'company') {
+    return generateWalletLeftLogoAssets(input.imageBuffer ?? null);
+  }
+  return generateWalletThumbnailAssets(input);
 }

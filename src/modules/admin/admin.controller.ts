@@ -31,6 +31,7 @@ import { AdminUsersService } from './admin-users.service';
 import { AdminClientsQueryDto } from './dto/admin-clients-query.dto';
 import { AdminNotificationsQueryDto } from './dto/admin-notifications-query.dto';
 import { AdminSubscriptionsQueryDto } from './dto/admin-subscriptions-query.dto';
+import { CreateAdminSubscriptionDto } from './dto/create-admin-subscription.dto';
 import { AdminSupportTicketsQueryDto } from './dto/admin-support-tickets-query.dto';
 import { AdminUsersQueryDto } from './dto/admin-users-query.dto';
 import {
@@ -157,6 +158,13 @@ export class AdminController {
   @ApiOperation({ summary: 'Liste des abonnements' })
   listSubscriptions(@Query() query: AdminSubscriptionsQueryDto) {
     return this.subscriptionsService.list(query);
+  }
+
+  @Post('subscriptions')
+  @RequirePermissions('subscriptions.create')
+  @ApiOperation({ summary: 'Créer / attribuer un abonnement à un client' })
+  createSubscription(@Body() dto: CreateAdminSubscriptionDto) {
+    return this.subscriptionsService.create(dto);
   }
 
   @Get('offers')

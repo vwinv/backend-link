@@ -102,7 +102,7 @@ export const ADMIN_PERMISSION_CATALOG = [
     key: 'subscriptions.create',
     module: 'subscriptions',
     action: 'create',
-    label: 'Créer une offre / un tarif',
+    label: 'Créer une offre, un tarif ou un abonnement',
   },
   {
     key: 'subscriptions.update',

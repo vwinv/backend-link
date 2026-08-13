@@ -269,7 +269,14 @@ function buildVCardDataUri(params: PublicCardPageParams): string {
   if (firstName) lines.push(`N:${lastName};${firstName};;;`);
   if (params.email?.trim()) lines.push(`EMAIL:${params.email.trim()}`);
   if (params.phone?.trim()) lines.push(`TEL:${params.phone.trim()}`);
+  if (params.address?.trim()) {
+    lines.push(`ADR:;;${params.address.trim()};;;;`);
+  }
   if (params.subtitle.trim()) lines.push(`TITLE:${params.subtitle.trim()}`);
+  const website = params.socialLinks.find(
+    (link) => link.platform === 'WEBSITE' && link.url.trim(),
+  )?.url.trim();
+  if (website) lines.push(`URL:${website}`);
   lines.push(`URL:${params.pageUrl}`);
   lines.push('END:VCARD');
 
@@ -279,10 +286,29 @@ function buildVCardDataUri(params: PublicCardPageParams): string {
 function renderIdentity(params: PublicCardPageParams): string {
   const safeName = escapeHtml(params.fullName);
   const safeSubtitle = escapeHtml(params.subtitle);
+  const companyName = params.companyName?.trim() ?? '';
+  const teamLogoUrl = params.teamLogoUrl?.trim() ?? '';
+  const address = params.address?.trim() ?? '';
+  const teamRow =
+    companyName.length > 0
+      ? `<div class="team-row">
+          ${
+            teamLogoUrl
+              ? `<img class="team-logo" src="${escapeAttr(teamLogoUrl)}" alt="${escapeHtml(companyName)}" />`
+              : ''
+          }
+          <span class="team-name">${escapeHtml(companyName)}</span>
+        </div>`
+      : '';
+  const addressRow = address
+    ? `<p class="address">${escapeHtml(address)}</p>`
+    : '';
 
   return `
     <h1 class="name">${safeName}</h1>
     ${params.subtitle ? `<p class="subtitle">${safeSubtitle}</p>` : ''}
+    ${teamRow}
+    ${addressRow}
   `;
 }
 

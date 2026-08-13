@@ -294,6 +294,7 @@ model BusinessCard {
   bio           String?
   email         String?
   phone         String?
+  address       String?
   website       String?
   avatarUrl     String?
   coverImageUrl String?

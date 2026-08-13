@@ -10,8 +10,11 @@ export type PublicCardPageParams = {
   fullName: string;
   initials: string;
   subtitle: string;
+  companyName?: string | null;
+  teamLogoUrl?: string | null;
   email?: string | null;
   phone?: string | null;
+  address?: string | null;
   avatarUrl?: string | null;
   pageUrl: string;
   ogImageUrl: string;

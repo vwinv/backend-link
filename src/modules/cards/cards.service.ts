@@ -3,7 +3,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { BusinessCard, CardKind, ContactSource, ShareMethod } from '@prisma/client';
+import {
+  BusinessCard,
+  CardKind,
+  ContactSource,
+  ShareMethod,
+  SocialPlatform,
+} from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateCardDto } from './dto/create-card.dto';
 import { SocialLinkItemDto } from './dto/social-link-item.dto';
@@ -129,6 +135,12 @@ export class CardsService {
         company: this.optionalString(dto.company),
         email: this.optionalString(dto.email),
         phone: this.optionalString(dto.phone),
+        address: this.isTeamCardKind(kind)
+          ? this.optionalString(dto.address)
+          : null,
+        website: this.isTeamCardKind(kind)
+          ? this.normalizeWebsiteUrl(dto.website)
+          : null,
         teamId: dto.teamId ?? null,
         logoUrl: teamLogoUrl,
         isPublic: dto.isPublic ?? true,
@@ -183,9 +195,14 @@ export class CardsService {
         ...(dto.phone !== undefined && {
           phone: this.optionalString(dto.phone),
         }),
-        ...(dto.website !== undefined && {
-          website: this.optionalString(dto.website),
-        }),
+        ...(dto.address !== undefined &&
+          this.isTeamCardKind(card.kind) && {
+            address: this.optionalString(dto.address),
+          }),
+        ...(dto.website !== undefined &&
+          this.isTeamCardKind(card.kind) && {
+            website: this.normalizeWebsiteUrl(dto.website),
+          }),
         ...(dto.avatarUrl !== undefined && {
           avatarUrl: this.optionalString(dto.avatarUrl),
         }),
@@ -281,17 +298,24 @@ export class CardsService {
     cardId: string,
     links: SocialLinkItemDto[],
   ) {
-    await this.findOne(userId, cardId);
+    const card = await this.findOne(userId, cardId);
+    const isTeamCard = this.isTeamCardKind(card.kind);
 
     const sanitized = links
       .map((link, index) => ({
         cardId,
         platform: link.platform,
-        url: link.url.trim(),
+        url:
+          link.platform === SocialPlatform.WEBSITE
+            ? this.normalizeWebsiteUrl(link.url) ?? ''
+            : link.url.trim(),
         label: link.label?.trim() || null,
         order: link.order ?? index,
       }))
-      .filter((link) => link.url.length > 0);
+      .filter((link) => link.url.length > 0)
+      .filter(
+        (link) => isTeamCard || link.platform !== SocialPlatform.WEBSITE,
+      );
 
     if (sanitized.length > 0) {
       await this.entitlementsService.assertCanEditSocialLinks(userId, cardId);
@@ -301,6 +325,16 @@ export class CardsService {
 
     if (sanitized.length > 0) {
       await this.prisma.socialLink.createMany({ data: sanitized });
+    }
+
+    if (isTeamCard) {
+      const websiteLink = sanitized.find(
+        (link) => link.platform === SocialPlatform.WEBSITE,
+      );
+      await this.prisma.businessCard.update({
+        where: { id: cardId },
+        data: { website: websiteLink?.url ?? null },
+      });
     }
 
     return this.getSocialLinks(userId, cardId);
@@ -768,10 +802,21 @@ export class CardsService {
     return this.contactsService.findExchangeContacts(userId);
   }
 
+  private isTeamCardKind(kind: CardKind): boolean {
+    return kind === CardKind.PROFESSIONAL || kind === CardKind.MEMBER;
+  }
+
   private optionalString(value?: string | null): string | null {
     if (value == null) return null;
     const trimmed = value.trim();
     return trimmed.length > 0 ? trimmed : null;
+  }
+
+  private normalizeWebsiteUrl(value?: string | null): string | null {
+    const trimmed = this.optionalString(value);
+    if (!trimmed) return null;
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    return `https://${trimmed}`;
   }
 
   private async generateUniqueSlug(

@@ -3,7 +3,7 @@ import {
   Injectable,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { BusinessCard } from '@prisma/client';
+import { BusinessCard, CardKind } from '@prisma/client';
 import * as jwt from 'jsonwebtoken';
 import { WalletConfig } from './wallet.config';
 
@@ -55,6 +55,17 @@ export class GoogleWalletService {
                   firstValue: {
                     fields: [
                       { fieldPath: "object.textModulesData['phone']" },
+                    ],
+                  },
+                },
+              },
+            },
+            {
+              oneItem: {
+                item: {
+                  firstValue: {
+                    fields: [
+                      { fieldPath: "object.textModulesData['address']" },
                     ],
                   },
                 },
@@ -112,6 +123,15 @@ export class GoogleWalletService {
                 id: 'phone',
                 header: 'Téléphone',
                 body: card.phone,
+              },
+            ]
+          : []),
+        ...(card.kind !== CardKind.PERSONAL && card.address
+          ? [
+              {
+                id: 'address',
+                header: 'Adresse',
+                body: card.address,
               },
             ]
           : []),

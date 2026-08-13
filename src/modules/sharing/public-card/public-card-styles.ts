@@ -139,6 +139,46 @@ export const PUBLIC_CARD_STYLES = `
     color: var(--text-muted);
   }
 
+  .team-row {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .layout-nuit .team-row {
+    justify-content: flex-start;
+  }
+
+  .team-logo {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    object-fit: cover;
+    background: rgba(255, 255, 255, 0.16);
+    flex-shrink: 0;
+  }
+
+  .team-name {
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--text);
+  }
+
+  .address {
+    margin-top: 8px;
+    font-size: 13px;
+    line-height: 1.35;
+    text-align: center;
+    color: var(--text-muted);
+  }
+
+  .layout-nuit .address {
+    text-align: left;
+  }
+
   .actions {
     margin-top: 24px;
     display: grid;

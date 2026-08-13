@@ -36,6 +36,19 @@ export class CreateCardDto {
   @IsString()
   phone?: string;
 
+  @ApiPropertyOptional({
+    example: 'Dakar, Sénégal',
+    description: 'Adresse de l’entreprise (cartes pro / membre)',
+  })
+  @IsOptional()
+  @IsString()
+  address?: string;
+
+  @ApiPropertyOptional({ example: 'https://acme.com' })
+  @IsOptional()
+  @IsString()
+  website?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

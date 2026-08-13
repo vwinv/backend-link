@@ -37,6 +37,13 @@ export class UpdateCardDto {
   @IsString()
   phone?: string;
 
+  @ApiPropertyOptional({
+    description: 'Adresse de l’entreprise (cartes pro / membre)',
+  })
+  @IsOptional()
+  @IsString()
+  address?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

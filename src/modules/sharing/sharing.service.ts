@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { BusinessCard } from '../../../generated/prisma/client';
+import { CardKind, type BusinessCard } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EntitlementsService } from '../subscriptions/entitlements.service';
 import { resolveProDesign } from './pro-design/pro-design-resolver';
@@ -81,26 +81,35 @@ export class SharingService {
     }
 
     const fullName = `${card.firstName} ${card.lastName}`.trim();
-    const subtitle = this.buildSubtitle(card);
+    const isTeamCard =
+      card.kind === CardKind.PROFESSIONAL || card.kind === CardKind.MEMBER;
+    const companyName = isTeamCard
+      ? card.company?.trim() || card.team?.name?.trim() || ''
+      : '';
+    const subtitle = isTeamCard
+      ? card.jobTitle?.trim() || ''
+      : this.buildSubtitle(card);
     const pageUrl = `${this.appPublicUrl}/cards/${card.slug}`;
     const design = resolveProDesign(card.theme);
+    const teamLogoSource = card.logoUrl?.trim() || card.team?.logoUrl?.trim();
 
     return buildPublicCardHtml({
       fullName,
       initials: buildCardInitials({ fullName }),
       subtitle,
+      companyName: companyName || null,
+      teamLogoUrl: isTeamCard && teamLogoSource
+        ? this.resolvePublicAssetUrl(teamLogoSource)
+        : null,
       email: card.email,
       phone: card.phone,
+      address: isTeamCard ? card.address : null,
       avatarUrl: this.resolvePortraitUrl(card),
       pageUrl,
       ogImageUrl: this.getOgImageUrl(card, fullName),
       logoUrl: this.getBrandLogoUrl(),
       design,
-      socialLinks: card.socialLinks.map((link) => ({
-        platform: link.platform,
-        url: link.url,
-        label: link.label,
-      })),
+      socialLinks: this.toPublicSocialLinks(card),
       embed: options?.embed === true,
     });
   }
@@ -204,6 +213,9 @@ export class SharingService {
         socialLinks: {
           orderBy: { order: 'asc' },
         },
+        team: {
+          select: { name: true, logoUrl: true },
+        },
       },
     });
   }
@@ -218,6 +230,8 @@ export class SharingService {
       subtitle: this.buildSubtitle(card),
       email: card.email,
       phone: card.phone,
+      address: card.address,
+      website: card.website,
       avatarUrl: card.avatarUrl,
       coverImageUrl: card.coverImageUrl,
       proDesignId: design.id,
@@ -227,6 +241,49 @@ export class SharingService {
       ogDescription: 'Découvrez ma carte de visite DropOne',
       ogImageUrl: this.getOgImageUrl(card, fullName),
     };
+  }
+
+  private toPublicSocialLinks(card: {
+    kind: CardKind;
+    website?: string | null;
+    socialLinks: Array<{
+      platform: string;
+      url: string;
+      label?: string | null;
+    }>;
+  }): Array<{ platform: string; url: string; label?: string | null }> {
+    const isTeamCard =
+      card.kind === CardKind.PROFESSIONAL || card.kind === CardKind.MEMBER;
+    const links = card.socialLinks.map((link) => ({
+      platform: link.platform,
+      url: link.url,
+      label: link.label,
+    }));
+
+    if (!isTeamCard) {
+      return links.filter((link) => link.platform !== 'WEBSITE');
+    }
+
+    const website = this.normalizeWebsiteUrl(card.website);
+    if (!website || links.some((link) => link.platform === 'WEBSITE')) {
+      return links;
+    }
+
+    return [
+      ...links,
+      {
+        platform: 'WEBSITE',
+        url: website,
+        label: 'www',
+      },
+    ];
+  }
+
+  private normalizeWebsiteUrl(value?: string | null): string | null {
+    const trimmed = value?.trim() ?? '';
+    if (!trimmed) return null;
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    return `https://${trimmed}`;
   }
 
   private buildSubtitle(card: BusinessCard): string {
@@ -239,10 +296,6 @@ export class SharingService {
   private resolvePortraitUrl(card: BusinessCard): string | null {
     const avatar = card.avatarUrl?.trim();
     if (avatar) return this.resolvePublicAssetUrl(avatar);
-
-    const logo = card.logoUrl?.trim();
-    if (logo) return this.resolvePublicAssetUrl(logo);
-
     return null;
   }
 
