@@ -9,6 +9,7 @@ export interface UserEntitlements {
     hasVisitorInsights: boolean;
     hasSocialLinks: boolean;
     maxAiScans: number;
+    maxShares: number;
 }
 export interface TeamSeatsQuota {
     used: number;
@@ -19,6 +20,12 @@ export interface AiScanQuota {
     used: number;
     max: number;
     canScan: boolean;
+    isUnlimited: boolean;
+}
+export interface ShareQuota {
+    used: number;
+    max: number;
+    canShare: boolean;
     isUnlimited: boolean;
 }
 export declare const DEFAULT_ENTITLEMENTS: UserEntitlements;

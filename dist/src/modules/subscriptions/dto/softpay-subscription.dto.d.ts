@@ -11,4 +11,5 @@ export declare class SoftPaySubscriptionDto {
     telephone: string;
     email?: string;
     teamId?: string;
+    seats?: number;
 }

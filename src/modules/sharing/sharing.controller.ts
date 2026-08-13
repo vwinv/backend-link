@@ -109,6 +109,14 @@ export class SharingController {
     return this.sharingService.shareCard(user.userId, id, dto);
   }
 
+  @Get('quota')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Quota de partages restant' })
+  getShareQuota(@CurrentUser() user: { userId: string }) {
+    return this.sharingService.getShareQuota(user.userId);
+  }
+
   @Get('cards/:id/qr')
   @ApiOperation({ summary: 'Générer le QR code de partage' })
   getQrCode(@Param('id') id: string) {

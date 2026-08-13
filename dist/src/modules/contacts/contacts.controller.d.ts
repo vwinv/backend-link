@@ -7,7 +7,7 @@ export declare class ContactsController {
         userId: string;
     }): Promise<{
         id: string;
-        source: import(".prisma/client").$Enums.ContactSource;
+        source: import("@prisma/client").$Enums.ContactSource;
         fullName: string;
         initials: string;
         subtitle: string;
@@ -27,7 +27,7 @@ export declare class ContactsController {
         userId: string;
     }, dto: ExchangeContactDto): Promise<{
         id: string;
-        source: import(".prisma/client").$Enums.ContactSource;
+        source: import("@prisma/client").$Enums.ContactSource;
         fullName: string;
         initials: string;
         subtitle: string;

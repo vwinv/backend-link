@@ -1,5 +1,8 @@
 import { BusinessCard } from '@prisma/client';
 import { WalletConfig } from './wallet.config';
+export type WalletPassCard = BusinessCard & {
+    teamLogoUrl?: string | null;
+};
 export declare class AppleWalletService {
     private readonly walletConfig;
     constructor(walletConfig: WalletConfig);
@@ -9,9 +12,13 @@ export declare class AppleWalletService {
     private firstZipMethod;
     private inspectCertificates;
     private assertCertsMatchConfiguredIds;
-    generatePass(card: BusinessCard): Promise<Buffer>;
+    generatePass(card: WalletPassCard): Promise<Buffer>;
+    private isProfessionalCard;
+    private buildSubtitle;
     private initialsOf;
+    private companyInitials;
     private resolveAssetUrl;
+    private resolveLogoSourceUrl;
     private fetchImageBuffer;
     private buildPassFiles;
     private signManifest;

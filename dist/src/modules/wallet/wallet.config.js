@@ -53,7 +53,7 @@ let WalletConfig = class WalletConfig {
         this.config = config;
     }
     get appPublicUrl() {
-        return (this.config.get('wallet.appPublicUrl') ?? 'https://dropone.pro').replace(/\/$/, '');
+        return (this.config.get('wallet.appPublicUrl') ?? 'https://api.dropone.pro').replace(/\/$/, '');
     }
     get appleTeamId() {
         return this.config.get('wallet.apple.teamId') ?? '';

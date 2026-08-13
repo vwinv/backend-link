@@ -16,21 +16,24 @@ export declare class SubscriptionsController {
         title: string;
         slug: string;
         subtitle: string | null;
-        audience: import(".prisma/client").$Enums.OfferAudience;
+        audience: import("@prisma/client").$Enums.OfferAudience;
         canCustomize: boolean;
         maxTeamMembers: number;
+        minSeats: number;
         hasPortfolio: boolean;
         hasWallet: boolean;
         hasAnalytics: boolean;
         hasVisitorInsights: boolean;
         hasSocialLinks: boolean;
         maxAiScans: number;
+        maxShares: number;
         sortOrder: number;
         prices: {
             id: string;
-            billingType: import(".prisma/client").$Enums.OfferBillingType;
+            billingType: import("@prisma/client").$Enums.OfferBillingType;
             priceLabel: string | null;
             priceAmount: number;
+            pricePerSeat: number | null;
             currency: string;
             discountPercent: number | null;
             badgeLabel: string | null;
@@ -43,21 +46,24 @@ export declare class SubscriptionsController {
         title: string;
         slug: string;
         subtitle: string | null;
-        audience: import(".prisma/client").$Enums.OfferAudience;
+        audience: import("@prisma/client").$Enums.OfferAudience;
         canCustomize: boolean;
         maxTeamMembers: number;
+        minSeats: number;
         hasPortfolio: boolean;
         hasWallet: boolean;
         hasAnalytics: boolean;
         hasVisitorInsights: boolean;
         hasSocialLinks: boolean;
         maxAiScans: number;
+        maxShares: number;
         sortOrder: number;
         prices: {
             id: string;
-            billingType: import(".prisma/client").$Enums.OfferBillingType;
+            billingType: import("@prisma/client").$Enums.OfferBillingType;
             priceLabel: string | null;
             priceAmount: number;
+            pricePerSeat: number | null;
             currency: string;
             discountPercent: number | null;
             badgeLabel: string | null;
@@ -69,15 +75,15 @@ export declare class SubscriptionsController {
         userId: string;
     }): Promise<{
         id: string;
-        status: import(".prisma/client").$Enums.SubscriptionStatus;
-        billingPeriod: import(".prisma/client").$Enums.BillingPeriod;
+        status: import("@prisma/client").$Enums.SubscriptionStatus;
+        billingPeriod: import("@prisma/client").$Enums.BillingPeriod;
         planName: string;
         planSlug: string;
         offerTitle: string;
         offerSlug: string;
-        billingType: import(".prisma/client").$Enums.OfferBillingType | null;
+        billingType: import("@prisma/client").$Enums.OfferBillingType | null;
         entitlements: {
-            audience: import(".prisma/client").$Enums.OfferAudience;
+            audience: import("@prisma/client").$Enums.OfferAudience;
             canCustomize: boolean;
             maxTeamMembers: number;
             hasPortfolio: boolean;
@@ -86,7 +92,9 @@ export declare class SubscriptionsController {
             hasVisitorInsights: boolean;
             hasSocialLinks: boolean;
             maxAiScans: number;
+            maxShares: number;
         };
+        purchasedSeats: number | null;
         currentPeriodEnd: string | null;
     }>;
     getPlan(slug: string): {
@@ -100,6 +108,7 @@ export declare class SubscriptionsController {
         invoiceToken: string;
         sessionId: string;
         amountFcfa: number;
+        seats: number | null;
         description: string;
     }>;
     softPay(user: {
@@ -125,20 +134,26 @@ export declare class SubscriptionsController {
     }, invoiceToken: string): Promise<{
         paid: boolean;
         error: string;
+        kind?: undefined;
+        subscription?: undefined;
+    } | {
+        paid: boolean;
+        kind: "already_paid";
+        error?: undefined;
         subscription?: undefined;
     } | {
         paid: boolean;
         subscription: {
             id: string;
-            status: import(".prisma/client").$Enums.SubscriptionStatus;
-            billingPeriod: import(".prisma/client").$Enums.BillingPeriod;
+            status: import("@prisma/client").$Enums.SubscriptionStatus;
+            billingPeriod: import("@prisma/client").$Enums.BillingPeriod;
             planName: string;
             planSlug: string;
             offerTitle: string;
             offerSlug: string;
-            billingType: import(".prisma/client").$Enums.OfferBillingType | null;
+            billingType: import("@prisma/client").$Enums.OfferBillingType | null;
             entitlements: {
-                audience: import(".prisma/client").$Enums.OfferAudience;
+                audience: import("@prisma/client").$Enums.OfferAudience;
                 canCustomize: boolean;
                 maxTeamMembers: number;
                 hasPortfolio: boolean;
@@ -147,24 +162,57 @@ export declare class SubscriptionsController {
                 hasVisitorInsights: boolean;
                 hasSocialLinks: boolean;
                 maxAiScans: number;
+                maxShares: number;
             };
+            purchasedSeats: number | null;
             currentPeriodEnd: string | null;
         };
         error?: undefined;
+        kind?: undefined;
+    } | {
+        alreadyProcessed: true;
+        purchasedSeats: number | null;
+        invoiceId: string;
+        paid: boolean;
+        kind: "seat_upgrade";
+        error?: undefined;
+        subscription?: undefined;
+    } | {
+        alreadyProcessed: false;
+        purchasedSeats: number | null;
+        invoiceId: string;
+        paid: boolean;
+        kind: "seat_upgrade";
+        error?: undefined;
+        subscription?: undefined;
+    } | {
+        alreadyProcessed: true;
+        paymentInvoiceId: string;
+        paid: boolean;
+        kind: "invoice_pay";
+        error?: undefined;
+        subscription?: undefined;
+    } | {
+        alreadyProcessed: false;
+        paymentInvoiceId: string;
+        paid: boolean;
+        kind: "invoice_pay";
+        error?: undefined;
+        subscription?: undefined;
     }>;
     subscribe(user: {
         userId: string;
     }, dto: SubscribeDto): Promise<{
         id: string;
-        status: import(".prisma/client").$Enums.SubscriptionStatus;
-        billingPeriod: import(".prisma/client").$Enums.BillingPeriod;
+        status: import("@prisma/client").$Enums.SubscriptionStatus;
+        billingPeriod: import("@prisma/client").$Enums.BillingPeriod;
         planName: string;
         planSlug: string;
         offerTitle: string;
         offerSlug: string;
-        billingType: import(".prisma/client").$Enums.OfferBillingType | null;
+        billingType: import("@prisma/client").$Enums.OfferBillingType | null;
         entitlements: {
-            audience: import(".prisma/client").$Enums.OfferAudience;
+            audience: import("@prisma/client").$Enums.OfferAudience;
             canCustomize: boolean;
             maxTeamMembers: number;
             hasPortfolio: boolean;
@@ -173,7 +221,9 @@ export declare class SubscriptionsController {
             hasVisitorInsights: boolean;
             hasSocialLinks: boolean;
             maxAiScans: number;
+            maxShares: number;
         };
+        purchasedSeats: number | null;
         currentPeriodEnd: string | null;
     }>;
     cancel(): {

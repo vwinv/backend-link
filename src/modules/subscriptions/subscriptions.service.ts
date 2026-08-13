@@ -8,10 +8,13 @@ import {
 } from '@nestjs/common';
 import {
   BillingPeriod,
+  InvoiceStatus,
   OfferAudience,
   OfferBillingType,
+  Prisma,
   SubscriptionStatus,
 } from '@prisma/client';
+import { randomBytes } from 'crypto';
 import type Stripe from 'stripe';
 import { PrismaService } from '../../prisma/prisma.service';
 import { paydunyaIpnCallbackUrl } from '../paydunya/paydunya-callback.util';
@@ -21,6 +24,8 @@ import { CheckoutDto } from './dto/checkout.dto';
 import { SoftPaySubscriptionDto } from './dto/softpay-subscription.dto';
 import { SubscribeDto } from './dto/subscribe.dto';
 import { StripeService } from './stripe.service';
+import { InvoicesService } from './invoices.service';
+import type { InvoiceLine } from './invoices.service';
 
 type ActivateSubscriptionInput = {
   userId: string;
@@ -28,10 +33,30 @@ type ActivateSubscriptionInput = {
   billingType: OfferBillingType;
   teamId?: string | null;
   offerPriceId?: string | null;
+  purchasedSeats?: number | null;
   stripeSubscriptionId?: string | null;
   stripeCheckoutSessionId?: string | null;
   paydunyaInvoiceToken?: string | null;
   currentPeriodEnd?: Date | null;
+  invoiceAmount?: number | null;
+  invoiceCurrency?: string | null;
+  invoiceProvider?: string | null;
+};
+
+type OfferForPricing = {
+  audience: OfferAudience;
+  maxTeamMembers: number;
+  minSeats?: number;
+  title: string;
+  slug: string;
+};
+
+type PriceForPricing = {
+  id: string;
+  billingType: OfferBillingType;
+  priceAmount: { toNumber?: () => number } | number;
+  pricePerSeat?: { toNumber?: () => number } | number | null;
+  priceLabel?: string | null;
 };
 
 @Injectable()
@@ -42,6 +67,7 @@ export class SubscriptionsService {
     private readonly prisma: PrismaService,
     private readonly stripeService: StripeService,
     private readonly paydunyaService: PaydunyaService,
+    private readonly invoicesService: InvoicesService,
   ) {}
 
   getPaymentConfig() {
@@ -53,7 +79,7 @@ export class SubscriptionsService {
 
   async getOffers() {
     const offers = await this.prisma.premiumOffer.findMany({
-      where: { isActive: true },
+      where: { isActive: true, listedInApp: true },
       include: {
         prices: {
           where: { isActive: true },
@@ -90,10 +116,8 @@ export class SubscriptionsService {
       );
     }
 
-    const { offer, price } = await this.resolveOfferPrice(
-      dto.offerSlug,
-      dto.billingType,
-    );
+    const { offer, price, billingMultiplier, effectiveBillingType } =
+      await this.resolveOfferPrice(dto.offerSlug, dto.billingType);
 
     if (dto.teamId && offer.audience !== OfferAudience.TEAM) {
       throw new BadRequestException(
@@ -101,7 +125,12 @@ export class SubscriptionsService {
       );
     }
 
-    const amount = Math.round(Number(price.priceAmount));
+    const { amount, seats } = this.resolveCheckoutPricing(
+      offer,
+      price,
+      dto.seats,
+      billingMultiplier,
+    );
     if (!Number.isFinite(amount) || amount <= 0) {
       throw new BadRequestException(
         'Cette offre est gratuite. Utilisez /subscriptions/subscribe.',
@@ -117,9 +146,13 @@ export class SubscriptionsService {
     const storeName =
       process.env.PAYDUNYA_STORE_NAME?.trim() || 'Drop One';
 
+    const seatsLabel = seats != null ? ` · ${seats} utilisateur${seats > 1 ? 's' : ''}` : '';
+    const billingLabel =
+      price.priceLabel ??
+      (effectiveBillingType === OfferBillingType.YEARLY ? 'YEARLY' : dto.billingType);
     const inv = await this.paydunyaService.createCheckoutInvoice({
       totalAmountFcfa: amount,
-      description: `${offer.title} — ${price.priceLabel ?? dto.billingType}`,
+      description: `${offer.title} — ${billingLabel}${seatsLabel}`,
       storeName,
       callbackUrl,
       returnUrl: process.env.PAYDUNYA_RETURN_URL?.trim() || undefined,
@@ -129,8 +162,9 @@ export class SubscriptionsService {
         userId,
         offerSlug: offer.slug,
         offerPriceId: price.id,
-        billingType: price.billingType,
+        billingType: effectiveBillingType,
         teamId: dto.teamId ?? '',
+        seats: seats != null ? String(seats) : '',
       },
     });
 
@@ -139,6 +173,7 @@ export class SubscriptionsService {
       invoiceToken: inv.invoiceToken,
       sessionId: inv.invoiceToken,
       amountFcfa: amount,
+      seats,
       description: offer.title,
     };
   }
@@ -150,12 +185,17 @@ export class SubscriptionsService {
       );
     }
 
-    const { offer, price } = await this.resolveOfferPrice(
+    const { offer, price, billingMultiplier } = await this.resolveOfferPrice(
       dto.offerSlug,
       dto.billingType,
     );
 
-    const amount = Math.round(Number(price.priceAmount));
+    const { amount } = this.resolveCheckoutPricing(
+      offer,
+      price,
+      dto.seats,
+      billingMultiplier,
+    );
     if (!Number.isFinite(amount) || amount <= 0) {
       throw new BadRequestException('Montant invalide pour SoftPay');
     }
@@ -237,6 +277,13 @@ export class SubscriptionsService {
       return { paid: false, error: 'missing_token' };
     }
 
+    const existingPaid = await this.prisma.paymentInvoice.findUnique({
+      where: { providerInvoiceId: token },
+    });
+    if (existingPaid?.status === InvoiceStatus.PAID) {
+      return { paid: true, kind: 'already_paid' as const };
+    }
+
     const existing = await this.prisma.subscription.findFirst({
       where: { paydunyaInvoiceToken: token, userId },
       include: { plan: true, offer: true, offerPrice: true },
@@ -261,6 +308,37 @@ export class SubscriptionsService {
 
     const custom = confirmed.customData;
     const kind = String(custom['kind'] ?? '').toLowerCase();
+
+    if (kind === 'seat_upgrade') {
+      const subscriptionId = String(custom['subscriptionId'] ?? '').trim();
+      const additionalSeats = this.parseSeats(custom['additionalSeats']);
+      if (!subscriptionId || !additionalSeats) {
+        return { paid: false, error: 'invalid_seat_upgrade_data' };
+      }
+      const result = await this.applySeatUpgradePayment({
+        userId,
+        invoiceToken: confirmed.invoiceToken,
+        subscriptionId,
+        additionalSeats,
+        paidAmount: Math.round(confirmed.totalAmount),
+      });
+      return { paid: true, kind: 'seat_upgrade' as const, ...result };
+    }
+
+    if (kind === 'invoice_pay') {
+      const paymentInvoiceId = String(custom['paymentInvoiceId'] ?? '').trim();
+      if (!paymentInvoiceId) {
+        return { paid: false, error: 'invalid_invoice_pay_data' };
+      }
+      const result = await this.applyPendingInvoicePayment({
+        userId,
+        invoiceToken: confirmed.invoiceToken,
+        paymentInvoiceId,
+        paidAmount: Math.round(confirmed.totalAmount),
+      });
+      return { paid: true, kind: 'invoice_pay' as const, ...result };
+    }
+
     if (kind !== 'subscription') {
       return { paid: false, error: 'not_subscription_invoice' };
     }
@@ -278,8 +356,16 @@ export class SubscriptionsService {
       return { paid: false, error: 'invalid_custom_data' };
     }
 
-    const { offer, price } = await this.resolveOfferPrice(offerSlug, billingType);
-    const expected = Math.round(Number(price.priceAmount));
+    const { offer, price, billingMultiplier, effectiveBillingType } =
+      await this.resolveOfferPrice(offerSlug, billingType);
+    const seats = this.parseSeats(custom['seats']);
+    const { amount: expected, seats: purchasedSeats } =
+      this.resolveCheckoutPricing(
+        offer,
+        price,
+        seats ?? undefined,
+        billingMultiplier,
+      );
     const paid = Math.round(confirmed.totalAmount);
     if (Math.abs(paid - expected) > 1) {
       return { paid: false, error: 'amount_mismatch' };
@@ -288,17 +374,433 @@ export class SubscriptionsService {
     const subscription = await this.activateSubscription({
       userId,
       offerSlug: offer.slug,
-      billingType: price.billingType,
+      billingType: effectiveBillingType,
       teamId: String(custom['teamId'] ?? '').trim() || null,
       offerPriceId: price.id,
+      purchasedSeats,
       paydunyaInvoiceToken: confirmed.invoiceToken,
-      currentPeriodEnd: this.computePeriodEnd(price.billingType),
+      currentPeriodEnd: this.computePeriodEnd(effectiveBillingType),
+      invoiceAmount: paid,
+      invoiceCurrency: 'FCFA',
+      invoiceProvider: 'paydunya',
     });
 
     return {
       paid: true,
       subscription: this.toSubscriptionResponse(subscription),
     };
+  }
+
+  async createSeatUpgradeCheckout(
+    userId: string,
+    input: {
+      teamId: string;
+      additionalSeats: number;
+      returnUrl?: string;
+    },
+  ) {
+    const additionalSeats = Math.floor(input.additionalSeats);
+    if (!Number.isFinite(additionalSeats) || additionalSeats < 1) {
+      throw new BadRequestException('Ajoutez au moins 1 siège');
+    }
+
+    const subscription = await this.prisma.subscription.findFirst({
+      where: {
+        OR: [{ teamId: input.teamId }, { userId }],
+        status: {
+          in: [
+            SubscriptionStatus.ACTIVE,
+            SubscriptionStatus.TRIAL,
+            SubscriptionStatus.PAST_DUE,
+          ],
+        },
+      },
+      include: { offer: true, offerPrice: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!subscription?.offer || !subscription.offerPrice) {
+      throw new BadRequestException('Aucun abonnement équipe actif');
+    }
+    if (subscription.offer.audience !== OfferAudience.TEAM) {
+      throw new BadRequestException('Cette offre ne permet pas d’ajouter des sièges');
+    }
+
+    const perSeat = this.toNumber(subscription.offerPrice.pricePerSeat);
+    if (!Number.isFinite(perSeat) || perSeat <= 0) {
+      throw new BadRequestException('Tarif au siège indisponible pour cette offre');
+    }
+
+    const minSeats = Math.max(1, subscription.offer.minSeats || 1);
+    const currentSeats = Math.max(
+      minSeats,
+      subscription.purchasedSeats ?? minSeats,
+    );
+    const max = subscription.offer.maxTeamMembers;
+    const hardMax = max < 0 ? 500 : max;
+    const newTotal = currentSeats + additionalSeats;
+    if (newTotal > hardMax) {
+      throw new BadRequestException(
+        max < 0
+          ? `Maximum ${hardMax} utilisateurs`
+          : `Cette offre est limitée à ${hardMax} utilisateurs`,
+      );
+    }
+
+    const amount = Math.round(perSeat * additionalSeats);
+    const currency = subscription.offerPrice.currency || 'FCFA';
+    const lines: InvoiceLine[] = [
+      {
+        kind: 'seat_upgrade',
+        label: `${additionalSeats} siège${additionalSeats > 1 ? 's' : ''} en plus`,
+        amount,
+        seats: additionalSeats,
+      },
+    ];
+
+    if (!this.paydunyaService.isConfigured()) {
+      // Mode test : applique immédiatement sans paiement.
+      const result = await this.applySeatUpgradePayment({
+        userId,
+        invoiceToken: `test-seats-${Date.now()}`,
+        subscriptionId: subscription.id,
+        additionalSeats,
+        paidAmount: amount,
+        lines,
+        skipAmountCheck: true,
+      });
+      return {
+        paidImmediately: true as const,
+        amountFcfa: amount,
+        additionalSeats,
+        newSeatsTotal: result.purchasedSeats,
+        checkoutUrl: null,
+        invoiceToken: null,
+      };
+    }
+
+    const callbackUrl = paydunyaIpnCallbackUrl(this.logger);
+    const storeName = process.env.PAYDUNYA_STORE_NAME?.trim() || 'Drop One';
+    const inv = await this.paydunyaService.createCheckoutInvoice({
+      totalAmountFcfa: amount,
+      description: `${additionalSeats} siège${additionalSeats > 1 ? 's' : ''} en plus — ${subscription.offer.title}`,
+      storeName,
+      callbackUrl,
+      returnUrl:
+        input.returnUrl?.trim() ||
+        process.env.PAYDUNYA_RETURN_URL?.trim() ||
+        undefined,
+      cancelUrl: process.env.PAYDUNYA_CANCEL_URL?.trim() || undefined,
+      customData: {
+        kind: 'seat_upgrade',
+        userId,
+        teamId: input.teamId,
+        subscriptionId: subscription.id,
+        additionalSeats: String(additionalSeats),
+        currentSeats: String(currentSeats),
+        offerSlug: subscription.offer.slug,
+        billingType: subscription.offerPrice.billingType,
+      },
+    });
+
+    return {
+      paidImmediately: false as const,
+      amountFcfa: amount,
+      additionalSeats,
+      newSeatsTotal: newTotal,
+      pricePerSeat: perSeat,
+      currency,
+      lines,
+      checkoutUrl: inv.checkoutUrl,
+      invoiceToken: inv.invoiceToken,
+    };
+  }
+
+  async confirmSeatUpgrade(userId: string, invoiceToken: string) {
+    return this.confirmPaydunyaPayment(userId, invoiceToken);
+  }
+
+  private async applySeatUpgradePayment(input: {
+    userId: string;
+    invoiceToken: string;
+    subscriptionId: string;
+    additionalSeats: number;
+    paidAmount: number;
+    lines?: InvoiceLine[];
+    skipAmountCheck?: boolean;
+  }) {
+    const already = await this.prisma.paymentInvoice.findUnique({
+      where: { providerInvoiceId: input.invoiceToken },
+    });
+    if (already) {
+      const sub = await this.prisma.subscription.findUnique({
+        where: { id: input.subscriptionId },
+      });
+      return {
+        alreadyProcessed: true as const,
+        purchasedSeats: sub?.purchasedSeats ?? null,
+        invoiceId: already.id,
+      };
+    }
+
+    const subscription = await this.prisma.subscription.findFirst({
+      where: {
+        id: input.subscriptionId,
+        OR: [{ userId: input.userId }, { team: { ownerId: input.userId } }],
+      },
+      include: { offer: true, offerPrice: true },
+    });
+
+    if (!subscription?.offer || !subscription.offerPrice) {
+      throw new BadRequestException('Abonnement introuvable pour cet ajout de sièges');
+    }
+
+    const perSeat = this.toNumber(subscription.offerPrice.pricePerSeat);
+    const expected = Math.round(perSeat * input.additionalSeats);
+    if (
+      !input.skipAmountCheck &&
+      Number.isFinite(expected) &&
+      Math.abs(input.paidAmount - expected) > 1
+    ) {
+      throw new BadRequestException('Montant de paiement incorrect pour les sièges');
+    }
+
+    const minSeats = Math.max(1, subscription.offer.minSeats || 1);
+    const currentSeats = Math.max(
+      minSeats,
+      subscription.purchasedSeats ?? minSeats,
+    );
+    const newTotal = currentSeats + input.additionalSeats;
+
+    const lines: InvoiceLine[] = input.lines ?? [
+      {
+        kind: 'seat_upgrade',
+        label: `${input.additionalSeats} siège${input.additionalSeats > 1 ? 's' : ''} en plus`,
+        amount: input.paidAmount,
+        seats: input.additionalSeats,
+      },
+    ];
+    const currency = subscription.offerPrice.currency || 'FCFA';
+    const description = lines
+      .map(
+        (line) =>
+          `${line.label} : ${line.amount.toLocaleString('fr-FR')} ${currency}`,
+      )
+      .join(', ');
+
+    const updated = await this.prisma.subscription.update({
+      where: { id: subscription.id },
+      data: { purchasedSeats: newTotal },
+    });
+
+    const invoice = await this.prisma.paymentInvoice.create({
+      data: {
+        number: this.generateInvoiceNumber(),
+        userId: input.userId,
+        teamId: subscription.teamId,
+        subscriptionId: subscription.id,
+        amount: input.paidAmount,
+        currency,
+        status: InvoiceStatus.PAID,
+        description,
+        offerSlug: subscription.offer.slug,
+        billingType: subscription.offerPrice.billingType,
+        seats: input.additionalSeats,
+        lines: lines as unknown as Prisma.InputJsonValue,
+        provider: 'paydunya',
+        providerInvoiceId: input.invoiceToken,
+        paidAt: new Date(),
+      },
+    });
+
+    await this.invoicesService.refreshPendingRenewal(subscription.id);
+
+    this.logger.log(
+      `Sièges ajoutés subscription=${subscription.id} +${input.additionalSeats} → ${newTotal}`,
+    );
+
+    return {
+      alreadyProcessed: false as const,
+      purchasedSeats: updated.purchasedSeats,
+      invoiceId: invoice.id,
+    };
+  }
+
+  async createPendingInvoiceCheckout(
+    userId: string,
+    input: {
+      paymentInvoiceId: string;
+      teamId: string;
+      returnUrl?: string;
+    },
+  ) {
+    const invoice = await this.prisma.paymentInvoice.findFirst({
+      where: {
+        id: input.paymentInvoiceId,
+        status: InvoiceStatus.PENDING,
+        OR: [{ teamId: input.teamId }, { userId }],
+      },
+    });
+
+    if (!invoice) {
+      throw new BadRequestException('Facture à payer introuvable');
+    }
+
+    const amount = Math.round(Number(invoice.amount));
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new BadRequestException('Montant de facture invalide');
+    }
+
+    if (!this.paydunyaService.isConfigured()) {
+      const result = await this.applyPendingInvoicePayment({
+        userId,
+        invoiceToken: `test-invoice-${Date.now()}`,
+        paymentInvoiceId: invoice.id,
+        paidAmount: amount,
+        skipAmountCheck: true,
+      });
+      return {
+        paidImmediately: true as const,
+        amountFcfa: amount,
+        checkoutUrl: null,
+        invoiceToken: null,
+        paymentInvoiceId: result.paymentInvoiceId,
+        alreadyProcessed: result.alreadyProcessed,
+      };
+    }
+
+    const callbackUrl = paydunyaIpnCallbackUrl(this.logger);
+    const storeName = process.env.PAYDUNYA_STORE_NAME?.trim() || 'Drop One';
+    const inv = await this.paydunyaService.createCheckoutInvoice({
+      totalAmountFcfa: amount,
+      description: invoice.description || `Facture ${invoice.number}`,
+      storeName,
+      callbackUrl,
+      returnUrl:
+        input.returnUrl?.trim() ||
+        process.env.PAYDUNYA_RETURN_URL?.trim() ||
+        undefined,
+      cancelUrl: process.env.PAYDUNYA_CANCEL_URL?.trim() || undefined,
+      customData: {
+        kind: 'invoice_pay',
+        userId,
+        teamId: input.teamId,
+        paymentInvoiceId: invoice.id,
+        subscriptionId: invoice.subscriptionId ?? '',
+        offerSlug: invoice.offerSlug ?? '',
+        billingType: invoice.billingType ?? '',
+        seats: invoice.seats != null ? String(invoice.seats) : '',
+      },
+    });
+
+    return {
+      paidImmediately: false as const,
+      amountFcfa: amount,
+      checkoutUrl: inv.checkoutUrl,
+      invoiceToken: inv.invoiceToken,
+      paymentInvoiceId: invoice.id,
+    };
+  }
+
+  async confirmPendingInvoicePayment(userId: string, invoiceToken: string) {
+    return this.confirmPaydunyaPayment(userId, invoiceToken);
+  }
+
+  private async applyPendingInvoicePayment(input: {
+    userId: string;
+    invoiceToken: string;
+    paymentInvoiceId: string;
+    paidAmount: number;
+    skipAmountCheck?: boolean;
+  }) {
+    const byToken = await this.prisma.paymentInvoice.findFirst({
+      where: {
+        OR: [
+          { id: input.paymentInvoiceId, status: InvoiceStatus.PAID },
+          { providerInvoiceId: input.invoiceToken, status: InvoiceStatus.PAID },
+        ],
+      },
+    });
+    if (byToken) {
+      return {
+        alreadyProcessed: true as const,
+        paymentInvoiceId: byToken.id,
+      };
+    }
+
+    const invoice = await this.prisma.paymentInvoice.findUnique({
+      where: { id: input.paymentInvoiceId },
+    });
+
+    if (!invoice) {
+      throw new BadRequestException('Facture introuvable');
+    }
+
+    if (invoice.status !== InvoiceStatus.PENDING) {
+      throw new BadRequestException('Cette facture n’est pas payable');
+    }
+
+    const expected = Math.round(Number(invoice.amount));
+    if (
+      !input.skipAmountCheck &&
+      Math.abs(input.paidAmount - expected) > 1
+    ) {
+      throw new BadRequestException('Montant de paiement incorrect');
+    }
+
+    const paid = await this.prisma.paymentInvoice.update({
+      where: { id: invoice.id },
+      data: {
+        status: InvoiceStatus.PAID,
+        paidAt: new Date(),
+        provider: invoice.provider ?? 'paydunya',
+      },
+    });
+
+    if (invoice.subscriptionId) {
+      const subscription = await this.prisma.subscription.findUnique({
+        where: { id: invoice.subscriptionId },
+        include: { offerPrice: true },
+      });
+      if (subscription?.offerPrice) {
+        const billingType = subscription.offerPrice.billingType;
+        const from = subscription.currentPeriodEnd ?? new Date();
+        const nextEnd = this.extendPeriodFrom(from, billingType);
+        await this.prisma.subscription.update({
+          where: { id: subscription.id },
+          data: {
+            status: SubscriptionStatus.ACTIVE,
+            currentPeriodEnd: nextEnd,
+            cancelledAt: null,
+          },
+        });
+      }
+    }
+
+    this.logger.log(
+      `Facture payée ${invoice.number} userId=${input.userId} amount=${input.paidAmount}`,
+    );
+
+    return {
+      alreadyProcessed: false as const,
+      paymentInvoiceId: paid.id,
+    };
+  }
+
+  private extendPeriodFrom(from: Date, billingType: OfferBillingType): Date {
+    const end = new Date(from);
+    switch (billingType) {
+      case OfferBillingType.YEARLY:
+        end.setFullYear(end.getFullYear() + 1);
+        return end;
+      case OfferBillingType.LIFETIME:
+        end.setFullYear(end.getFullYear() + 100);
+        return end;
+      case OfferBillingType.MONTHLY:
+      default:
+        end.setMonth(end.getMonth() + 1);
+        return end;
+    }
   }
 
   async handlePaydunyaIpn(body: Record<string, unknown>) {
@@ -321,6 +823,27 @@ export class SubscriptionsService {
       };
     }
 
+    if (parsed.kind === 'seat_upgrade') {
+      const result = await this.applySeatUpgradePayment({
+        userId: parsed.userId,
+        invoiceToken: parsed.invoiceToken,
+        subscriptionId: parsed.subscriptionId!,
+        additionalSeats: parsed.additionalSeats!,
+        paidAmount: Math.round(parsed.totalAmount),
+      });
+      return { ok: true as const, seatUpgrade: true as const, ...result };
+    }
+
+    if (parsed.kind === 'invoice_pay') {
+      const result = await this.applyPendingInvoicePayment({
+        userId: parsed.userId,
+        invoiceToken: parsed.invoiceToken,
+        paymentInvoiceId: parsed.paymentInvoiceId!,
+        paidAmount: Math.round(parsed.totalAmount),
+      });
+      return { ok: true as const, invoicePay: true as const, ...result };
+    }
+
     const existing = await this.prisma.subscription.findFirst({
       where: { paydunyaInvoiceToken: parsed.invoiceToken },
     });
@@ -328,11 +851,15 @@ export class SubscriptionsService {
       return { ok: true as const, alreadyProcessed: true as const };
     }
 
-    const { offer, price } = await this.resolveOfferPrice(
-      parsed.offerSlug,
-      parsed.billingType,
-    );
-    const expected = Math.round(Number(price.priceAmount));
+    const { offer, price, billingMultiplier, effectiveBillingType } =
+      await this.resolveOfferPrice(parsed.offerSlug, parsed.billingType);
+    const { amount: expected, seats: purchasedSeats } =
+      this.resolveCheckoutPricing(
+        offer,
+        price,
+        parsed.seats ?? undefined,
+        billingMultiplier,
+      );
     const paid = Math.round(parsed.totalAmount);
     if (Math.abs(paid - expected) > 1) {
       this.logger.warn(
@@ -344,11 +871,15 @@ export class SubscriptionsService {
     await this.activateSubscription({
       userId: parsed.userId,
       offerSlug: offer.slug,
-      billingType: price.billingType,
+      billingType: effectiveBillingType,
       teamId: parsed.teamId,
       offerPriceId: price.id,
+      purchasedSeats,
       paydunyaInvoiceToken: parsed.invoiceToken,
-      currentPeriodEnd: this.computePeriodEnd(price.billingType),
+      currentPeriodEnd: this.computePeriodEnd(effectiveBillingType),
+      invoiceAmount: paid,
+      invoiceCurrency: 'FCFA',
+      invoiceProvider: 'paydunya',
     });
 
     this.logger.log(
@@ -358,10 +889,8 @@ export class SubscriptionsService {
   }
 
   async subscribe(userId: string, dto: SubscribeDto) {
-    const { offer, price } = await this.resolveOfferPrice(
-      dto.offerSlug,
-      dto.billingType,
-    );
+    const { offer, price, billingMultiplier, effectiveBillingType } =
+      await this.resolveOfferPrice(dto.offerSlug, dto.billingType);
 
     if (dto.teamId && offer.audience !== OfferAudience.TEAM) {
       throw new BadRequestException(
@@ -369,7 +898,12 @@ export class SubscriptionsService {
       );
     }
 
-    const amount = Math.round(Number(price.priceAmount));
+    const { amount, seats } = this.resolveCheckoutPricing(
+      offer,
+      price,
+      dto.seats,
+      billingMultiplier,
+    );
     const isFree = !Number.isFinite(amount) || amount <= 0;
 
     if (this.paydunyaService.isConfigured() && !isFree) {
@@ -385,9 +919,10 @@ export class SubscriptionsService {
     const subscription = await this.activateSubscription({
       userId,
       offerSlug: offer.slug,
-      billingType: price.billingType,
+      billingType: effectiveBillingType,
       teamId: dto.teamId ?? null,
       offerPriceId: price.id,
+      purchasedSeats: seats,
     });
 
     return this.toSubscriptionResponse(subscription);
@@ -441,10 +976,7 @@ export class SubscriptionsService {
       where: { slug: offerSlug, isActive: true },
       include: {
         prices: {
-          where: {
-            billingType,
-            isActive: true,
-          },
+          where: { isActive: true },
         },
       },
     });
@@ -453,14 +985,29 @@ export class SubscriptionsService {
       throw new NotFoundException('Offre Premium introuvable');
     }
 
-    const price = offer.prices[0];
+    let price =
+      offer.prices.find((item) => item.billingType === billingType) ?? null;
+    let billingMultiplier = 1;
+    const effectiveBillingType = billingType;
+
+    // Annuel = mensuel × 12 si aucun tarif YEARLY n’est configuré.
+    if (!price && billingType === OfferBillingType.YEARLY) {
+      price =
+        offer.prices.find(
+          (item) => item.billingType === OfferBillingType.MONTHLY,
+        ) ?? null;
+      if (price) {
+        billingMultiplier = 12;
+      }
+    }
+
     if (!price) {
       throw new BadRequestException(
         'Ce mode de paiement n’est pas disponible pour cette offre',
       );
     }
 
-    return { offer, price };
+    return { offer, price, billingMultiplier, effectiveBillingType };
   }
 
   private async ensureStripeCustomer(user: {
@@ -493,10 +1040,15 @@ export class SubscriptionsService {
     status: string;
     totalAmount: number;
     invoiceToken: string;
+    kind: string;
     userId: string;
     offerSlug: string;
     billingType: OfferBillingType;
     teamId: string | null;
+    seats: number | null;
+    additionalSeats: number | null;
+    subscriptionId: string | null;
+    paymentInvoiceId: string | null;
   } | null {
     let root: Record<string, unknown> = body;
     const dataRaw = body?.data ?? body;
@@ -537,16 +1089,35 @@ export class SubscriptionsService {
     const offerSlug = c.offerSlug?.toString()?.trim() ?? '';
     const billingType = c.billingType?.toString()?.trim() as OfferBillingType;
     const teamId = c.teamId?.toString()?.trim() || null;
+    const seats = this.parseSeats(c.seats);
+    const additionalSeats = this.parseSeats(c.additionalSeats);
+    const subscriptionId = c.subscriptionId?.toString()?.trim() || null;
+    const paymentInvoiceId = c.paymentInvoiceId?.toString()?.trim() || null;
 
     if (
-      kind !== 'subscription' ||
+      (kind !== 'subscription' &&
+        kind !== 'seat_upgrade' &&
+        kind !== 'invoice_pay') ||
       !hash ||
       !Number.isFinite(totalAmount) ||
       !invoiceToken ||
-      !userId ||
-      !offerSlug ||
-      !billingType
+      !userId
     ) {
+      return null;
+    }
+
+    if (kind === 'subscription' && (!offerSlug || !billingType)) {
+      return null;
+    }
+
+    if (
+      kind === 'seat_upgrade' &&
+      (!subscriptionId || !additionalSeats || additionalSeats < 1)
+    ) {
+      return null;
+    }
+
+    if (kind === 'invoice_pay' && !paymentInvoiceId) {
       return null;
     }
 
@@ -555,15 +1126,97 @@ export class SubscriptionsService {
       status,
       totalAmount,
       invoiceToken,
+      kind,
       userId,
       offerSlug,
       billingType,
       teamId,
+      seats,
+      additionalSeats,
+      subscriptionId,
+      paymentInvoiceId,
+    };
+  }
+
+  private parseSeats(raw: unknown): number | null {
+    if (raw == null || raw === '') return null;
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value < 1) return null;
+    return Math.floor(value);
+  }
+
+  private toNumber(value: { toNumber?: () => number } | number | null | undefined): number {
+    if (value == null) return NaN;
+    if (typeof value === 'number') return value;
+    if (typeof value.toNumber === 'function') return value.toNumber();
+    return Number(value);
+  }
+
+  private isPerSeatPrice(price: PriceForPricing): boolean {
+    const perSeat = this.toNumber(price.pricePerSeat);
+    return Number.isFinite(perSeat) && perSeat > 0;
+  }
+
+  private resolveSeats(offer: OfferForPricing, requested?: number): number {
+    const min = Math.max(1, offer.minSeats ?? 1);
+    const hardMax =
+      offer.maxTeamMembers < 0 ? 500 : Math.max(min, offer.maxTeamMembers);
+    const fallback =
+      offer.maxTeamMembers > 0 ? offer.maxTeamMembers : Math.max(min, 5);
+    const seats = requested ?? fallback;
+
+    if (seats < min) {
+      throw new BadRequestException(
+        `Minimum ${min} utilisateur${min > 1 ? 's' : ''} pour cette offre`,
+      );
+    }
+    if (seats > hardMax) {
+      throw new BadRequestException(
+        offer.maxTeamMembers < 0
+          ? `Maximum ${hardMax} utilisateurs par commande`
+          : `Cette offre est limitée à ${hardMax} utilisateurs`,
+      );
+    }
+
+    return seats;
+  }
+
+  private resolveCheckoutPricing(
+    offer: OfferForPricing,
+    price: PriceForPricing,
+    requestedSeats?: number,
+    billingMultiplier = 1,
+  ): { amount: number; seats: number | null } {
+    const factor =
+      Number.isFinite(billingMultiplier) && billingMultiplier > 0
+        ? billingMultiplier
+        : 1;
+
+    if (
+      offer.audience === OfferAudience.TEAM &&
+      this.isPerSeatPrice(price)
+    ) {
+      const seats = this.resolveSeats(offer, requestedSeats);
+      const baseSeats = Math.max(1, offer.minSeats ?? 1);
+      const baseAmount = this.toNumber(price.priceAmount);
+      const perSeat = this.toNumber(price.pricePerSeat);
+      const extraSeats = Math.max(0, seats - baseSeats);
+      const amount = Math.round(
+        ((Number.isFinite(baseAmount) ? baseAmount : 0) +
+          perSeat * extraSeats) *
+          factor,
+      );
+      return { amount, seats };
+    }
+
+    return {
+      amount: Math.round(this.toNumber(price.priceAmount) * factor),
+      seats: null,
     };
   }
 
   private async activateSubscription(input: ActivateSubscriptionInput) {
-    const { offer, price } = await this.resolveOfferPrice(
+    const { offer, price, effectiveBillingType } = await this.resolveOfferPrice(
       input.offerSlug,
       input.billingType,
     );
@@ -573,9 +1226,19 @@ export class SubscriptionsService {
     }
 
     const plan = await this.ensurePremiumPlan(offer);
-    const billingPeriod = this.mapBillingPeriod(price.billingType);
+    const billingPeriod = this.mapBillingPeriod(effectiveBillingType);
     const currentPeriodEnd =
-      input.currentPeriodEnd ?? this.computePeriodEnd(price.billingType);
+      input.currentPeriodEnd ?? this.computePeriodEnd(effectiveBillingType);
+
+    let teamId = input.teamId ?? null;
+    if (!teamId && offer.audience === OfferAudience.TEAM) {
+      const ownedTeam = await this.prisma.team.findFirst({
+        where: { ownerId: input.userId, isActive: true },
+        select: { id: true },
+        orderBy: { createdAt: 'asc' },
+      });
+      teamId = ownedTeam?.id ?? null;
+    }
 
     await this.prisma.subscription.updateMany({
       where: {
@@ -594,13 +1257,14 @@ export class SubscriptionsService {
       },
     });
 
-    return this.prisma.subscription.create({
+    const subscription = await this.prisma.subscription.create({
       data: {
         userId: input.userId,
-        teamId: input.teamId ?? null,
+        teamId,
         planId: plan.id,
         offerId: offer.id,
         offerPriceId: price.id,
+        purchasedSeats: input.purchasedSeats ?? null,
         status: SubscriptionStatus.ACTIVE,
         billingPeriod,
         currentPeriodEnd,
@@ -614,6 +1278,101 @@ export class SubscriptionsService {
         offerPrice: true,
       },
     });
+
+    const amount = input.invoiceAmount ?? null;
+    if (amount != null && amount > 0) {
+      const providerInvoiceId =
+        input.paydunyaInvoiceToken ??
+        input.stripeCheckoutSessionId ??
+        null;
+
+      const breakdown = this.invoicesService.buildRenewalBreakdown({
+        purchasedSeats: input.purchasedSeats ?? null,
+        offer: {
+          title: offer.title,
+          slug: offer.slug,
+          audience: offer.audience,
+          maxTeamMembers: offer.maxTeamMembers,
+          minSeats: offer.minSeats ?? 1,
+        },
+        offerPrice: {
+          billingType: price.billingType,
+          priceAmount: price.priceAmount,
+          pricePerSeat: price.pricePerSeat ?? null,
+          currency: price.currency ?? 'FCFA',
+        },
+      });
+      const lines = breakdown?.lines ?? [
+        {
+          kind: 'offer' as const,
+          label: `Offre : ${offer.title}`,
+          amount,
+          seats: input.purchasedSeats ?? null,
+        },
+      ];
+      const description =
+        breakdown?.description ?? `Abonnement ${offer.title}`;
+
+      if (providerInvoiceId) {
+        const existingInvoice = await this.prisma.paymentInvoice.findUnique({
+          where: { providerInvoiceId },
+        });
+        if (!existingInvoice) {
+          await this.prisma.paymentInvoice.create({
+            data: {
+              number: this.generateInvoiceNumber(),
+              userId: input.userId,
+              teamId,
+              subscriptionId: subscription.id,
+              amount,
+              currency: input.invoiceCurrency ?? price.currency ?? 'FCFA',
+              status: InvoiceStatus.PAID,
+              description,
+              offerSlug: offer.slug,
+              billingType: price.billingType,
+              seats: input.purchasedSeats ?? null,
+              lines: lines as unknown as Prisma.InputJsonValue,
+              provider: input.invoiceProvider ?? null,
+              providerInvoiceId,
+              paidAt: new Date(),
+            },
+          });
+        }
+      } else {
+        await this.prisma.paymentInvoice.create({
+          data: {
+            number: this.generateInvoiceNumber(),
+            userId: input.userId,
+            teamId,
+            subscriptionId: subscription.id,
+            amount,
+            currency: input.invoiceCurrency ?? price.currency ?? 'FCFA',
+            status: InvoiceStatus.PAID,
+            description,
+            offerSlug: offer.slug,
+            billingType: price.billingType,
+            seats: input.purchasedSeats ?? null,
+            lines: lines as unknown as Prisma.InputJsonValue,
+            provider: input.invoiceProvider ?? null,
+            paidAt: new Date(),
+          },
+        });
+      }
+
+      await this.invoicesService.settlePendingInvoices({
+        userId: input.userId,
+        teamId,
+        paidAmount: amount,
+      });
+    }
+
+    return subscription;
+  }
+
+  private generateInvoiceNumber(): string {
+    const year = new Date().getFullYear();
+    const suffix = randomBytes(3).toString('hex').toUpperCase();
+    return `INV-${year}-${suffix}`;
   }
 
   private async handleCheckoutSessionCompleted(
@@ -906,6 +1665,7 @@ export class SubscriptionsService {
     status: SubscriptionStatus;
     billingPeriod: BillingPeriod;
     currentPeriodEnd: Date | null;
+    purchasedSeats?: number | null;
     plan: { name: string; slug: string };
     offer?: {
       title: string;
@@ -913,12 +1673,14 @@ export class SubscriptionsService {
       audience: OfferAudience;
       canCustomize: boolean;
       maxTeamMembers: number;
+      minSeats?: number;
       hasPortfolio: boolean;
       hasWallet: boolean;
       hasAnalytics: boolean;
       hasVisitorInsights: boolean;
       hasSocialLinks: boolean;
       maxAiScans: number;
+      maxShares?: number;
     } | null;
     offerPrice?: { billingType: OfferBillingType } | null;
   }) {
@@ -933,7 +1695,11 @@ export class SubscriptionsService {
       offerTitle: offer?.title ?? subscription.plan.name,
       offerSlug: offer?.slug ?? subscription.plan.slug,
       billingType: subscription.offerPrice?.billingType ?? null,
-      entitlements: this.toEntitlementsResponse(offer),
+      entitlements: this.toEntitlementsResponse(
+        offer,
+        subscription.purchasedSeats,
+      ),
+      purchasedSeats: subscription.purchasedSeats ?? null,
       currentPeriodEnd: subscription.currentPeriodEnd?.toISOString() ?? null,
     };
   }
@@ -949,18 +1715,26 @@ export class SubscriptionsService {
       hasVisitorInsights?: boolean;
       hasSocialLinks?: boolean;
       maxAiScans: number;
+      maxShares?: number;
     } | null,
+    purchasedSeats?: number | null,
   ) {
+    const maxTeamMembers =
+      purchasedSeats != null && purchasedSeats > 0
+        ? purchasedSeats
+        : (offer?.maxTeamMembers ?? 0);
+
     return {
       audience: offer?.audience ?? OfferAudience.PERSONAL,
       canCustomize: offer?.canCustomize ?? false,
-      maxTeamMembers: offer?.maxTeamMembers ?? 0,
+      maxTeamMembers,
       hasPortfolio: offer?.hasPortfolio ?? false,
       hasWallet: offer?.hasWallet ?? false,
       hasAnalytics: offer?.hasAnalytics ?? false,
       hasVisitorInsights: offer?.hasVisitorInsights ?? false,
       hasSocialLinks: offer?.hasSocialLinks ?? false,
       maxAiScans: offer?.maxAiScans ?? 0,
+      maxShares: offer?.maxShares ?? 0,
     };
   }
 
@@ -972,18 +1746,21 @@ export class SubscriptionsService {
     audience: OfferAudience;
     canCustomize: boolean;
     maxTeamMembers: number;
+    minSeats: number;
     hasPortfolio: boolean;
     hasWallet: boolean;
     hasAnalytics: boolean;
     hasVisitorInsights: boolean;
     hasSocialLinks: boolean;
     maxAiScans: number;
+    maxShares: number;
     sortOrder: number;
     prices: Array<{
       id: string;
       billingType: OfferBillingType;
       priceLabel: string | null;
       priceAmount: { toNumber?: () => number } | number;
+      pricePerSeat?: { toNumber?: () => number } | number | null;
       currency: string;
       discountPercent: number | null;
       badgeLabel: string | null;
@@ -999,12 +1776,14 @@ export class SubscriptionsService {
       audience: offer.audience,
       canCustomize: offer.canCustomize,
       maxTeamMembers: offer.maxTeamMembers,
+      minSeats: offer.minSeats,
       hasPortfolio: offer.hasPortfolio,
       hasWallet: offer.hasWallet,
       hasAnalytics: offer.hasAnalytics,
       hasVisitorInsights: offer.hasVisitorInsights,
       hasSocialLinks: offer.hasSocialLinks,
       maxAiScans: offer.maxAiScans,
+      maxShares: offer.maxShares,
       sortOrder: offer.sortOrder,
       prices: offer.prices.map((price) => this.toOfferPriceResponse(price)),
     };
@@ -1015,6 +1794,7 @@ export class SubscriptionsService {
     billingType: OfferBillingType;
     priceLabel: string | null;
     priceAmount: { toNumber?: () => number } | number;
+    pricePerSeat?: { toNumber?: () => number } | number | null;
     currency: string;
     discountPercent: number | null;
     badgeLabel: string | null;
@@ -1025,12 +1805,23 @@ export class SubscriptionsService {
       typeof price.priceAmount === 'number'
         ? price.priceAmount
         : Number(price.priceAmount);
+    const pricePerSeatRaw = price.pricePerSeat;
+    const pricePerSeat =
+      pricePerSeatRaw == null
+        ? null
+        : typeof pricePerSeatRaw === 'number'
+          ? pricePerSeatRaw
+          : Number(pricePerSeatRaw);
 
     return {
       id: price.id,
       billingType: price.billingType,
       priceLabel: price.priceLabel,
       priceAmount,
+      pricePerSeat:
+        pricePerSeat != null && Number.isFinite(pricePerSeat)
+          ? pricePerSeat
+          : null,
       currency: price.currency,
       discountPercent: price.discountPercent,
       badgeLabel: price.badgeLabel,

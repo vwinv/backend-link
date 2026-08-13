@@ -11,20 +11,39 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.EntitlementsService = void 0;
 const common_1 = require("@nestjs/common");
+const config_1 = require("@nestjs/config");
 const client_1 = require("@prisma/client");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const entitlements_types_1 = require("./entitlements.types");
+const free_offer_constants_1 = require("./free-offer.constants");
 let EntitlementsService = class EntitlementsService {
     prisma;
-    constructor(prisma) {
+    configService;
+    constructor(prisma, configService) {
         this.prisma = prisma;
+        this.configService = configService;
+    }
+    get freeMaxSharesFallback() {
+        return this.configService.get('freeMaxShares', 10);
     }
     async getUserEntitlements(userId) {
         const subscription = await this.findActiveSubscription(userId);
         if (!subscription?.offer) {
-            return entitlements_types_1.DEFAULT_ENTITLEMENTS;
+            return this.getFreeEntitlements();
         }
-        return this.mapOfferToEntitlements(subscription.offer);
+        return this.mapOfferToEntitlements(subscription.offer, subscription.purchasedSeats);
+    }
+    async getFreeEntitlements() {
+        const freeOffer = await this.prisma.premiumOffer.findFirst({
+            where: { slug: free_offer_constants_1.FREE_OFFER_SLUG, isActive: true },
+        });
+        if (freeOffer) {
+            return this.mapOfferToEntitlements(freeOffer);
+        }
+        return {
+            ...entitlements_types_1.DEFAULT_ENTITLEMENTS,
+            maxShares: this.freeMaxSharesFallback,
+        };
     }
     async getEntitlementsForCard(userId, cardId) {
         const card = await this.prisma.businessCard.findFirst({
@@ -131,8 +150,8 @@ let EntitlementsService = class EntitlementsService {
     async getAiScanQuota(userId) {
         const subscription = await this.findActiveSubscription(userId);
         const entitlements = subscription?.offer
-            ? this.mapOfferToEntitlements(subscription.offer)
-            : entitlements_types_1.DEFAULT_ENTITLEMENTS;
+            ? this.mapOfferToEntitlements(subscription.offer, subscription.purchasedSeats)
+            : await this.getFreeEntitlements();
         const max = entitlements.maxAiScans;
         const isUnlimited = max < 0;
         if (max === 0) {
@@ -176,6 +195,37 @@ let EntitlementsService = class EntitlementsService {
             quota: updatedQuota,
         };
     }
+    async getShareQuota(userId) {
+        const entitlements = await this.getUserEntitlements(userId);
+        const max = entitlements.maxShares;
+        const isUnlimited = max < 0;
+        if (max === 0) {
+            return {
+                used: 0,
+                max,
+                canShare: false,
+                isUnlimited: false,
+            };
+        }
+        const used = await this.prisma.shareEvent.count({
+            where: { userId },
+        });
+        return {
+            used,
+            max,
+            canShare: isUnlimited || used < max,
+            isUnlimited,
+        };
+    }
+    async assertCanShare(userId) {
+        const quota = await this.getShareQuota(userId);
+        if (!quota.canShare) {
+            throw new common_1.ForbiddenException(quota.max <= 0
+                ? 'Le partage nécessite une offre Premium'
+                : `Quota de ${quota.max} partages atteint. Passez à Premium pour continuer.`);
+        }
+        return quota;
+    }
     hasTeamAccess(entitlements) {
         return (entitlements.audience === client_1.OfferAudience.TEAM &&
             entitlements.maxTeamMembers !== 0);
@@ -199,17 +249,21 @@ let EntitlementsService = class EntitlementsService {
             orderBy: { createdAt: 'desc' },
         });
     }
-    mapOfferToEntitlements(offer) {
+    mapOfferToEntitlements(offer, purchasedSeats) {
+        const maxTeamMembers = purchasedSeats != null && purchasedSeats > 0
+            ? purchasedSeats
+            : offer.maxTeamMembers;
         return {
             audience: offer.audience,
             canCustomize: offer.canCustomize,
-            maxTeamMembers: offer.maxTeamMembers,
+            maxTeamMembers,
             hasPortfolio: offer.hasPortfolio,
             hasWallet: offer.hasWallet ?? false,
             hasAnalytics: offer.hasAnalytics ?? false,
             hasVisitorInsights: offer.hasVisitorInsights ?? false,
             hasSocialLinks: offer.hasSocialLinks ?? false,
             maxAiScans: offer.maxAiScans,
+            maxShares: offer.maxShares ?? -1,
         };
     }
     getUsagePeriodStart(subscription) {
@@ -270,6 +324,7 @@ let EntitlementsService = class EntitlementsService {
 exports.EntitlementsService = EntitlementsService;
 exports.EntitlementsService = EntitlementsService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        config_1.ConfigService])
 ], EntitlementsService);
 //# sourceMappingURL=entitlements.service.js.map

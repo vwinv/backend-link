@@ -30,13 +30,19 @@ let WalletService = class WalletService {
     async addCardToWallet(userId, cardId, dto) {
         const card = await this.prisma.businessCard.findFirst({
             where: { id: cardId, ownerId: userId },
+            include: {
+                team: { select: { logoUrl: true } },
+            },
         });
         if (!card) {
             throw new common_1.NotFoundException('Carte introuvable');
         }
         await this.entitlementsService.assertCanUseWallet(userId, cardId);
         if (dto.walletType === client_1.WalletType.APPLE_WALLET) {
-            const passBuffer = await this.appleWalletService.generatePass(card);
+            const passBuffer = await this.appleWalletService.generatePass({
+                ...card,
+                teamLogoUrl: card.team?.logoUrl ?? null,
+            });
             const passId = card.id;
             const savedCard = await this.upsertSavedCard(userId, cardId, client_1.WalletType.APPLE_WALLET, passId);
             return {

@@ -3,4 +3,5 @@ export declare class CheckoutDto {
     offerSlug: string;
     billingType: OfferBillingType;
     teamId?: string;
+    seats?: number;
 }

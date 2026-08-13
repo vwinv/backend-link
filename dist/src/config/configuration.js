@@ -34,7 +34,7 @@ exports.default = () => ({
     wallet: {
         appPublicUrl: process.env.APP_PUBLIC_URL ??
             (process.env.NODE_ENV === 'production'
-                ? 'https://dropone.pro'
+                ? 'https://api.dropone.pro'
                 : 'http://localhost:3000'),
         apple: {
             teamId: process.env.APPLE_TEAM_ID ?? '',
@@ -71,6 +71,11 @@ exports.default = () => ({
         apiBaseUrl: process.env.PAYDUNYA_API_BASE_URL ?? 'https://app.paydunya.com',
         storeName: process.env.PAYDUNYA_STORE_NAME ?? 'Drop One',
     },
+    freeMaxShares: Number(process.env.FREE_MAX_SHARES ?? 10),
+    landingPublicUrl: process.env.APP_LANDING_URL ??
+        (process.env.NODE_ENV === 'production'
+            ? 'https://dropone.pro'
+            : 'http://localhost:3001'),
     mobile: {
         appleTeamId: process.env.APPLE_TEAM_ID ?? '3G878MZ2JV',
         appleBundleId: process.env.APPLE_CLIENT_ID ?? 'com.mega.dropone',

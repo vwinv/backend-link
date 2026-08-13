@@ -12,5 +12,6 @@ exports.DEFAULT_ENTITLEMENTS = {
     hasVisitorInsights: false,
     hasSocialLinks: false,
     maxAiScans: 0,
+    maxShares: 10,
 };
 //# sourceMappingURL=entitlements.types.js.map

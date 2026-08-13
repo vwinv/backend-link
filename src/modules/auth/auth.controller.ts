@@ -11,6 +11,7 @@ import { LoginDto } from './dto/login.dto';
 import { OAuthAppleDto } from './dto/oauth-apple.dto';
 import { OAuthGoogleDto } from './dto/oauth-google.dto';
 import { RegisterDto } from './dto/register.dto';
+import { AdminAccessGuard } from './guards/admin-access.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AuthService } from './auth.service';
 
@@ -33,13 +34,33 @@ export class AuthController {
     return this.authService.login(dto);
   }
 
+  @Post('admin/login')
+  @ApiOperation({
+    summary: 'Connexion backoffice (rôle backoffice requis)',
+  })
+  @ApiResponse({ status: 200, type: AuthResponseDto })
+  loginAdmin(@Body() dto: LoginDto) {
+    return this.authService.loginAdmin(dto);
+  }
+
   @Get('me')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Profil de l\'utilisateur connecté (validation session)' })
+  @ApiOperation({
+    summary: "Profil de l'utilisateur connecté (validation session)",
+  })
   @ApiResponse({ status: 200, type: AuthUserDto })
   getMe(@CurrentUser() user: { userId: string }) {
     return this.authService.getMe(user.userId);
+  }
+
+  @Get('admin/me')
+  @UseGuards(JwtAuthGuard, AdminAccessGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Profil backoffice + permissions' })
+  @ApiResponse({ status: 200, type: AuthUserDto })
+  getAdminMe(@CurrentUser() user: { userId: string }) {
+    return this.authService.getAdminMe(user.userId);
   }
 
   @Post('oauth/google')

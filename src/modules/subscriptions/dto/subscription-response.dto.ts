@@ -30,6 +30,12 @@ export class SubscriptionResponseDto {
   @ApiProperty({ type: OfferEntitlementsDto })
   entitlements: OfferEntitlementsDto;
 
+  @ApiPropertyOptional({
+    description: 'Sièges achetés (offres pro au siège)',
+    example: 5,
+  })
+  purchasedSeats?: number | null;
+
   @ApiPropertyOptional()
   currentPeriodEnd?: string | null;
 }

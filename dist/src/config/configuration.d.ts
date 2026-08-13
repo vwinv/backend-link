@@ -58,6 +58,8 @@ declare const _default: () => {
         apiBaseUrl: string;
         storeName: string;
     };
+    freeMaxShares: number;
+    landingPublicUrl: string;
     mobile: {
         appleTeamId: string;
         appleBundleId: string;

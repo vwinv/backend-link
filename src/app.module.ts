@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import configuration from './config/configuration';
 import { HealthController } from './health/health.controller';
+import { AdminModule } from './modules/admin/admin.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CardsModule } from './modules/cards/cards.module';
 import { PortfoliosModule } from './modules/portfolios/portfolios.module';
@@ -14,6 +15,9 @@ import { UsersModule } from './modules/users/users.module';
 import { WalletModule } from './modules/wallet/wallet.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
 import { MailModule } from './modules/mail/mail.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { SupportModule } from './modules/support/support.module';
+import { EspaceModule } from './modules/espace/espace.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
@@ -25,8 +29,10 @@ import { PrismaModule } from './prisma/prisma.module';
     PrismaModule,
     MailModule,
     AuthModule,
+    AdminModule,
     UsersModule,
     TeamsModule,
+    EspaceModule,
     CardsModule,
     PortfoliosModule,
     SubscriptionsModule,
@@ -35,6 +41,8 @@ import { PrismaModule } from './prisma/prisma.module';
     SharingModule,
     WalletModule,
     UploadsModule,
+    NotificationsModule,
+    SupportModule,
   ],
   controllers: [HealthController],
 })

@@ -38,4 +38,10 @@ export class OfferEntitlementsDto {
     description: 'Quota de scans IA (-1 = illimité, 0 = aucun)',
   })
   maxAiScans: number;
+
+  @ApiProperty({
+    example: -1,
+    description: 'Quota de partages (-1 = illimité)',
+  })
+  maxShares: number;
 }

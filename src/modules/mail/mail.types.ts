@@ -8,3 +8,11 @@ export type TeamInviteEmailPayload = {
   /** Mot de passe temporaire généré si un compte vient d’être créé. */
   temporaryPassword?: string;
 };
+
+export type SupportTicketReplyEmailPayload = {
+  to: string;
+  firstName: string;
+  replyBody: string;
+  ticketId: string;
+  closeUrl: string;
+};

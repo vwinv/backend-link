@@ -1,9 +1,13 @@
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
-import { AiScanQuota, TeamSeatsQuota, UserEntitlements } from './entitlements.types';
+import { AiScanQuota, ShareQuota, TeamSeatsQuota, UserEntitlements } from './entitlements.types';
 export declare class EntitlementsService {
     private readonly prisma;
-    constructor(prisma: PrismaService);
+    private readonly configService;
+    constructor(prisma: PrismaService, configService: ConfigService);
+    private get freeMaxSharesFallback();
     getUserEntitlements(userId: string): Promise<UserEntitlements>;
+    private getFreeEntitlements;
     getEntitlementsForCard(userId: string, cardId: string): Promise<UserEntitlements>;
     assertCanCustomize(userId: string, cardId: string): Promise<void>;
     assertCanUseWallet(userId: string, cardId: string): Promise<void>;
@@ -19,6 +23,8 @@ export declare class EntitlementsService {
         scanId: string;
         quota: AiScanQuota;
     }>;
+    getShareQuota(userId: string): Promise<ShareQuota>;
+    assertCanShare(userId: string): Promise<ShareQuota>;
     private hasTeamAccess;
     private findActiveSubscription;
     private mapOfferToEntitlements;

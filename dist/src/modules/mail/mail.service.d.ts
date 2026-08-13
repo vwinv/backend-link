@@ -1,5 +1,5 @@
 import { ConfigService } from '@nestjs/config';
-import type { TeamInviteEmailPayload } from './mail.types';
+import type { SupportTicketReplyEmailPayload, TeamInviteEmailPayload } from './mail.types';
 export declare class MailService {
     private readonly configService;
     private readonly logger;
@@ -7,5 +7,7 @@ export declare class MailService {
     constructor(configService: ConfigService);
     isConfigured(): boolean;
     sendTeamInviteEmail(payload: TeamInviteEmailPayload): Promise<void>;
+    sendSupportTicketReplyEmail(payload: SupportTicketReplyEmailPayload): Promise<void>;
+    private send;
     private getTransporter;
 }

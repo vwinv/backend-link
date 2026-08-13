@@ -8,12 +8,14 @@ export declare class PremiumOfferResponseDto {
     audience: OfferAudience;
     canCustomize: boolean;
     maxTeamMembers: number;
+    minSeats: number;
     hasPortfolio: boolean;
     hasWallet: boolean;
     hasAnalytics: boolean;
     hasVisitorInsights: boolean;
     hasSocialLinks: boolean;
     maxAiScans: number;
+    maxShares: number;
     sortOrder: number;
     prices: PremiumOfferPriceResponseDto[];
 }

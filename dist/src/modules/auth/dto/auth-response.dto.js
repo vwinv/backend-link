@@ -9,8 +9,22 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AuthResponseDto = exports.AuthUserDto = void 0;
+exports.AuthResponseDto = exports.AuthUserDto = exports.AdminRoleSummaryDto = void 0;
 const swagger_1 = require("@nestjs/swagger");
+const client_1 = require("@prisma/client");
+class AdminRoleSummaryDto {
+    id;
+    name;
+}
+exports.AdminRoleSummaryDto = AdminRoleSummaryDto;
+__decorate([
+    (0, swagger_1.ApiProperty)(),
+    __metadata("design:type", String)
+], AdminRoleSummaryDto.prototype, "id", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)(),
+    __metadata("design:type", String)
+], AdminRoleSummaryDto.prototype, "name", void 0);
 class AuthUserDto {
     id;
     email;
@@ -18,6 +32,9 @@ class AuthUserDto {
     lastName;
     phone;
     avatarUrl;
+    role;
+    adminRole;
+    permissions;
 }
 exports.AuthUserDto = AuthUserDto;
 __decorate([
@@ -44,6 +61,18 @@ __decorate([
     (0, swagger_1.ApiProperty)({ nullable: true }),
     __metadata("design:type", Object)
 ], AuthUserDto.prototype, "avatarUrl", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ enum: client_1.UserRole }),
+    __metadata("design:type", String)
+], AuthUserDto.prototype, "role", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ type: AdminRoleSummaryDto, nullable: true }),
+    __metadata("design:type", Object)
+], AuthUserDto.prototype, "adminRole", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ type: [String] }),
+    __metadata("design:type", Array)
+], AuthUserDto.prototype, "permissions", void 0);
 class AuthResponseDto {
     accessToken;
     user;

@@ -21,6 +21,7 @@ const login_dto_1 = require("./dto/login.dto");
 const oauth_apple_dto_1 = require("./dto/oauth-apple.dto");
 const oauth_google_dto_1 = require("./dto/oauth-google.dto");
 const register_dto_1 = require("./dto/register.dto");
+const admin_access_guard_1 = require("./guards/admin-access.guard");
 const jwt_auth_guard_1 = require("./guards/jwt-auth.guard");
 const auth_service_1 = require("./auth.service");
 let AuthController = class AuthController {
@@ -34,8 +35,14 @@ let AuthController = class AuthController {
     login(dto) {
         return this.authService.login(dto);
     }
+    loginAdmin(dto) {
+        return this.authService.loginAdmin(dto);
+    }
     getMe(user) {
         return this.authService.getMe(user.userId);
+    }
+    getAdminMe(user) {
+        return this.authService.getAdminMe(user.userId);
     }
     loginWithGoogle(dto) {
         return this.authService.loginWithGoogle(dto.idToken);
@@ -76,16 +83,40 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], AuthController.prototype, "login", null);
 __decorate([
+    (0, common_1.Post)('admin/login'),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Connexion backoffice (rôle backoffice requis)',
+    }),
+    (0, swagger_1.ApiResponse)({ status: 200, type: auth_response_dto_1.AuthResponseDto }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [login_dto_1.LoginDto]),
+    __metadata("design:returntype", void 0)
+], AuthController.prototype, "loginAdmin", null);
+__decorate([
     (0, common_1.Get)('me'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, swagger_1.ApiBearerAuth)(),
-    (0, swagger_1.ApiOperation)({ summary: 'Profil de l\'utilisateur connecté (validation session)' }),
+    (0, swagger_1.ApiOperation)({
+        summary: "Profil de l'utilisateur connecté (validation session)",
+    }),
     (0, swagger_1.ApiResponse)({ status: 200, type: auth_response_dto_1.AuthUserDto }),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], AuthController.prototype, "getMe", null);
+__decorate([
+    (0, common_1.Get)('admin/me'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, admin_access_guard_1.AdminAccessGuard),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({ summary: 'Profil backoffice + permissions' }),
+    (0, swagger_1.ApiResponse)({ status: 200, type: auth_response_dto_1.AuthUserDto }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], AuthController.prototype, "getAdminMe", null);
 __decorate([
     (0, common_1.Post)('oauth/google'),
     (0, swagger_1.ApiOperation)({

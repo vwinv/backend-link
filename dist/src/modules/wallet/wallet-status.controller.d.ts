@@ -1,4 +1,4 @@
-import { Response } from 'express';
+import type { Response } from 'express';
 import { AppleWalletService } from './apple-wallet.service';
 import { WalletConfig } from './wallet.config';
 export declare class WalletStatusController {

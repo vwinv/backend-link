@@ -17,6 +17,7 @@ exports.MailService = void 0;
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const nodemailer_1 = __importDefault(require("nodemailer"));
+const support_ticket_reply_email_template_1 = require("./support-ticket-reply-email.template");
 const team_invite_email_template_1 = require("./team-invite-email.template");
 let MailService = MailService_1 = class MailService {
     configService;
@@ -35,22 +36,29 @@ let MailService = MailService_1 = class MailService {
     }
     async sendTeamInviteEmail(payload) {
         const { subject, text, html } = (0, team_invite_email_template_1.buildTeamInviteEmail)(payload);
+        await this.send({ to: payload.to, subject, text, html });
+    }
+    async sendSupportTicketReplyEmail(payload) {
+        const { subject, text, html } = (0, support_ticket_reply_email_template_1.buildSupportTicketReplyEmail)(payload);
+        await this.send({ to: payload.to, subject, text, html });
+    }
+    async send(input) {
         if (!this.isConfigured()) {
             if (this.configService.get('nodeEnv') === 'production') {
                 throw new Error('SMTP non configuré');
             }
-            this.logger.warn(`[dev] Email d'invitation non envoyé (SMTP absent) → ${payload.to}`);
-            this.logger.debug(text);
+            this.logger.warn(`[dev] Email non envoyé (SMTP absent) → ${input.to} · ${input.subject}`);
+            this.logger.debug(input.text);
             return;
         }
         const transporter = this.getTransporter();
         const from = this.configService.get('mail.from', 'DropOne <noreply@dropone.pro>');
         await transporter.sendMail({
             from,
-            to: payload.to,
-            subject,
-            text,
-            html,
+            to: input.to,
+            subject: input.subject,
+            text: input.text,
+            html: input.html,
         });
     }
     getTransporter() {

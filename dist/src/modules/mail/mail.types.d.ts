@@ -7,3 +7,10 @@ export type TeamInviteEmailPayload = {
     inviteUrl: string;
     temporaryPassword?: string;
 };
+export type SupportTicketReplyEmailPayload = {
+    to: string;
+    firstName: string;
+    replyBody: string;
+    ticketId: string;
+    closeUrl: string;
+};

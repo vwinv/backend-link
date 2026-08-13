@@ -44,16 +44,16 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AppleWalletService = void 0;
 const common_1 = require("@nestjs/common");
+const client_1 = require("@prisma/client");
 const node_crypto_1 = require("node:crypto");
 const node_child_process_1 = require("node:child_process");
 const fs = __importStar(require("node:fs"));
 const os = __importStar(require("node:os"));
 const path = __importStar(require("node:path"));
 const yazl_1 = require("yazl");
-const card_theme_util_1 = require("../sharing/pro-design/card-theme.util");
 const wallet_config_1 = require("./wallet.config");
 const wallet_card_style_util_1 = require("./wallet-card-style.util");
-const wallet_strip_generator_1 = require("./wallet-strip.generator");
+const wallet_logo_generator_1 = require("./wallet-logo.generator");
 let AppleWalletService = class AppleWalletService {
     walletConfig;
     constructor(walletConfig) {
@@ -71,6 +71,8 @@ let AppleWalletService = class AppleWalletService {
             phone: '+000000000',
             theme: { style: 'noir', showQrCode: true },
             avatarUrl: null,
+            logoUrl: null,
+            kind: client_1.CardKind.PERSONAL,
         };
     }
     async selfTestBuffer() {
@@ -172,32 +174,79 @@ let AppleWalletService = class AppleWalletService {
             throw new common_1.InternalServerErrorException(`Impossible de générer le pass Apple Wallet : ${message}`);
         }
     }
+    isProfessionalCard(card) {
+        return (card.kind === client_1.CardKind.PROFESSIONAL || card.kind === client_1.CardKind.MEMBER);
+    }
+    buildSubtitle(card) {
+        const job = card.jobTitle?.trim() ?? '';
+        const company = card.company?.trim() ?? '';
+        if (job && company)
+            return `${job} - ${company}`;
+        return job || company;
+    }
     initialsOf(card) {
-        const a = (card.firstName?.trim()?.[0] ?? '').toUpperCase();
-        const b = (card.lastName?.trim()?.[0] ?? '').toUpperCase();
-        const out = `${a}${b}`;
-        return out || 'XX';
+        const first = card.firstName?.trim()?.[0] ?? '';
+        const last = card.lastName?.trim()?.[0] ?? '';
+        const initials = `${first}${last}`.toUpperCase();
+        if (initials)
+            return initials;
+        const company = card.company?.trim()?.[0];
+        return company ? company.toUpperCase() : 'XX';
+    }
+    companyInitials(card) {
+        const company = card.company?.trim() ?? '';
+        if (!company)
+            return '';
+        const parts = company.split(/\s+/).filter(Boolean);
+        if (parts.length >= 2) {
+            return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+        }
+        return company.slice(0, 2).toUpperCase();
     }
     resolveAssetUrl(value) {
         const trimmed = value?.trim();
         if (!trimmed)
             return null;
         if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+            try {
+                const url = new URL(trimmed);
+                if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+                    const publicOrigin = new URL(this.walletConfig.appPublicUrl);
+                    return `${publicOrigin.origin}${url.pathname}${url.search}`;
+                }
+            }
+            catch {
+                return trimmed;
+            }
             return trimmed;
         }
-        const base = this.walletConfig.appPublicUrl.replace(/\/$/, '');
-        const pathPart = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
-        return `${base}${pathPart}`;
+        const assetPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+        return `${this.walletConfig.appPublicUrl}${assetPath}`;
+    }
+    resolveLogoSourceUrl(card) {
+        if (this.isProfessionalCard(card)) {
+            return (this.resolveAssetUrl(card.logoUrl) ??
+                this.resolveAssetUrl(card.teamLogoUrl));
+        }
+        return this.resolveAssetUrl(card.avatarUrl);
     }
     async fetchImageBuffer(url) {
-        if (!url)
-            return null;
         try {
-            const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
-            if (!res.ok)
+            const response = await fetch(url, {
+                signal: AbortSignal.timeout(8_000),
+            });
+            if (!response.ok)
                 return null;
-            const ab = await res.arrayBuffer();
-            return Buffer.from(ab);
+            const contentType = response.headers.get('content-type') ?? '';
+            if (contentType &&
+                !contentType.startsWith('image/') &&
+                !contentType.includes('octet-stream')) {
+                return null;
+            }
+            const arrayBuffer = await response.arrayBuffer();
+            if (arrayBuffer.byteLength === 0)
+                return null;
+            return Buffer.from(arrayBuffer);
         }
         catch {
             return null;
@@ -205,39 +254,43 @@ let AppleWalletService = class AppleWalletService {
     }
     async buildPassFiles(card) {
         const fullName = `${card.firstName} ${card.lastName}`.trim() || 'DropOne';
-        const subtitle = [card.jobTitle, card.company].filter(Boolean).join(' · ');
+        const subtitle = this.buildSubtitle(card);
         const cardUrl = `${this.walletConfig.appPublicUrl}/cards/${card.slug}`;
-        const theme = (0, card_theme_util_1.parseCardTheme)(card.theme);
         const palette = (0, wallet_card_style_util_1.resolveWalletCardPalette)(card.theme);
-        const showQr = theme.showQrCode !== false;
-        const avatarBuffer = await this.fetchImageBuffer(this.resolveAssetUrl(card.avatarUrl));
-        const stripAssets = await (0, wallet_strip_generator_1.generateWalletStripAssets)({
-            fullName,
-            subtitle,
-            email: card.email?.trim() || '',
-            phone: card.phone?.trim() || '',
-            initials: this.initialsOf(card),
-            showQr,
-            palette,
-            avatarBuffer,
-        });
-        const storeCard = {
+        const professional = this.isProfessionalCard(card);
+        const generic = {
             primaryFields: [
                 {
                     key: 'name',
-                    label: 'Nom',
                     value: fullName,
                 },
             ],
         };
         if (subtitle) {
-            storeCard.secondaryFields = [
+            generic.secondaryFields = [
                 {
                     key: 'role',
-                    label: 'Poste',
                     value: subtitle,
                 },
             ];
+        }
+        const auxiliaryFields = [];
+        if (card.email?.trim()) {
+            auxiliaryFields.push({
+                key: 'email',
+                label: 'Email',
+                value: card.email.trim(),
+            });
+        }
+        if (card.phone?.trim()) {
+            auxiliaryFields.push({
+                key: 'phone',
+                label: 'Téléphone',
+                value: card.phone.trim(),
+            });
+        }
+        if (auxiliaryFields.length > 0) {
+            generic.auxiliaryFields = auxiliaryFields;
         }
         const barcode = {
             format: 'PKBarcodeFormatQR',
@@ -251,17 +304,29 @@ let AppleWalletService = class AppleWalletService {
             organizationName: 'DropOne',
             description: `Carte DropOne — ${fullName}`,
             serialNumber: card.id,
-            logoText: 'DropOne',
             foregroundColor: palette.passForeground,
             backgroundColor: palette.passBackground,
             labelColor: palette.passLabel,
-            storeCard,
+            generic,
             barcode,
             barcodes: [barcode],
         };
+        const logoSourceUrl = this.resolveLogoSourceUrl(card);
+        const imageBuffer = logoSourceUrl
+            ? await this.fetchImageBuffer(logoSourceUrl)
+            : null;
+        const logoAssets = await (0, wallet_logo_generator_1.generateWalletLogoAssets)({
+            mode: professional ? 'company' : 'avatar',
+            imageBuffer,
+            initials: professional
+                ? this.companyInitials(card) || this.initialsOf(card)
+                : this.initialsOf(card),
+            accentHex: palette.accentHex,
+            textHex: palette.primaryTextHex,
+        });
         const files = {
-            ...this.loadPassAssets(),
-            ...stripAssets,
+            ...this.loadPassAssets({ omitBrandLogos: true }),
+            ...logoAssets,
             'pass.json': Buffer.from(JSON.stringify(passJson), 'utf8'),
         };
         const manifest = {};
@@ -333,16 +398,13 @@ let AppleWalletService = class AppleWalletService {
             zip.end();
         });
     }
-    loadPassAssets() {
+    loadPassAssets(options) {
         const assetsDir = this.walletConfig.walletAssetsDir();
         const requiredAssets = ['icon.png'];
-        const optionalAssets = [
-            'icon@2x.png',
-            'icon@3x.png',
-            'logo.png',
-            'logo@2x.png',
-            'logo@3x.png',
-        ];
+        const optionalAssets = ['icon@2x.png', 'icon@3x.png'];
+        if (!options?.omitBrandLogos) {
+            optionalAssets.push('logo.png', 'logo@2x.png', 'logo@3x.png');
+        }
         const missing = requiredAssets.filter((name) => !fs.existsSync(path.join(assetsDir, name)));
         if (missing.length > 0) {
             throw new common_1.BadRequestException(`Images wallet manquantes dans backend-link/wallet-assets (${missing.join(', ')}).`);

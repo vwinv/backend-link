@@ -4,6 +4,7 @@ export declare class PremiumOfferPriceResponseDto {
     billingType: OfferBillingType;
     priceLabel?: string | null;
     priceAmount: number;
+    pricePerSeat?: number | null;
     currency: string;
     discountPercent?: number | null;
     badgeLabel?: string | null;

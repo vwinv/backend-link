@@ -21,19 +21,19 @@ export declare class WalletController {
     }): Promise<({
         card: {
             id: string;
-            slug: string;
             firstName: string;
             lastName: string;
             jobTitle: string | null;
+            slug: string;
             company: string | null;
         };
     } & {
         id: string;
         userId: string;
         cardId: string;
-        walletType: import(".prisma/client").$Enums.WalletType;
-        passId: string | null;
         savedAt: Date;
+        walletType: import("@prisma/client").$Enums.WalletType;
+        passId: string | null;
     })[]>;
     remove(user: {
         userId: string;

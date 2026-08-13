@@ -13,6 +13,7 @@ export declare class AuthService {
     constructor(prisma: PrismaService, jwtService: JwtService, configService: ConfigService, oauthService: OAuthService);
     register(dto: RegisterDto): Promise<AuthResponseDto>;
     login(dto: LoginDto): Promise<AuthResponseDto>;
+    loginAdmin(dto: LoginDto): Promise<AuthResponseDto>;
     loginWithGoogle(idToken: string): Promise<AuthResponseDto>;
     loginWithApple(idToken: string, firstName?: string, lastName?: string): Promise<AuthResponseDto>;
     getMe(userId: string): Promise<{
@@ -22,6 +23,26 @@ export declare class AuthService {
         lastName: string;
         phone: string | null;
         avatarUrl: string | null;
+        role: import("@prisma/client").$Enums.UserRole;
+        adminRole: {
+            id: string;
+            name: string;
+        } | null;
+        permissions: string[];
+    }>;
+    getAdminMe(userId: string): Promise<{
+        id: string;
+        email: string;
+        firstName: string;
+        lastName: string;
+        phone: string | null;
+        avatarUrl: string | null;
+        role: import("@prisma/client").$Enums.UserRole;
+        adminRole: {
+            id: string;
+            name: string;
+        } | null;
+        permissions: string[];
     }>;
     refresh(): {
         message: string;
@@ -35,8 +56,11 @@ export declare class AuthService {
     resetPassword(): {
         message: string;
     };
+    private authenticateLocal;
     private authenticateWithOAuth;
     private linkPendingInvites;
+    private loadAdminUser;
+    private canAccessBackoffice;
     private oauthOnlyMessage;
     private buildAuthResponse;
     private toPublicUser;

@@ -23,6 +23,7 @@ class SubscriptionResponseDto {
     offerSlug;
     billingType;
     entitlements;
+    purchasedSeats;
     currentPeriodEnd;
 }
 exports.SubscriptionResponseDto = SubscriptionResponseDto;
@@ -62,6 +63,13 @@ __decorate([
     (0, swagger_1.ApiProperty)({ type: offer_entitlements_dto_1.OfferEntitlementsDto }),
     __metadata("design:type", offer_entitlements_dto_1.OfferEntitlementsDto)
 ], SubscriptionResponseDto.prototype, "entitlements", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        description: 'Sièges achetés (offres pro au siège)',
+        example: 5,
+    }),
+    __metadata("design:type", Object)
+], SubscriptionResponseDto.prototype, "purchasedSeats", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)(),
     __metadata("design:type", Object)

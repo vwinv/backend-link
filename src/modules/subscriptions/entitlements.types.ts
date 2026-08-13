@@ -10,6 +10,8 @@ export interface UserEntitlements {
   hasVisitorInsights: boolean;
   hasSocialLinks: boolean;
   maxAiScans: number;
+  /** -1 = illimité. Offre gratuite : voir FREE_MAX_SHARES. */
+  maxShares: number;
 }
 
 export interface TeamSeatsQuota {
@@ -25,6 +27,13 @@ export interface AiScanQuota {
   isUnlimited: boolean;
 }
 
+export interface ShareQuota {
+  used: number;
+  max: number;
+  canShare: boolean;
+  isUnlimited: boolean;
+}
+
 export const DEFAULT_ENTITLEMENTS: UserEntitlements = {
   audience: OfferAudience.PERSONAL,
   canCustomize: false,
@@ -35,4 +44,5 @@ export const DEFAULT_ENTITLEMENTS: UserEntitlements = {
   hasVisitorInsights: false,
   hasSocialLinks: false,
   maxAiScans: 0,
+  maxShares: 10,
 };

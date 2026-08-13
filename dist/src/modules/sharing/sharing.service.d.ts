@@ -1,10 +1,13 @@
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
+import { EntitlementsService } from '../subscriptions/entitlements.service';
 import { ShareCardDto } from './dto/share-card.dto';
 export declare class SharingService {
     private readonly prisma;
     private readonly configService;
-    constructor(prisma: PrismaService, configService: ConfigService);
+    private readonly entitlementsService;
+    constructor(prisma: PrismaService, configService: ConfigService, entitlementsService: EntitlementsService);
+    getShareQuota(userId: string): Promise<import("../subscriptions/entitlements.types").ShareQuota>;
     private get appPublicUrl();
     getPublicCard(slug: string, viewerUserId?: string, meta?: {
         source?: string;
@@ -33,11 +36,10 @@ export declare class SharingService {
     }): Promise<string | null>;
     shareCard(userId: string, id: string, dto: ShareCardDto): Promise<{
         id: string;
-        createdAt: Date;
-        userId: string | null;
-        method: import(".prisma/client").$Enums.ShareMethod;
         cardId: string;
-        metadata: import("@prisma/client/runtime/client").JsonValue;
+        method: import("@prisma/client").$Enums.ShareMethod;
+        createdAt: Date;
+        quota: import("../subscriptions/entitlements.types").ShareQuota;
     }>;
     getQrCode(id: string): {
         message: string;

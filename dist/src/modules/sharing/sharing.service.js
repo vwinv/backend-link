@@ -13,18 +13,24 @@ exports.SharingService = void 0;
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const prisma_service_1 = require("../../prisma/prisma.service");
+const entitlements_service_1 = require("../subscriptions/entitlements.service");
 const pro_design_resolver_1 = require("./pro-design/pro-design-resolver");
 const public_card_body_1 = require("./public-card/public-card-body");
 const public_card_page_1 = require("./public-card/public-card-page");
 let SharingService = class SharingService {
     prisma;
     configService;
-    constructor(prisma, configService) {
+    entitlementsService;
+    constructor(prisma, configService, entitlementsService) {
         this.prisma = prisma;
         this.configService = configService;
+        this.entitlementsService = entitlementsService;
+    }
+    getShareQuota(userId) {
+        return this.entitlementsService.getShareQuota(userId);
     }
     get appPublicUrl() {
-        return this.configService.get('wallet.appPublicUrl', 'https://dropone.pro');
+        return this.configService.get('wallet.appPublicUrl', 'https://api.dropone.pro');
     }
     async getPublicCard(slug, viewerUserId, meta) {
         const card = await this.findPublicCard(slug);
@@ -91,13 +97,22 @@ let SharingService = class SharingService {
         if (!card) {
             throw new common_1.NotFoundException('Carte introuvable');
         }
-        return this.prisma.shareEvent.create({
+        await this.entitlementsService.assertCanShare(userId);
+        const event = await this.prisma.shareEvent.create({
             data: {
                 cardId: card.id,
                 userId,
                 method: dto.method,
             },
         });
+        const quota = await this.entitlementsService.getShareQuota(userId);
+        return {
+            id: event.id,
+            cardId: event.cardId,
+            method: event.method,
+            createdAt: event.createdAt,
+            quota,
+        };
     }
     getQrCode(id) {
         return { message: 'getQrCode', id };
@@ -229,6 +244,7 @@ exports.SharingService = SharingService;
 exports.SharingService = SharingService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
-        config_1.ConfigService])
+        config_1.ConfigService,
+        entitlements_service_1.EntitlementsService])
 ], SharingService);
 //# sourceMappingURL=sharing.service.js.map

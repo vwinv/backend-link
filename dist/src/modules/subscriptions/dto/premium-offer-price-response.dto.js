@@ -17,6 +17,7 @@ class PremiumOfferPriceResponseDto {
     billingType;
     priceLabel;
     priceAmount;
+    pricePerSeat;
     currency;
     discountPercent;
     badgeLabel;
@@ -40,6 +41,13 @@ __decorate([
     (0, swagger_1.ApiProperty)({ example: 4000 }),
     __metadata("design:type", Number)
 ], PremiumOfferPriceResponseDto.prototype, "priceAmount", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        example: 700,
+        description: 'Prix par utilisateur supplémentaire (au-delà des sièges inclus). Montant = priceAmount + pricePerSeat × (sièges − minSeats).',
+    }),
+    __metadata("design:type", Object)
+], PremiumOfferPriceResponseDto.prototype, "pricePerSeat", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({ example: 'FCFA' }),
     __metadata("design:type", String)

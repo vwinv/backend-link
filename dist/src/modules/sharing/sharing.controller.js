@@ -70,6 +70,9 @@ let SharingController = class SharingController {
     shareCard(user, id, dto) {
         return this.sharingService.shareCard(user.userId, id, dto);
     }
+    getShareQuota(user) {
+        return this.sharingService.getShareQuota(user.userId);
+    }
     getQrCode(id) {
         return this.sharingService.getQrCode(id);
     }
@@ -121,6 +124,16 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, share_card_dto_1.ShareCardDto]),
     __metadata("design:returntype", void 0)
 ], SharingController.prototype, "shareCard", null);
+__decorate([
+    (0, common_1.Get)('quota'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({ summary: 'Quota de partages restant' }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], SharingController.prototype, "getShareQuota", null);
 __decorate([
     (0, common_1.Get)('cards/:id/qr'),
     (0, swagger_1.ApiOperation)({ summary: 'Générer le QR code de partage' }),

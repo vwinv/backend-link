@@ -13,6 +13,7 @@ exports.JwtStrategy = void 0;
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const passport_1 = require("@nestjs/passport");
+const client_1 = require("@prisma/client");
 const passport_jwt_1 = require("passport-jwt");
 const prisma_service_1 = require("../../../prisma/prisma.service");
 let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(passport_jwt_1.Strategy) {
@@ -28,11 +29,31 @@ let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(pas
     async validate(payload) {
         const user = await this.prisma.user.findUnique({
             where: { id: payload.sub },
+            include: {
+                adminRole: {
+                    include: {
+                        permissions: {
+                            include: { permission: true },
+                        },
+                    },
+                },
+            },
         });
         if (!user || !user.isActive) {
             throw new common_1.UnauthorizedException('Session invalide');
         }
-        return { userId: user.id, email: user.email };
+        const permissions = user.adminRole?.permissions.map((item) => item.permission.key) ?? [];
+        if (user.role === client_1.UserRole.ADMIN && !user.adminRoleId) {
+            permissions.push('*');
+        }
+        return {
+            userId: user.id,
+            email: user.email,
+            role: user.role,
+            adminRoleId: user.adminRoleId,
+            adminRoleName: user.adminRole?.name ?? null,
+            permissions,
+        };
     }
 };
 exports.JwtStrategy = JwtStrategy;

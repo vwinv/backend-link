@@ -79,9 +79,60 @@ let AuthService = class AuthService {
             },
         });
         await this.linkPendingInvites(user.id, email);
-        return this.buildAuthResponse(user);
+        const full = await this.loadAdminUser(user.id);
+        return this.buildAuthResponse(full);
     }
     async login(dto) {
+        const user = await this.authenticateLocal(dto);
+        const full = await this.loadAdminUser(user.id);
+        return this.buildAuthResponse(full);
+    }
+    async loginAdmin(dto) {
+        const user = await this.authenticateLocal(dto);
+        const full = await this.loadAdminUser(user.id);
+        if (!full || !this.canAccessBackoffice(full)) {
+            throw new common_1.ForbiddenException('Accès réservé aux utilisateurs du backoffice DropOne');
+        }
+        return this.buildAuthResponse(full);
+    }
+    async loginWithGoogle(idToken) {
+        const profile = await this.oauthService.verifyGoogleIdToken(idToken);
+        return this.authenticateWithOAuth(profile);
+    }
+    async loginWithApple(idToken, firstName, lastName) {
+        const profile = await this.oauthService.verifyAppleIdToken(idToken, firstName, lastName);
+        return this.authenticateWithOAuth(profile);
+    }
+    async getMe(userId) {
+        const user = await this.loadAdminUser(userId);
+        if (!user || !user.isActive) {
+            throw new common_1.UnauthorizedException(user && !user.isActive ? auth_constants_1.ACCOUNT_DELETED_ERROR : 'Session invalide');
+        }
+        return this.toPublicUser(user);
+    }
+    async getAdminMe(userId) {
+        const user = await this.loadAdminUser(userId);
+        if (!user || !user.isActive) {
+            throw new common_1.UnauthorizedException(user && !user.isActive ? auth_constants_1.ACCOUNT_DELETED_ERROR : 'Session invalide');
+        }
+        if (!this.canAccessBackoffice(user)) {
+            throw new common_1.ForbiddenException('Accès réservé aux utilisateurs du backoffice DropOne');
+        }
+        return this.toPublicUser(user);
+    }
+    refresh() {
+        return { message: 'refresh' };
+    }
+    logout() {
+        return { message: 'logout' };
+    }
+    forgotPassword() {
+        return { message: 'forgot-password' };
+    }
+    resetPassword() {
+        return { message: 'reset-password' };
+    }
+    async authenticateLocal(dto) {
         const email = dto.email.trim().toLowerCase();
         const user = await this.prisma.user.findUnique({ where: { email } });
         if (!user) {
@@ -97,34 +148,7 @@ let AuthService = class AuthService {
         if (!isValid) {
             throw new common_1.UnauthorizedException('Email ou mot de passe incorrect');
         }
-        return this.buildAuthResponse(user);
-    }
-    async loginWithGoogle(idToken) {
-        const profile = await this.oauthService.verifyGoogleIdToken(idToken);
-        return this.authenticateWithOAuth(profile);
-    }
-    async loginWithApple(idToken, firstName, lastName) {
-        const profile = await this.oauthService.verifyAppleIdToken(idToken, firstName, lastName);
-        return this.authenticateWithOAuth(profile);
-    }
-    async getMe(userId) {
-        const user = await this.prisma.user.findUnique({ where: { id: userId } });
-        if (!user || !user.isActive) {
-            throw new common_1.UnauthorizedException(user && !user.isActive ? auth_constants_1.ACCOUNT_DELETED_ERROR : 'Session invalide');
-        }
-        return this.toPublicUser(user);
-    }
-    refresh() {
-        return { message: 'refresh' };
-    }
-    logout() {
-        return { message: 'logout' };
-    }
-    forgotPassword() {
-        return { message: 'forgot-password' };
-    }
-    resetPassword() {
-        return { message: 'reset-password' };
+        return user;
     }
     async authenticateWithOAuth(profile) {
         let user = await this.prisma.user.findFirst({
@@ -161,7 +185,8 @@ let AuthService = class AuthService {
         if (!user.isActive) {
             throw new common_1.UnauthorizedException(auth_constants_1.ACCOUNT_DELETED_ERROR);
         }
-        return this.buildAuthResponse(user);
+        const full = await this.loadAdminUser(user.id);
+        return this.buildAuthResponse(full);
     }
     async linkPendingInvites(userId, email) {
         await this.prisma.teamInvite.updateMany({
@@ -172,6 +197,25 @@ let AuthService = class AuthService {
             },
             data: { inviteeUserId: userId },
         });
+    }
+    async loadAdminUser(userId) {
+        return this.prisma.user.findUnique({
+            where: { id: userId },
+            include: {
+                adminRole: {
+                    include: {
+                        permissions: {
+                            include: { permission: true },
+                        },
+                    },
+                },
+            },
+        });
+    }
+    canAccessBackoffice(user) {
+        if (!user?.isActive)
+            return false;
+        return Boolean(user.adminRoleId) || user.role === client_1.UserRole.ADMIN;
     }
     oauthOnlyMessage(provider) {
         switch (provider) {
@@ -184,7 +228,7 @@ let AuthService = class AuthService {
         }
     }
     buildAuthResponse(user) {
-        const accessToken = this.jwtService.sign({ sub: user.id, email: user.email }, {
+        const accessToken = this.jwtService.sign({ sub: user.id, email: user.email, role: user.role }, {
             secret: this.configService.get('jwt.secret', 'change-me'),
             expiresIn: this.configService.get('jwt.expiresIn', '7d'),
         });
@@ -194,6 +238,16 @@ let AuthService = class AuthService {
         };
     }
     toPublicUser(user) {
+        const adminRole = 'adminRole' in user && user.adminRole
+            ? { id: user.adminRole.id, name: user.adminRole.name }
+            : null;
+        let permissions = [];
+        if ('adminRole' in user && user.adminRole) {
+            permissions = user.adminRole.permissions.map((item) => item.permission.key);
+        }
+        if (user.role === client_1.UserRole.ADMIN && !('adminRoleId' in user ? user.adminRoleId : null)) {
+            permissions = ['*'];
+        }
         return {
             id: user.id,
             email: user.email,
@@ -201,6 +255,9 @@ let AuthService = class AuthService {
             lastName: user.lastName,
             phone: user.phone,
             avatarUrl: user.avatarUrl,
+            role: user.role,
+            adminRole,
+            permissions,
         };
     }
 };

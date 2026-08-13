@@ -1,11 +1,12 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { AuthProvider, TeamInviteStatus, User } from '@prisma/client';
+import { AuthProvider, TeamInviteStatus, User, UserRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ACCOUNT_DELETED_ERROR } from './auth.constants';
@@ -45,31 +46,26 @@ export class AuthService {
 
     await this.linkPendingInvites(user.id, email);
 
-    return this.buildAuthResponse(user);
+    const full = await this.loadAdminUser(user.id);
+    return this.buildAuthResponse(full!);
   }
 
   async login(dto: LoginDto): Promise<AuthResponseDto> {
-    const email = dto.email.trim().toLowerCase();
+    const user = await this.authenticateLocal(dto);
+    const full = await this.loadAdminUser(user.id);
+    return this.buildAuthResponse(full!);
+  }
 
-    const user = await this.prisma.user.findUnique({ where: { email } });
-    if (!user) {
-      throw new UnauthorizedException('Email ou mot de passe incorrect');
+  /** Connexion backoffice : rôle backoffice ou ADMIN legacy. */
+  async loginAdmin(dto: LoginDto): Promise<AuthResponseDto> {
+    const user = await this.authenticateLocal(dto);
+    const full = await this.loadAdminUser(user.id);
+    if (!full || !this.canAccessBackoffice(full)) {
+      throw new ForbiddenException(
+        'Accès réservé aux utilisateurs du backoffice DropOne',
+      );
     }
-
-    if (!user.isActive) {
-      throw new UnauthorizedException(ACCOUNT_DELETED_ERROR);
-    }
-
-    if (!user.passwordHash) {
-      throw new UnauthorizedException(this.oauthOnlyMessage(user.authProvider));
-    }
-
-    const isValid = await bcrypt.compare(dto.password, user.passwordHash);
-    if (!isValid) {
-      throw new UnauthorizedException('Email ou mot de passe incorrect');
-    }
-
-    return this.buildAuthResponse(user);
+    return this.buildAuthResponse(full);
   }
 
   async loginWithGoogle(idToken: string): Promise<AuthResponseDto> {
@@ -91,10 +87,25 @@ export class AuthService {
   }
 
   async getMe(userId: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const user = await this.loadAdminUser(userId);
     if (!user || !user.isActive) {
       throw new UnauthorizedException(
         user && !user.isActive ? ACCOUNT_DELETED_ERROR : 'Session invalide',
+      );
+    }
+    return this.toPublicUser(user);
+  }
+
+  async getAdminMe(userId: string) {
+    const user = await this.loadAdminUser(userId);
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException(
+        user && !user.isActive ? ACCOUNT_DELETED_ERROR : 'Session invalide',
+      );
+    }
+    if (!this.canAccessBackoffice(user)) {
+      throw new ForbiddenException(
+        'Accès réservé aux utilisateurs du backoffice DropOne',
       );
     }
     return this.toPublicUser(user);
@@ -118,6 +129,30 @@ export class AuthService {
   resetPassword() {
     // TODO: implémenter reset password
     return { message: 'reset-password' };
+  }
+
+  private async authenticateLocal(dto: LoginDto): Promise<User> {
+    const email = dto.email.trim().toLowerCase();
+
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      throw new UnauthorizedException('Email ou mot de passe incorrect');
+    }
+
+    if (!user.isActive) {
+      throw new UnauthorizedException(ACCOUNT_DELETED_ERROR);
+    }
+
+    if (!user.passwordHash) {
+      throw new UnauthorizedException(this.oauthOnlyMessage(user.authProvider));
+    }
+
+    const isValid = await bcrypt.compare(dto.password, user.passwordHash);
+    if (!isValid) {
+      throw new UnauthorizedException('Email ou mot de passe incorrect');
+    }
+
+    return user;
   }
 
   private async authenticateWithOAuth(
@@ -164,7 +199,8 @@ export class AuthService {
       throw new UnauthorizedException(ACCOUNT_DELETED_ERROR);
     }
 
-    return this.buildAuthResponse(user);
+    const full = await this.loadAdminUser(user.id);
+    return this.buildAuthResponse(full!);
   }
 
   private async linkPendingInvites(userId: string, email: string) {
@@ -178,6 +214,32 @@ export class AuthService {
     });
   }
 
+  private async loadAdminUser(userId: string) {
+    return this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        adminRole: {
+          include: {
+            permissions: {
+              include: { permission: true },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  private canAccessBackoffice(
+    user: {
+      role: UserRole;
+      adminRoleId: string | null;
+      isActive: boolean;
+    } | null,
+  ): boolean {
+    if (!user?.isActive) return false;
+    return Boolean(user.adminRoleId) || user.role === UserRole.ADMIN;
+  }
+
   private oauthOnlyMessage(provider: AuthProvider): string {
     switch (provider) {
       case AuthProvider.GOOGLE:
@@ -189,9 +251,11 @@ export class AuthService {
     }
   }
 
-  private buildAuthResponse(user: User): AuthResponseDto {
+  private buildAuthResponse(
+    user: NonNullable<Awaited<ReturnType<AuthService['loadAdminUser']>>>,
+  ): AuthResponseDto {
     const accessToken = this.jwtService.sign(
-      { sub: user.id, email: user.email },
+      { sub: user.id, email: user.email, role: user.role },
       {
         secret: this.configService.get<string>('jwt.secret', 'change-me'),
         expiresIn: this.configService.get('jwt.expiresIn', '7d'),
@@ -204,7 +268,24 @@ export class AuthService {
     };
   }
 
-  private toPublicUser(user: User) {
+  private toPublicUser(
+    user: NonNullable<Awaited<ReturnType<AuthService['loadAdminUser']>>> | User,
+  ) {
+    const adminRole =
+      'adminRole' in user && user.adminRole
+        ? { id: user.adminRole.id, name: user.adminRole.name }
+        : null;
+
+    let permissions: string[] = [];
+    if ('adminRole' in user && user.adminRole) {
+      permissions = user.adminRole.permissions.map(
+        (item) => item.permission.key,
+      );
+    }
+    if (user.role === UserRole.ADMIN && !('adminRoleId' in user ? user.adminRoleId : null)) {
+      permissions = ['*'];
+    }
+
     return {
       id: user.id,
       email: user.email,
@@ -212,6 +293,9 @@ export class AuthService {
       lastName: user.lastName,
       phone: user.phone,
       avatarUrl: user.avatarUrl,
+      role: user.role,
+      adminRole,
+      permissions,
     };
   }
 }

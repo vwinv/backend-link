@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   BillingPeriod,
   CardKind,
@@ -16,21 +17,48 @@ import { PrismaService } from '../../prisma/prisma.service';
 import {
   AiScanQuota,
   DEFAULT_ENTITLEMENTS,
+  ShareQuota,
   TeamSeatsQuota,
   UserEntitlements,
 } from './entitlements.types';
+import { FREE_OFFER_SLUG } from './free-offer.constants';
 
 @Injectable()
 export class EntitlementsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  private get freeMaxSharesFallback(): number {
+    return this.configService.get<number>('freeMaxShares', 10);
+  }
 
   async getUserEntitlements(userId: string): Promise<UserEntitlements> {
     const subscription = await this.findActiveSubscription(userId);
     if (!subscription?.offer) {
-      return DEFAULT_ENTITLEMENTS;
+      return this.getFreeEntitlements();
     }
 
-    return this.mapOfferToEntitlements(subscription.offer);
+    return this.mapOfferToEntitlements(
+      subscription.offer,
+      subscription.purchasedSeats,
+    );
+  }
+
+  private async getFreeEntitlements(): Promise<UserEntitlements> {
+    const freeOffer = await this.prisma.premiumOffer.findFirst({
+      where: { slug: FREE_OFFER_SLUG, isActive: true },
+    });
+
+    if (freeOffer) {
+      return this.mapOfferToEntitlements(freeOffer);
+    }
+
+    return {
+      ...DEFAULT_ENTITLEMENTS,
+      maxShares: this.freeMaxSharesFallback,
+    };
   }
 
   /**
@@ -193,8 +221,11 @@ export class EntitlementsService {
   async getAiScanQuota(userId: string): Promise<AiScanQuota> {
     const subscription = await this.findActiveSubscription(userId);
     const entitlements = subscription?.offer
-      ? this.mapOfferToEntitlements(subscription.offer)
-      : DEFAULT_ENTITLEMENTS;
+      ? this.mapOfferToEntitlements(
+          subscription.offer,
+          subscription.purchasedSeats,
+        )
+      : await this.getFreeEntitlements();
 
     const max = entitlements.maxAiScans;
     const isUnlimited = max < 0;
@@ -253,6 +284,46 @@ export class EntitlementsService {
     };
   }
 
+  async getShareQuota(userId: string): Promise<ShareQuota> {
+    const entitlements = await this.getUserEntitlements(userId);
+    const max = entitlements.maxShares;
+    const isUnlimited = max < 0;
+
+    if (max === 0) {
+      return {
+        used: 0,
+        max,
+        canShare: false,
+        isUnlimited: false,
+      };
+    }
+
+    const used = await this.prisma.shareEvent.count({
+      where: { userId },
+    });
+
+    return {
+      used,
+      max,
+      canShare: isUnlimited || used < max,
+      isUnlimited,
+    };
+  }
+
+  async assertCanShare(userId: string): Promise<ShareQuota> {
+    const quota = await this.getShareQuota(userId);
+
+    if (!quota.canShare) {
+      throw new ForbiddenException(
+        quota.max <= 0
+          ? 'Le partage nécessite une offre Premium'
+          : `Quota de ${quota.max} partages atteint. Passez à Premium pour continuer.`,
+      );
+    }
+
+    return quota;
+  }
+
   private hasTeamAccess(entitlements: UserEntitlements): boolean {
     return (
       entitlements.audience === OfferAudience.TEAM &&
@@ -280,27 +351,37 @@ export class EntitlementsService {
     });
   }
 
-  private mapOfferToEntitlements(offer: {
-    audience: OfferAudience;
-    canCustomize: boolean;
-    maxTeamMembers: number;
-    hasPortfolio: boolean;
-    hasWallet?: boolean;
-    hasAnalytics?: boolean;
-    hasVisitorInsights?: boolean;
-    hasSocialLinks?: boolean;
-    maxAiScans: number;
-  }): UserEntitlements {
+  private mapOfferToEntitlements(
+    offer: {
+      audience: OfferAudience;
+      canCustomize: boolean;
+      maxTeamMembers: number;
+      hasPortfolio: boolean;
+      hasWallet?: boolean;
+      hasAnalytics?: boolean;
+      hasVisitorInsights?: boolean;
+      hasSocialLinks?: boolean;
+      maxAiScans: number;
+      maxShares?: number;
+    },
+    purchasedSeats?: number | null,
+  ): UserEntitlements {
+    const maxTeamMembers =
+      purchasedSeats != null && purchasedSeats > 0
+        ? purchasedSeats
+        : offer.maxTeamMembers;
+
     return {
       audience: offer.audience,
       canCustomize: offer.canCustomize,
-      maxTeamMembers: offer.maxTeamMembers,
+      maxTeamMembers,
       hasPortfolio: offer.hasPortfolio,
       hasWallet: offer.hasWallet ?? false,
       hasAnalytics: offer.hasAnalytics ?? false,
       hasVisitorInsights: offer.hasVisitorInsights ?? false,
       hasSocialLinks: offer.hasSocialLinks ?? false,
       maxAiScans: offer.maxAiScans,
+      maxShares: offer.maxShares ?? -1,
     };
   }
 

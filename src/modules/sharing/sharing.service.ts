@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { BusinessCard } from '../../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { EntitlementsService } from '../subscriptions/entitlements.service';
 import { resolveProDesign } from './pro-design/pro-design-resolver';
 import { buildCardInitials } from './public-card/public-card-body';
 import { buildPublicCardHtml } from './public-card/public-card-page';
@@ -12,7 +13,12 @@ export class SharingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
+    private readonly entitlementsService: EntitlementsService,
   ) {}
+
+  getShareQuota(userId: string) {
+    return this.entitlementsService.getShareQuota(userId);
+  }
 
   private get appPublicUrl(): string {
     return this.configService.get<string>(
@@ -108,13 +114,25 @@ export class SharingService {
       throw new NotFoundException('Carte introuvable');
     }
 
-    return this.prisma.shareEvent.create({
+    await this.entitlementsService.assertCanShare(userId);
+
+    const event = await this.prisma.shareEvent.create({
       data: {
         cardId: card.id,
         userId,
         method: dto.method,
       },
     });
+
+    const quota = await this.entitlementsService.getShareQuota(userId);
+
+    return {
+      id: event.id,
+      cardId: event.cardId,
+      method: event.method,
+      createdAt: event.createdAt,
+      quota,
+    };
   }
 
   getQrCode(id: string) {

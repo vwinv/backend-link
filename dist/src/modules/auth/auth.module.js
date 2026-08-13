@@ -13,6 +13,9 @@ const jwt_1 = require("@nestjs/jwt");
 const passport_1 = require("@nestjs/passport");
 const auth_controller_1 = require("./auth.controller");
 const auth_service_1 = require("./auth.service");
+const roles_guard_1 = require("./guards/roles.guard");
+const admin_access_guard_1 = require("./guards/admin-access.guard");
+const permissions_guard_1 = require("./guards/permissions.guard");
 const oauth_service_1 = require("./oauth/oauth.service");
 const jwt_strategy_1 = require("./strategies/jwt.strategy");
 let AuthModule = class AuthModule {
@@ -34,8 +37,21 @@ exports.AuthModule = AuthModule = __decorate([
             }),
         ],
         controllers: [auth_controller_1.AuthController],
-        providers: [auth_service_1.AuthService, oauth_service_1.OAuthService, jwt_strategy_1.JwtStrategy],
-        exports: [auth_service_1.AuthService, jwt_1.JwtModule],
+        providers: [
+            auth_service_1.AuthService,
+            oauth_service_1.OAuthService,
+            jwt_strategy_1.JwtStrategy,
+            roles_guard_1.RolesGuard,
+            admin_access_guard_1.AdminAccessGuard,
+            permissions_guard_1.PermissionsGuard,
+        ],
+        exports: [
+            auth_service_1.AuthService,
+            jwt_1.JwtModule,
+            roles_guard_1.RolesGuard,
+            admin_access_guard_1.AdminAccessGuard,
+            permissions_guard_1.PermissionsGuard,
+        ],
     })
 ], AuthModule);
 //# sourceMappingURL=auth.module.js.map

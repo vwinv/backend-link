@@ -12,7 +12,7 @@ export declare function resolveAvatarColor(seed: string, fallback?: number): num
 export declare function formatRelativeTimeFr(date: Date): string;
 export declare function toContactResponse(contact: ContactWithCard): {
     id: string;
-    source: import(".prisma/client").$Enums.ContactSource;
+    source: import("@prisma/client").$Enums.ContactSource;
     fullName: string;
     initials: string;
     subtitle: string;

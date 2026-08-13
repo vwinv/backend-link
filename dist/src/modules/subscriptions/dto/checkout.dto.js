@@ -11,12 +11,14 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CheckoutDto = void 0;
 const swagger_1 = require("@nestjs/swagger");
+const class_transformer_1 = require("class-transformer");
 const class_validator_1 = require("class-validator");
 const client_1 = require("@prisma/client");
 class CheckoutDto {
     offerSlug;
     billingType;
     teamId;
+    seats;
 }
 exports.CheckoutDto = CheckoutDto;
 __decorate([
@@ -35,4 +37,15 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CheckoutDto.prototype, "teamId", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        description: 'Nombre d’utilisateurs (offres pro tarifées au siège)',
+        example: 5,
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Type)(() => Number),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(1),
+    __metadata("design:type", Number)
+], CheckoutDto.prototype, "seats", void 0);
 //# sourceMappingURL=checkout.dto.js.map

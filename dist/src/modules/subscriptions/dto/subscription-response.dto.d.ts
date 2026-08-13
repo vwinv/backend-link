@@ -10,5 +10,6 @@ export declare class SubscriptionResponseDto {
     offerSlug: string;
     billingType?: OfferBillingType | null;
     entitlements: OfferEntitlementsDto;
+    purchasedSeats?: number | null;
     currentPeriodEnd?: string | null;
 }

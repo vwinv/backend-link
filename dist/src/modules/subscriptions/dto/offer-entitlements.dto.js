@@ -22,6 +22,7 @@ class OfferEntitlementsDto {
     hasVisitorInsights;
     hasSocialLinks;
     maxAiScans;
+    maxShares;
 }
 exports.OfferEntitlementsDto = OfferEntitlementsDto;
 __decorate([
@@ -69,4 +70,11 @@ __decorate([
     }),
     __metadata("design:type", Number)
 ], OfferEntitlementsDto.prototype, "maxAiScans", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        example: -1,
+        description: 'Quota de partages (-1 = illimité)',
+    }),
+    __metadata("design:type", Number)
+], OfferEntitlementsDto.prototype, "maxShares", void 0);
 //# sourceMappingURL=offer-entitlements.dto.js.map

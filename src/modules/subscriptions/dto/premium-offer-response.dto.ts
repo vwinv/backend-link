@@ -24,6 +24,12 @@ export class PremiumOfferResponseDto {
   @ApiProperty({ example: 0 })
   maxTeamMembers: number;
 
+  @ApiProperty({
+    example: 1,
+    description: 'Minimum d’utilisateurs à l’achat (offres pro)',
+  })
+  minSeats: number;
+
   @ApiProperty({ example: true })
   hasPortfolio: boolean;
 
@@ -41,6 +47,12 @@ export class PremiumOfferResponseDto {
 
   @ApiProperty({ example: -1 })
   maxAiScans: number;
+
+  @ApiProperty({
+    example: -1,
+    description: 'Quota de partages (-1 = illimité)',
+  })
+  maxShares: number;
 
   @ApiProperty({ example: 1 })
   sortOrder: number;

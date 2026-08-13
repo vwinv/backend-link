@@ -9,4 +9,5 @@ export declare class OfferEntitlementsDto {
     hasVisitorInsights: boolean;
     hasSocialLinks: boolean;
     maxAiScans: number;
+    maxShares: number;
 }

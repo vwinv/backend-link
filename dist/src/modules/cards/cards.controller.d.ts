@@ -20,10 +20,10 @@ export declare class CardsController {
         updatedAt: Date;
         jobTitle: string | null;
         teamId: string | null;
-        company: string | null;
         slug: string;
         ownerId: string;
-        kind: import(".prisma/client").$Enums.CardKind;
+        kind: import("@prisma/client").$Enums.CardKind;
+        company: string | null;
         bio: string | null;
         website: string | null;
         coverImageUrl: string | null;
@@ -45,10 +45,10 @@ export declare class CardsController {
         updatedAt: Date;
         jobTitle: string | null;
         teamId: string | null;
-        company: string | null;
         slug: string;
         ownerId: string;
-        kind: import(".prisma/client").$Enums.CardKind;
+        kind: import("@prisma/client").$Enums.CardKind;
+        company: string | null;
         bio: string | null;
         website: string | null;
         coverImageUrl: string | null;
@@ -60,7 +60,7 @@ export declare class CardsController {
         userId: string;
     }): Promise<{
         id: string;
-        source: import(".prisma/client").$Enums.ContactSource;
+        source: import("@prisma/client").$Enums.ContactSource;
         fullName: string;
         initials: string;
         subtitle: string;
@@ -90,10 +90,10 @@ export declare class CardsController {
         updatedAt: Date;
         jobTitle: string | null;
         teamId: string | null;
-        company: string | null;
         slug: string;
         ownerId: string;
-        kind: import(".prisma/client").$Enums.CardKind;
+        kind: import("@prisma/client").$Enums.CardKind;
+        company: string | null;
         bio: string | null;
         website: string | null;
         coverImageUrl: string | null;
@@ -115,10 +115,10 @@ export declare class CardsController {
         updatedAt: Date;
         jobTitle: string | null;
         teamId: string | null;
-        company: string | null;
         slug: string;
         ownerId: string;
-        kind: import(".prisma/client").$Enums.CardKind;
+        kind: import("@prisma/client").$Enums.CardKind;
+        company: string | null;
         bio: string | null;
         website: string | null;
         coverImageUrl: string | null;
@@ -140,10 +140,10 @@ export declare class CardsController {
         updatedAt: Date;
         jobTitle: string | null;
         teamId: string | null;
-        company: string | null;
         slug: string;
         ownerId: string;
-        kind: import(".prisma/client").$Enums.CardKind;
+        kind: import("@prisma/client").$Enums.CardKind;
+        company: string | null;
         bio: string | null;
         website: string | null;
         coverImageUrl: string | null;
@@ -160,9 +160,9 @@ export declare class CardsController {
     }, id: string, dto: SyncSocialLinksDto): Promise<{
         id: string;
         createdAt: Date;
-        url: string;
-        platform: import(".prisma/client").$Enums.SocialPlatform;
         label: string | null;
+        platform: import("@prisma/client").$Enums.SocialPlatform;
+        url: string;
         order: number;
         cardId: string;
     }[]>;
@@ -171,9 +171,9 @@ export declare class CardsController {
     }, id: string): Promise<{
         id: string;
         createdAt: Date;
-        url: string;
-        platform: import(".prisma/client").$Enums.SocialPlatform;
         label: string | null;
+        platform: import("@prisma/client").$Enums.SocialPlatform;
+        url: string;
         order: number;
         cardId: string;
     }[]>;

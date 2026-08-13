@@ -9,6 +9,7 @@ export declare class AuthController {
     constructor(authService: AuthService);
     register(dto: RegisterDto): Promise<AuthResponseDto>;
     login(dto: LoginDto): Promise<AuthResponseDto>;
+    loginAdmin(dto: LoginDto): Promise<AuthResponseDto>;
     getMe(user: {
         userId: string;
     }): Promise<{
@@ -18,6 +19,28 @@ export declare class AuthController {
         lastName: string;
         phone: string | null;
         avatarUrl: string | null;
+        role: import("@prisma/client").$Enums.UserRole;
+        adminRole: {
+            id: string;
+            name: string;
+        } | null;
+        permissions: string[];
+    }>;
+    getAdminMe(user: {
+        userId: string;
+    }): Promise<{
+        id: string;
+        email: string;
+        firstName: string;
+        lastName: string;
+        phone: string | null;
+        avatarUrl: string | null;
+        role: import("@prisma/client").$Enums.UserRole;
+        adminRole: {
+            id: string;
+            name: string;
+        } | null;
+        permissions: string[];
     }>;
     loginWithGoogle(dto: OAuthGoogleDto): Promise<AuthResponseDto>;
     loginWithApple(dto: OAuthAppleDto): Promise<AuthResponseDto>;

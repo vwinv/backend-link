@@ -14,6 +14,13 @@ export class PremiumOfferPriceResponseDto {
   @ApiProperty({ example: 4000 })
   priceAmount: number;
 
+  @ApiPropertyOptional({
+    example: 700,
+    description:
+      'Prix par utilisateur supplémentaire (au-delà des sièges inclus). Montant = priceAmount + pricePerSeat × (sièges − minSeats).',
+  })
+  pricePerSeat?: number | null;
+
   @ApiProperty({ example: 'FCFA' })
   currency: string;
 

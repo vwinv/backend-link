@@ -29,6 +29,7 @@ class SoftPaySubscriptionDto {
     telephone;
     email;
     teamId;
+    seats;
 }
 exports.SoftPaySubscriptionDto = SoftPaySubscriptionDto;
 __decorate([
@@ -89,4 +90,15 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], SoftPaySubscriptionDto.prototype, "teamId", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        description: 'Nombre d’utilisateurs (affichage SoftPay)',
+        example: 5,
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Type)(() => Number),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(1),
+    __metadata("design:type", Number)
+], SoftPaySubscriptionDto.prototype, "seats", void 0);
 //# sourceMappingURL=softpay-subscription.dto.js.map

@@ -21,12 +21,14 @@ class PremiumOfferResponseDto {
     audience;
     canCustomize;
     maxTeamMembers;
+    minSeats;
     hasPortfolio;
     hasWallet;
     hasAnalytics;
     hasVisitorInsights;
     hasSocialLinks;
     maxAiScans;
+    maxShares;
     sortOrder;
     prices;
 }
@@ -60,6 +62,13 @@ __decorate([
     __metadata("design:type", Number)
 ], PremiumOfferResponseDto.prototype, "maxTeamMembers", void 0);
 __decorate([
+    (0, swagger_1.ApiProperty)({
+        example: 1,
+        description: 'Minimum d’utilisateurs à l’achat (offres pro)',
+    }),
+    __metadata("design:type", Number)
+], PremiumOfferResponseDto.prototype, "minSeats", void 0);
+__decorate([
     (0, swagger_1.ApiProperty)({ example: true }),
     __metadata("design:type", Boolean)
 ], PremiumOfferResponseDto.prototype, "hasPortfolio", void 0);
@@ -83,6 +92,13 @@ __decorate([
     (0, swagger_1.ApiProperty)({ example: -1 }),
     __metadata("design:type", Number)
 ], PremiumOfferResponseDto.prototype, "maxAiScans", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        example: -1,
+        description: 'Quota de partages (-1 = illimité)',
+    }),
+    __metadata("design:type", Number)
+], PremiumOfferResponseDto.prototype, "maxShares", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({ example: 1 }),
     __metadata("design:type", Number)

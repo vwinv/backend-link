@@ -5,7 +5,7 @@ export declare class ContactsService {
     constructor(prisma: PrismaService);
     findAll(userId: string): Promise<{
         id: string;
-        source: import(".prisma/client").$Enums.ContactSource;
+        source: import("@prisma/client").$Enums.ContactSource;
         fullName: string;
         initials: string;
         subtitle: string;
@@ -23,7 +23,7 @@ export declare class ContactsService {
     }[]>;
     findExchangeContacts(userId: string): Promise<{
         id: string;
-        source: import(".prisma/client").$Enums.ContactSource;
+        source: import("@prisma/client").$Enums.ContactSource;
         fullName: string;
         initials: string;
         subtitle: string;
@@ -41,7 +41,7 @@ export declare class ContactsService {
     }[]>;
     exchangeFromCardSlug(userId: string, cardSlug: string): Promise<{
         id: string;
-        source: import(".prisma/client").$Enums.ContactSource;
+        source: import("@prisma/client").$Enums.ContactSource;
         fullName: string;
         initials: string;
         subtitle: string;
@@ -59,7 +59,7 @@ export declare class ContactsService {
     }>;
     createFromScan(userId: string, scanEventId: string, payload?: RecordScanContactDto): Promise<{
         id: string;
-        source: import(".prisma/client").$Enums.ContactSource;
+        source: import("@prisma/client").$Enums.ContactSource;
         fullName: string;
         initials: string;
         subtitle: string;

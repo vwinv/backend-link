@@ -68,7 +68,7 @@ let TeamsService = class TeamsService {
     }
     get appPublicUrl() {
         return (this.configService.get('wallet.appPublicUrl') ??
-            'https://dropone.pro').replace(/\/$/, '');
+            'https://api.dropone.pro').replace(/\/$/, '');
     }
     formatUserName(user) {
         if (!user) {
