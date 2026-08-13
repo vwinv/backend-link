@@ -73,6 +73,59 @@ export class AuthService {
     return this.authenticateWithOAuth(profile);
   }
 
+  /** Connexion Google backoffice : aucun compte n’est créé. */
+  async loginAdminWithGoogle(idToken: string): Promise<AuthResponseDto> {
+    const profile = await this.oauthService.verifyGoogleIdToken(idToken);
+
+    let user = await this.prisma.user.findFirst({
+      where: {
+        authProvider: AuthProvider.GOOGLE,
+        providerId: profile.providerId,
+      },
+    });
+
+    if (!user) {
+      user = await this.prisma.user.findUnique({
+        where: { email: profile.email },
+      });
+
+      if (user) {
+        user = await this.prisma.user.update({
+          where: { id: user.id },
+          data: {
+            authProvider: AuthProvider.GOOGLE,
+            providerId: profile.providerId,
+            avatarUrl: user.avatarUrl ?? profile.avatarUrl,
+          },
+        });
+      }
+    } else if (profile.avatarUrl && !user.avatarUrl) {
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { avatarUrl: profile.avatarUrl },
+      });
+    }
+
+    if (!user) {
+      throw new ForbiddenException(
+        'Aucun compte backoffice associé à cet email Google',
+      );
+    }
+
+    if (!user.isActive) {
+      throw new UnauthorizedException(ACCOUNT_DELETED_ERROR);
+    }
+
+    const full = await this.loadAdminUser(user.id);
+    if (!full || !this.canAccessBackoffice(full)) {
+      throw new ForbiddenException(
+        'Accès réservé aux utilisateurs du backoffice DropOne',
+      );
+    }
+
+    return this.buildAuthResponse(full);
+  }
+
   async loginWithApple(
     idToken: string,
     firstName?: string,

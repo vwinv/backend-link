@@ -43,6 +43,15 @@ export class AuthController {
     return this.authService.loginAdmin(dto);
   }
 
+  @Post('admin/oauth/google')
+  @ApiOperation({
+    summary: 'Connexion backoffice via Google (compte admin existant)',
+  })
+  @ApiResponse({ status: 200, type: AuthResponseDto })
+  loginAdminWithGoogle(@Body() dto: OAuthGoogleDto) {
+    return this.authService.loginAdminWithGoogle(dto.idToken);
+  }
+
   @Get('me')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
