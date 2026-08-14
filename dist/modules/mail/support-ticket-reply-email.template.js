@@ -14,13 +14,13 @@ function buildSupportTicketReplyEmail(payload) {
     const replyBody = escapeHtml(payload.replyBody).replaceAll('\n', '<br />');
     const closeUrl = escapeHtml(payload.closeUrl);
     const ticketRef = escapeHtml(payload.ticketId.slice(-8).toUpperCase());
-    const subject = `Réponse DropOne Support · ticket ${payload.ticketId.slice(-8).toUpperCase()}`;
+    const subject = `Réponse DropOne Support - ticket ${payload.ticketId.slice(-8).toUpperCase()}`;
     const text = [
         `Bonjour ${payload.firstName.trim() || ''},`.trim(),
         '',
         payload.replyBody.trim(),
         '',
-        '—',
+        '-',
         'Si nous avons répondu à votre problème, cliquez ici pour clôturer le ticket :',
         payload.closeUrl,
         '',
@@ -44,7 +44,7 @@ function buildSupportTicketReplyEmail(payload) {
           Clôturer le ticket
         </a>
       </p>
-      <p style="margin:0;font-size:12px;color:#9aa0ac;">Référence : ${ticketRef} · DropOne Support</p>
+      <p style="margin:0;font-size:12px;color:#9aa0ac;">Référence : ${ticketRef} - DropOne Support</p>
     </div>
   </div>
 </body>

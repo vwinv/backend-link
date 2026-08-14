@@ -41,6 +41,7 @@ var __importStar = (this && this.__importStar) || (function () {
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var AuthService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuthService = void 0;
 const common_1 = require("@nestjs/common");
@@ -48,19 +49,25 @@ const config_1 = require("@nestjs/config");
 const jwt_1 = require("@nestjs/jwt");
 const client_1 = require("@prisma/client");
 const bcrypt = __importStar(require("bcrypt"));
+const crypto_1 = require("crypto");
 const prisma_service_1 = require("../../prisma/prisma.service");
+const mail_service_1 = require("../mail/mail.service");
 const auth_constants_1 = require("./auth.constants");
 const oauth_service_1 = require("./oauth/oauth.service");
-let AuthService = class AuthService {
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
+let AuthService = AuthService_1 = class AuthService {
     prisma;
     jwtService;
     configService;
     oauthService;
-    constructor(prisma, jwtService, configService, oauthService) {
+    mailService;
+    logger = new common_1.Logger(AuthService_1.name);
+    constructor(prisma, jwtService, configService, oauthService, mailService) {
         this.prisma = prisma;
         this.jwtService = jwtService;
         this.configService = configService;
         this.oauthService = oauthService;
+        this.mailService = mailService;
     }
     async register(dto) {
         const email = dto.email.trim().toLowerCase();
@@ -99,6 +106,47 @@ let AuthService = class AuthService {
         const profile = await this.oauthService.verifyGoogleIdToken(idToken);
         return this.authenticateWithOAuth(profile);
     }
+    async loginAdminWithGoogle(idToken) {
+        const profile = await this.oauthService.verifyGoogleIdToken(idToken);
+        let user = await this.prisma.user.findFirst({
+            where: {
+                authProvider: client_1.AuthProvider.GOOGLE,
+                providerId: profile.providerId,
+            },
+        });
+        if (!user) {
+            user = await this.prisma.user.findUnique({
+                where: { email: profile.email },
+            });
+            if (user) {
+                user = await this.prisma.user.update({
+                    where: { id: user.id },
+                    data: {
+                        authProvider: client_1.AuthProvider.GOOGLE,
+                        providerId: profile.providerId,
+                        avatarUrl: user.avatarUrl ?? profile.avatarUrl,
+                    },
+                });
+            }
+        }
+        else if (profile.avatarUrl && !user.avatarUrl) {
+            user = await this.prisma.user.update({
+                where: { id: user.id },
+                data: { avatarUrl: profile.avatarUrl },
+            });
+        }
+        if (!user) {
+            throw new common_1.ForbiddenException('Aucun compte backoffice associé à cet email Google');
+        }
+        if (!user.isActive) {
+            throw new common_1.UnauthorizedException(auth_constants_1.ACCOUNT_DELETED_ERROR);
+        }
+        const full = await this.loadAdminUser(user.id);
+        if (!full || !this.canAccessBackoffice(full)) {
+            throw new common_1.ForbiddenException('Accès réservé aux utilisateurs du backoffice DropOne');
+        }
+        return this.buildAuthResponse(full);
+    }
     async loginWithApple(idToken, firstName, lastName) {
         const profile = await this.oauthService.verifyAppleIdToken(idToken, firstName, lastName);
         return this.authenticateWithOAuth(profile);
@@ -126,11 +174,97 @@ let AuthService = class AuthService {
     logout() {
         return { message: 'logout' };
     }
-    forgotPassword() {
-        return { message: 'forgot-password' };
+    async forgotPassword(dto) {
+        const email = dto.email.trim().toLowerCase();
+        const user = await this.prisma.user.findUnique({ where: { email } });
+        if (!user || !user.isActive) {
+            throw new common_1.NotFoundException('Aucun compte DropOne n’est associé à cet e-mail');
+        }
+        if (!user.passwordHash) {
+            throw new common_1.BadRequestException(this.oauthOnlyMessage(user.authProvider));
+        }
+        try {
+            await this.prisma.passwordResetToken.deleteMany({
+                where: { userId: user.id, usedAt: null },
+            });
+            const token = (0, crypto_1.randomBytes)(32).toString('hex');
+            const tokenHash = this.hashResetToken(token);
+            await this.prisma.passwordResetToken.create({
+                data: {
+                    userId: user.id,
+                    tokenHash,
+                    expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS),
+                },
+            });
+            await this.mailService.sendResetPasswordEmail({
+                to: user.email,
+                firstName: user.firstName,
+                resetUrl: this.getResetPasswordUrl(token),
+            });
+        }
+        catch (error) {
+            this.logger.error('forgotPassword failed', error);
+            throw new common_1.ServiceUnavailableException('Impossible d’envoyer l’e-mail pour le moment. Réessayez plus tard.');
+        }
+        return {
+            message: 'Un e-mail de réinitialisation a été envoyé',
+        };
     }
-    resetPassword() {
-        return { message: 'reset-password' };
+    async getValidResetToken(rawToken) {
+        const token = rawToken.trim();
+        if (!token)
+            return null;
+        try {
+            const record = await this.prisma.passwordResetToken.findUnique({
+                where: { tokenHash: this.hashResetToken(token) },
+            });
+            if (!record || record.usedAt || record.expiresAt.getTime() < Date.now()) {
+                return null;
+            }
+            return record;
+        }
+        catch (error) {
+            this.logger.error('getValidResetToken failed', error);
+            return null;
+        }
+    }
+    async resetPassword(dto) {
+        const record = await this.getValidResetToken(dto.token);
+        if (!record) {
+            throw new common_1.BadRequestException('Ce lien de réinitialisation est invalide ou a expiré');
+        }
+        const password = dto.password.trim();
+        if (password.length < 8) {
+            throw new common_1.BadRequestException('Le mot de passe doit contenir au moins 8 caractères');
+        }
+        const passwordHash = await bcrypt.hash(password, 10);
+        await this.prisma.$transaction([
+            this.prisma.user.update({
+                where: { id: record.userId },
+                data: { passwordHash },
+            }),
+            this.prisma.passwordResetToken.update({
+                where: { id: record.id },
+                data: { usedAt: new Date() },
+            }),
+            this.prisma.passwordResetToken.deleteMany({
+                where: {
+                    userId: record.userId,
+                    id: { not: record.id },
+                    usedAt: null,
+                },
+            }),
+        ]);
+        return { message: 'Mot de passe mis à jour' };
+    }
+    getResetPasswordUrl(token) {
+        const base = this.configService
+            .get('wallet.appPublicUrl', 'https://api.dropone.pro')
+            .replace(/\/$/, '');
+        return `${base}/reset-password?token=${encodeURIComponent(token)}`;
+    }
+    hashResetToken(token) {
+        return (0, crypto_1.createHash)('sha256').update(token).digest('hex');
     }
     async authenticateLocal(dto) {
         const email = dto.email.trim().toLowerCase();
@@ -262,11 +396,12 @@ let AuthService = class AuthService {
     }
 };
 exports.AuthService = AuthService;
-exports.AuthService = AuthService = __decorate([
+exports.AuthService = AuthService = AuthService_1 = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
         jwt_1.JwtService,
         config_1.ConfigService,
-        oauth_service_1.OAuthService])
+        oauth_service_1.OAuthService,
+        mail_service_1.MailService])
 ], AuthService);
 //# sourceMappingURL=auth.service.js.map

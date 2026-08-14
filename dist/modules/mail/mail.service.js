@@ -17,6 +17,7 @@ exports.MailService = void 0;
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const nodemailer_1 = __importDefault(require("nodemailer"));
+const reset_password_email_template_1 = require("./reset-password-email.template");
 const support_ticket_reply_email_template_1 = require("./support-ticket-reply-email.template");
 const team_invite_email_template_1 = require("./team-invite-email.template");
 let MailService = MailService_1 = class MailService {
@@ -42,12 +43,16 @@ let MailService = MailService_1 = class MailService {
         const { subject, text, html } = (0, support_ticket_reply_email_template_1.buildSupportTicketReplyEmail)(payload);
         await this.send({ to: payload.to, subject, text, html });
     }
+    async sendResetPasswordEmail(payload) {
+        const { subject, text, html } = (0, reset_password_email_template_1.buildResetPasswordEmail)(payload);
+        await this.send({ to: payload.to, subject, text, html });
+    }
     async send(input) {
         if (!this.isConfigured()) {
             if (this.configService.get('nodeEnv') === 'production') {
                 throw new Error('SMTP non configuré');
             }
-            this.logger.warn(`[dev] Email non envoyé (SMTP absent) → ${input.to} · ${input.subject}`);
+            this.logger.warn(`[dev] Email non envoyé (SMTP absent) → ${input.to} - ${input.subject}`);
             this.logger.debug(input.text);
             return;
         }

@@ -17,9 +17,9 @@ export declare class TeamsService {
     private get appPublicUrl();
     private formatUserName;
     create(userId: string, dto: CreateTeamDto): Promise<{
-        description: string | null;
         id: string;
         name: string;
+        description: string | null;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
@@ -30,9 +30,9 @@ export declare class TeamsService {
     }>;
     findAllForUser(userId: string): Promise<{
         entitlements: import("../subscriptions/entitlements.types").UserEntitlements;
-        description: string | null;
         id: string;
         name: string;
+        description: string | null;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
@@ -55,13 +55,13 @@ export declare class TeamsService {
             id: string;
             role: import("@prisma/client").$Enums.TeamMemberRole;
             updatedAt: Date;
-            teamId: string;
             userId: string;
+            teamId: string;
             joinedAt: Date;
         })[];
-        description: string | null;
         id: string;
         name: string;
+        description: string | null;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
@@ -71,9 +71,9 @@ export declare class TeamsService {
         brandColor: string | null;
     }>;
     update(userId: string, id: string, dto: UpdateTeamDto): Promise<{
-        description: string | null;
         id: string;
         name: string;
+        description: string | null;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
@@ -83,9 +83,9 @@ export declare class TeamsService {
         brandColor: string | null;
     }>;
     remove(userId: string, id: string): Promise<{
-        description: string | null;
         id: string;
         name: string;
+        description: string | null;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
@@ -107,8 +107,8 @@ export declare class TeamsService {
             id: string;
             role: import("@prisma/client").$Enums.TeamMemberRole;
             updatedAt: Date;
-            teamId: string;
             userId: string;
+            teamId: string;
             joinedAt: Date;
         })[];
         pendingInvites: {
@@ -120,10 +120,10 @@ export declare class TeamsService {
             role: import("@prisma/client").$Enums.TeamMemberRole;
             createdAt: Date;
             updatedAt: Date;
+            expiresAt: Date | null;
             status: import("@prisma/client").$Enums.TeamInviteStatus;
             inviteeUserId: string | null;
             jobTitle: string | null;
-            expiresAt: Date | null;
             respondedAt: Date | null;
             teamId: string;
             invitedById: string;
@@ -151,10 +151,10 @@ export declare class TeamsService {
         role: import("@prisma/client").$Enums.TeamMemberRole;
         createdAt: Date;
         updatedAt: Date;
+        expiresAt: Date | null;
         status: import("@prisma/client").$Enums.TeamInviteStatus;
         inviteeUserId: string | null;
         jobTitle: string | null;
-        expiresAt: Date | null;
         respondedAt: Date | null;
         teamId: string;
         invitedById: string;
@@ -175,10 +175,10 @@ export declare class TeamsService {
         role: import("@prisma/client").$Enums.TeamMemberRole;
         createdAt: Date;
         updatedAt: Date;
+        expiresAt: Date | null;
         status: import("@prisma/client").$Enums.TeamInviteStatus;
         inviteeUserId: string | null;
         jobTitle: string | null;
-        expiresAt: Date | null;
         respondedAt: Date | null;
         teamId: string;
         invitedById: string;
@@ -197,8 +197,8 @@ export declare class TeamsService {
         id: string;
         role: import("@prisma/client").$Enums.TeamMemberRole;
         updatedAt: Date;
-        teamId: string;
         userId: string;
+        teamId: string;
         joinedAt: Date;
     }>;
     declineInvitation(userId: string, inviteId: string): Promise<{
@@ -210,10 +210,10 @@ export declare class TeamsService {
         role: import("@prisma/client").$Enums.TeamMemberRole;
         createdAt: Date;
         updatedAt: Date;
+        expiresAt: Date | null;
         status: import("@prisma/client").$Enums.TeamInviteStatus;
         inviteeUserId: string | null;
         jobTitle: string | null;
-        expiresAt: Date | null;
         respondedAt: Date | null;
         teamId: string;
         invitedById: string;
@@ -227,10 +227,10 @@ export declare class TeamsService {
         role: import("@prisma/client").$Enums.TeamMemberRole;
         createdAt: Date;
         updatedAt: Date;
+        expiresAt: Date | null;
         status: import("@prisma/client").$Enums.TeamInviteStatus;
         inviteeUserId: string | null;
         jobTitle: string | null;
-        expiresAt: Date | null;
         respondedAt: Date | null;
         teamId: string;
         invitedById: string;
@@ -239,16 +239,16 @@ export declare class TeamsService {
         id: string;
         role: import("@prisma/client").$Enums.TeamMemberRole;
         updatedAt: Date;
-        teamId: string;
         userId: string;
+        teamId: string;
         joinedAt: Date;
     }>;
     removeMember(userId: string, id: string, memberId: string): Promise<{
         id: string;
         role: import("@prisma/client").$Enums.TeamMemberRole;
         updatedAt: Date;
-        teamId: string;
         userId: string;
+        teamId: string;
         joinedAt: Date;
     }>;
     private assertOwner;

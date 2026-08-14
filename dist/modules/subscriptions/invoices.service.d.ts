@@ -14,14 +14,14 @@ export declare class InvoicesService {
     generateDueUpcomingInvoices(): Promise<number>;
     ensureUpcomingForOwner(ownerId: string, teamId?: string | null): Promise<{
         number: string;
-        description: string | null;
         id: string;
+        description: string | null;
         provider: string | null;
         createdAt: Date;
         updatedAt: Date;
+        userId: string;
         status: import("@prisma/client").$Enums.InvoiceStatus;
         teamId: string | null;
-        userId: string;
         billingType: string | null;
         currency: string;
         offerSlug: string | null;

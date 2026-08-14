@@ -88,7 +88,7 @@ let StripeService = StripeService_1 = class StripeService {
         return this.getClient().webhooks.constructEvent(payload, signature, webhookSecret);
     }
     logDisabledCheckoutAttempt(userId) {
-        this.logger.warn(`[dev] Paiement Stripe désactivé — abonnement instantané pour ${userId}`);
+        this.logger.warn(`[dev] Paiement Stripe désactivé - abonnement instantané pour ${userId}`);
     }
 };
 exports.StripeService = StripeService;

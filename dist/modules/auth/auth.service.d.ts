@@ -1,20 +1,26 @@
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../prisma/prisma.service';
+import { MailService } from '../mail/mail.service';
 import { AuthResponseDto } from './dto/auth-response.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { OAuthService } from './oauth/oauth.service';
 export declare class AuthService {
     private readonly prisma;
     private readonly jwtService;
     private readonly configService;
     private readonly oauthService;
-    constructor(prisma: PrismaService, jwtService: JwtService, configService: ConfigService, oauthService: OAuthService);
+    private readonly mailService;
+    private readonly logger;
+    constructor(prisma: PrismaService, jwtService: JwtService, configService: ConfigService, oauthService: OAuthService, mailService: MailService);
     register(dto: RegisterDto): Promise<AuthResponseDto>;
     login(dto: LoginDto): Promise<AuthResponseDto>;
     loginAdmin(dto: LoginDto): Promise<AuthResponseDto>;
     loginWithGoogle(idToken: string): Promise<AuthResponseDto>;
+    loginAdminWithGoogle(idToken: string): Promise<AuthResponseDto>;
     loginWithApple(idToken: string, firstName?: string, lastName?: string): Promise<AuthResponseDto>;
     getMe(userId: string): Promise<{
         id: string;
@@ -50,12 +56,22 @@ export declare class AuthService {
     logout(): {
         message: string;
     };
-    forgotPassword(): {
+    forgotPassword(dto: ForgotPasswordDto): Promise<{
         message: string;
-    };
-    resetPassword(): {
+    }>;
+    getValidResetToken(rawToken: string): Promise<{
+        id: string;
+        createdAt: Date;
+        userId: string;
+        usedAt: Date | null;
+        tokenHash: string;
+        expiresAt: Date;
+    } | null>;
+    resetPassword(dto: ResetPasswordDto): Promise<{
         message: string;
-    };
+    }>;
+    private getResetPasswordUrl;
+    private hashResetToken;
     private authenticateLocal;
     private authenticateWithOAuth;
     private linkPendingInvites;

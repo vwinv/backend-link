@@ -81,12 +81,12 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
         }
         const callbackUrl = (0, paydunya_callback_util_1.paydunyaIpnCallbackUrl)(this.logger);
         const storeName = process.env.PAYDUNYA_STORE_NAME?.trim() || 'Drop One';
-        const seatsLabel = seats != null ? ` · ${seats} utilisateur${seats > 1 ? 's' : ''}` : '';
+        const seatsLabel = seats != null ? ` - ${seats} utilisateur${seats > 1 ? 's' : ''}` : '';
         const billingLabel = price.priceLabel ??
             (effectiveBillingType === client_1.OfferBillingType.YEARLY ? 'YEARLY' : dto.billingType);
         const inv = await this.paydunyaService.createCheckoutInvoice({
             totalAmountFcfa: amount,
-            description: `${offer.title} — ${billingLabel}${seatsLabel}`,
+            description: `${offer.title} - ${billingLabel}${seatsLabel}`,
             storeName,
             callbackUrl,
             returnUrl: process.env.PAYDUNYA_RETURN_URL?.trim() || undefined,
@@ -349,7 +349,7 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
         const storeName = process.env.PAYDUNYA_STORE_NAME?.trim() || 'Drop One';
         const inv = await this.paydunyaService.createCheckoutInvoice({
             totalAmountFcfa: amount,
-            description: `${additionalSeats} siège${additionalSeats > 1 ? 's' : ''} en plus — ${subscription.offer.title}`,
+            description: `${additionalSeats} siège${additionalSeats > 1 ? 's' : ''} en plus - ${subscription.offer.title}`,
             storeName,
             callbackUrl,
             returnUrl: input.returnUrl?.trim() ||

@@ -243,7 +243,7 @@ let SharingService = class SharingService {
         const job = card.jobTitle?.trim() ?? '';
         const company = card.company?.trim() ?? '';
         if (job && company)
-            return `${job} · ${company}`;
+            return `${job} - ${company}`;
         return job || company;
     }
     resolvePortraitUrl(card) {

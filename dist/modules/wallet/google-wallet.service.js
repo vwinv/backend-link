@@ -64,7 +64,7 @@ let GoogleWalletService = class GoogleWalletService {
         const classId = `${issuerId}.${this.walletConfig.googleClassSuffix}`;
         const objectId = `${issuerId}.card_${card.id}`;
         const fullName = `${card.firstName} ${card.lastName}`.trim();
-        const subtitle = [card.jobTitle, card.company].filter(Boolean).join(' · ');
+        const subtitle = [card.jobTitle, card.company].filter(Boolean).join(' - ');
         const cardUrl = `${this.walletConfig.appPublicUrl}/cards/${card.slug}`;
         const genericClass = {
             id: classId,

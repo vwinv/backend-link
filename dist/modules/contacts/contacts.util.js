@@ -28,7 +28,7 @@ function buildContactSubtitle(jobTitle, company) {
         return org;
     if (!org)
         return job;
-    return `${job} · ${org}`;
+    return `${job} - ${org}`;
 }
 function resolveAvatarColor(seed, fallback = exports.DEFAULT_AVATAR_COLOR) {
     if (!seed.trim())

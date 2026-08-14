@@ -5,13 +5,16 @@ const config_1 = require("@nestjs/config");
 const jwt_1 = require("@nestjs/jwt");
 const core_1 = require("@nestjs/core");
 const swagger_1 = require("@nestjs/swagger");
+const express_1 = require("express");
 const node_fs_1 = require("node:fs");
 const node_path_1 = require("node:path");
 const app_module_1 = require("./app.module");
 const sharing_service_1 = require("./modules/sharing/sharing.service");
 const teams_service_1 = require("./modules/teams/teams.service");
+const auth_service_1 = require("./modules/auth/auth.service");
 const premium_payment_page_1 = require("./modules/subscriptions/premium-payment-page");
 const privacy_policy_page_1 = require("./modules/legal/privacy-policy-page");
+const reset_password_page_1 = require("./modules/auth/reset-password-page");
 async function bootstrap() {
     const app = await core_1.NestFactory.create(app_module_1.AppModule, {
         rawBody: true,
@@ -21,13 +24,16 @@ async function bootstrap() {
     if (!(0, node_fs_1.existsSync)(uploadsDir)) {
         (0, node_fs_1.mkdirSync)(uploadsDir, { recursive: true });
     }
+    app.useStaticAssets((0, node_path_1.join)(process.cwd(), 'public'), { prefix: '/' });
     app.useStaticAssets(uploadsDir, { prefix: '/uploads/' });
     const apiPrefix = configService.get('apiPrefix', 'api/v1');
     app.setGlobalPrefix(apiPrefix);
     const sharingService = app.get(sharing_service_1.SharingService);
     const teamsService = app.get(teams_service_1.TeamsService);
+    const authService = app.get(auth_service_1.AuthService);
     const jwtService = app.get(jwt_1.JwtService);
     const expressApp = app.getHttpAdapter().getInstance();
+    expressApp.use((0, express_1.urlencoded)({ extended: false }));
     const resolveViewerUserId = (req) => {
         const authorization = req.headers.authorization;
         if (!authorization?.startsWith('Bearer ')) {
@@ -84,6 +90,59 @@ async function bootstrap() {
     });
     expressApp.get('/privacy', (_req, res) => {
         res.status(200).type('text/html; charset=utf-8').send((0, privacy_policy_page_1.buildPrivacyPolicyPage)());
+    });
+    const sendResetPasswordPage = (res, status, state) => {
+        res
+            .status(status)
+            .type('text/html; charset=utf-8')
+            .send((0, reset_password_page_1.buildResetPasswordPage)(state));
+    };
+    expressApp.get('/reset-password', async (req, res) => {
+        try {
+            const token = typeof req.query.token === 'string' ? req.query.token : '';
+            const record = await authService.getValidResetToken(token);
+            if (!record) {
+                sendResetPasswordPage(res, 400, { kind: 'invalid' });
+                return;
+            }
+            sendResetPasswordPage(res, 200, { kind: 'form', token });
+        }
+        catch {
+            sendResetPasswordPage(res, 500, { kind: 'invalid' });
+        }
+    });
+    expressApp.post('/reset-password', async (req, res) => {
+        const body = (req.body ?? {});
+        const token = typeof body.token === 'string' ? body.token : '';
+        const password = typeof body.password === 'string' ? body.password : '';
+        const confirmPassword = typeof body.confirmPassword === 'string' ? body.confirmPassword : '';
+        if (password !== confirmPassword) {
+            sendResetPasswordPage(res, 400, {
+                kind: 'form',
+                token,
+                error: 'Les deux mots de passe ne correspondent pas.',
+            });
+            return;
+        }
+        try {
+            await authService.resetPassword({ token, password });
+            sendResetPasswordPage(res, 200, { kind: 'success' });
+        }
+        catch (error) {
+            const message = error instanceof common_1.HttpException
+                ? String(typeof error.getResponse() === 'string'
+                    ? error.getResponse()
+                    : error.getResponse()
+                        .message ?? error.message)
+                : error instanceof Error
+                    ? error.message
+                    : 'Impossible de mettre à jour le mot de passe';
+            sendResetPasswordPage(res, 400, {
+                kind: 'form',
+                token,
+                error: message,
+            });
+        }
     });
     expressApp.get('/team-invites/:inviteId', async (req, res) => {
         const inviteId = String(req.params.inviteId);

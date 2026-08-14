@@ -105,7 +105,7 @@ let AdminSupportService = class AdminSupportService {
             throw new common_1.NotFoundException('Ticket introuvable');
         }
         if (ticket.status === client_1.SupportTicketStatus.CLOSED) {
-            throw new common_1.BadRequestException('Ce ticket est clôturé — aucune réponse possible');
+            throw new common_1.BadRequestException('Ce ticket est clôturé - aucune réponse possible');
         }
         const reply = await this.prisma.supportTicketReply.create({
             data: {

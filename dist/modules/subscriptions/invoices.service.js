@@ -235,7 +235,7 @@ let InvoicesService = InvoicesService_1 = class InvoicesService {
                 amount: built.amount,
                 currency: subscription.offerPrice.currency || 'FCFA',
                 status: client_1.InvoiceStatus.PENDING,
-                description: `Renouvellement ${billingLabel} — ${built.description}`,
+                description: `Renouvellement ${billingLabel} - ${built.description}`,
                 offerSlug: subscription.offer.slug,
                 billingType: subscription.offerPrice.billingType,
                 seats: built.seats,

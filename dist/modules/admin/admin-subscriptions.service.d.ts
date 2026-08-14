@@ -99,9 +99,9 @@ export declare class AdminSubscriptionsService {
             label: string | null;
         }[];
         id: string;
-        slug: string;
         title: string;
         audience: import("@prisma/client").$Enums.OfferAudience;
+        slug: string;
         minSeats: number;
         listedInApp: boolean;
     }[]>;

@@ -17,9 +17,9 @@ export declare class EspaceService {
     getDashboard(userId: string, slug: string): Promise<{
         team: {
             createdAt: string;
-            description: string | null;
             id: string;
             name: string;
+            description: string | null;
             slug: string;
             ownerId: string;
             logoUrl: string | null;
@@ -103,8 +103,8 @@ export declare class EspaceService {
             id: string;
             role: import("@prisma/client").$Enums.TeamMemberRole;
             updatedAt: Date;
-            teamId: string;
             userId: string;
+            teamId: string;
             joinedAt: Date;
         })[];
         pendingInvites: {
@@ -116,10 +116,10 @@ export declare class EspaceService {
             role: import("@prisma/client").$Enums.TeamMemberRole;
             createdAt: Date;
             updatedAt: Date;
+            expiresAt: Date | null;
             status: import("@prisma/client").$Enums.TeamInviteStatus;
             inviteeUserId: string | null;
             jobTitle: string | null;
-            expiresAt: Date | null;
             respondedAt: Date | null;
             teamId: string;
             invitedById: string;
@@ -316,10 +316,10 @@ export declare class EspaceService {
         role: import("@prisma/client").$Enums.TeamMemberRole;
         createdAt: Date;
         updatedAt: Date;
+        expiresAt: Date | null;
         status: import("@prisma/client").$Enums.TeamInviteStatus;
         inviteeUserId: string | null;
         jobTitle: string | null;
-        expiresAt: Date | null;
         respondedAt: Date | null;
         teamId: string;
         invitedById: string;
@@ -333,10 +333,10 @@ export declare class EspaceService {
         role: import("@prisma/client").$Enums.TeamMemberRole;
         createdAt: Date;
         updatedAt: Date;
+        expiresAt: Date | null;
         status: import("@prisma/client").$Enums.TeamInviteStatus;
         inviteeUserId: string | null;
         jobTitle: string | null;
-        expiresAt: Date | null;
         respondedAt: Date | null;
         teamId: string;
         invitedById: string;
@@ -345,8 +345,8 @@ export declare class EspaceService {
         id: string;
         role: import("@prisma/client").$Enums.TeamMemberRole;
         updatedAt: Date;
-        teamId: string;
         userId: string;
+        teamId: string;
         joinedAt: Date;
     }>;
     getMemberAnalytics(userId: string, slug: string, memberId: string, days?: number): Promise<{

@@ -574,7 +574,7 @@ let CardsService = class CardsService {
                 : 'Visiteur anonyme';
             const job = profileCard?.jobTitle?.trim() ?? '';
             const company = profileCard?.company?.trim() ?? '';
-            const subtitle = [job, company].filter(Boolean).join(' · ');
+            const subtitle = [job, company].filter(Boolean).join(' - ');
             const initials = viewer != null
                 ? `${firstName[0] ?? ''}${lastName[0] ?? firstName[1] ?? ''}`.toUpperCase() ||
                     'DO'
@@ -621,13 +621,13 @@ let CardsService = class CardsService {
         const isMac = /Macintosh|Mac OS X/i.test(ua);
         const isWindows = /Windows/i.test(ua);
         if (isIPhone)
-            return 'iPhone · iOS';
+            return 'iPhone - iOS';
         if (isIPad)
-            return 'iPad · iOS';
+            return 'iPad - iOS';
         if (isAndroid)
             return 'Android';
         if (isMac)
-            return 'Mac · Safari';
+            return 'Mac - Safari';
         if (isWindows)
             return 'Windows';
         if (/Mobile/i.test(ua))

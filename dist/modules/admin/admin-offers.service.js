@@ -135,7 +135,7 @@ let AdminOffersService = class AdminOffersService {
             throw new common_1.NotFoundException('Offre introuvable');
         }
         if (existing.slug === free_offer_constants_1.FREE_OFFER_SLUG) {
-            throw new common_1.BadRequestException('L’offre gratuite ne peut pas être supprimée — désactivez-la ou modifiez ses quotas');
+            throw new common_1.BadRequestException('L’offre gratuite ne peut pas être supprimée - désactivez-la ou modifiez ses quotas');
         }
         if (existing._count.subscriptions > 0) {
             await this.prisma.premiumOffer.update({

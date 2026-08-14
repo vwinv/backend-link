@@ -299,7 +299,7 @@ let AppleWalletService = class AppleWalletService {
             passTypeIdentifier: this.walletConfig.applePassTypeId,
             teamIdentifier: this.walletConfig.appleTeamId,
             organizationName: 'DropOne',
-            description: `Carte DropOne — ${fullName}`,
+            description: `Carte DropOne - ${fullName}`,
             serialNumber: card.id,
             foregroundColor: palette.passForeground,
             backgroundColor: palette.passBackground,

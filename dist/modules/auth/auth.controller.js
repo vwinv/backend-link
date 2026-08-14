@@ -17,10 +17,12 @@ const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
 const current_user_decorator_1 = require("./decorators/current-user.decorator");
 const auth_response_dto_1 = require("./dto/auth-response.dto");
+const forgot_password_dto_1 = require("./dto/forgot-password.dto");
 const login_dto_1 = require("./dto/login.dto");
 const oauth_apple_dto_1 = require("./dto/oauth-apple.dto");
 const oauth_google_dto_1 = require("./dto/oauth-google.dto");
 const register_dto_1 = require("./dto/register.dto");
+const reset_password_dto_1 = require("./dto/reset-password.dto");
 const admin_access_guard_1 = require("./guards/admin-access.guard");
 const jwt_auth_guard_1 = require("./guards/jwt-auth.guard");
 const auth_service_1 = require("./auth.service");
@@ -37,6 +39,9 @@ let AuthController = class AuthController {
     }
     loginAdmin(dto) {
         return this.authService.loginAdmin(dto);
+    }
+    loginAdminWithGoogle(dto) {
+        return this.authService.loginAdminWithGoogle(dto.idToken);
     }
     getMe(user) {
         return this.authService.getMe(user.userId);
@@ -56,11 +61,11 @@ let AuthController = class AuthController {
     logout() {
         return this.authService.logout();
     }
-    forgotPassword() {
-        return this.authService.forgotPassword();
+    forgotPassword(dto) {
+        return this.authService.forgotPassword(dto);
     }
-    resetPassword() {
-        return this.authService.resetPassword();
+    resetPassword(dto) {
+        return this.authService.resetPassword(dto);
     }
 };
 exports.AuthController = AuthController;
@@ -93,6 +98,17 @@ __decorate([
     __metadata("design:paramtypes", [login_dto_1.LoginDto]),
     __metadata("design:returntype", void 0)
 ], AuthController.prototype, "loginAdmin", null);
+__decorate([
+    (0, common_1.Post)('admin/oauth/google'),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Connexion backoffice via Google (compte admin existant)',
+    }),
+    (0, swagger_1.ApiResponse)({ status: 200, type: auth_response_dto_1.AuthResponseDto }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [oauth_google_dto_1.OAuthGoogleDto]),
+    __metadata("design:returntype", void 0)
+], AuthController.prototype, "loginAdminWithGoogle", null);
 __decorate([
     (0, common_1.Get)('me'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
@@ -155,16 +171,19 @@ __decorate([
 ], AuthController.prototype, "logout", null);
 __decorate([
     (0, common_1.Post)('forgot-password'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
     (0, swagger_1.ApiOperation)({ summary: 'Demande de réinitialisation du mot de passe' }),
+    __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [forgot_password_dto_1.ForgotPasswordDto]),
     __metadata("design:returntype", void 0)
 ], AuthController.prototype, "forgotPassword", null);
 __decorate([
     (0, common_1.Post)('reset-password'),
     (0, swagger_1.ApiOperation)({ summary: 'Réinitialiser le mot de passe' }),
+    __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [reset_password_dto_1.ResetPasswordDto]),
     __metadata("design:returntype", void 0)
 ], AuthController.prototype, "resetPassword", null);
 exports.AuthController = AuthController = __decorate([

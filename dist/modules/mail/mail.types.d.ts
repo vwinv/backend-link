@@ -14,3 +14,8 @@ export type SupportTicketReplyEmailPayload = {
     ticketId: string;
     closeUrl: string;
 };
+export type ResetPasswordEmailPayload = {
+    to: string;
+    firstName: string;
+    resetUrl: string;
+};

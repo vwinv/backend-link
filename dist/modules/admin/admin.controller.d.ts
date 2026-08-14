@@ -108,8 +108,8 @@ export declare class AdminController {
     }>;
     listPermissions(): {
         modules: {
-            key: "dashboard" | "backoffice_users" | "roles" | "clients" | "subscriptions" | "notifications" | "support";
-            label: "Tableau de bord" | "Utilisateurs backoffice" | "Rôles & permissions" | "Clients" | "Abonnements & offres" | "Notifications" | "Support";
+            key: "subscriptions" | "notifications" | "roles" | "dashboard" | "backoffice_users" | "clients" | "support";
+            label: "Notifications" | "Tableau de bord" | "Utilisateurs backoffice" | "Rôles & permissions" | "Clients" | "Abonnements & offres" | "Support";
             permissions: ({
                 readonly key: "dashboard.view";
                 readonly module: "dashboard";
@@ -306,16 +306,16 @@ export declare class AdminController {
     getClient(id: string): Promise<{
         stripeCustomerId: string | null;
         cards: {
-            isActive: boolean;
-            isPublic: boolean;
-            kind: import("@prisma/client").$Enums.CardKind;
             id: string;
-            createdAt: Date;
             firstName: string;
             lastName: string;
-            slug: string;
+            isActive: boolean;
+            createdAt: Date;
             jobTitle: string | null;
+            slug: string;
+            kind: import("@prisma/client").$Enums.CardKind;
             company: string | null;
+            isPublic: boolean;
         }[];
         subscriptions: {
             id: string;
@@ -326,8 +326,8 @@ export declare class AdminController {
             offer: {
                 id: string;
                 title: string;
-                slug: string;
                 audience: import("@prisma/client").$Enums.OfferAudience;
+                slug: string;
             } | null;
             plan: {
                 id: string;
@@ -336,9 +336,9 @@ export declare class AdminController {
             };
         }[];
         teams: {
-            isActive: boolean;
             id: string;
             name: string;
+            isActive: boolean;
             slug: string;
             role: import("@prisma/client").$Enums.TeamMemberRole;
         }[];
@@ -452,8 +452,8 @@ export declare class AdminController {
         }[];
         id: string;
         title: string;
-        slug: string;
         audience: import("@prisma/client").$Enums.OfferAudience;
+        slug: string;
         minSeats: number;
         listedInApp: boolean;
     }[]>;

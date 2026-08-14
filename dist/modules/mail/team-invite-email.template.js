@@ -61,7 +61,7 @@ function buildTeamInviteEmail(payload) {
         temporaryPassword
             ? ''
             : 'Si vous n\'avez pas encore de compte, créez-en un avec cette même adresse e-mail.',
-        '— L\'équipe DropOne',
+        '- L\'équipe DropOne',
     ]
         .filter((line, index, lines) => !(line === '' && lines[index - 1] === ''))
         .join('\n');
