@@ -1,20 +1,23 @@
-import { ValidationPipe } from '@nestjs/common';
+import { HttpException, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
+import { urlencoded } from 'express';
 import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { AppModule } from './app.module';
 import { SharingService } from './modules/sharing/sharing.service';
 import { TeamsService } from './modules/teams/teams.service';
+import { AuthService } from './modules/auth/auth.service';
 import {
   buildPremiumCancelPage,
   buildPremiumSuccessPage,
 } from './modules/subscriptions/premium-payment-page';
 import { buildPrivacyPolicyPage } from './modules/legal/privacy-policy-page';
+import { buildResetPasswordPage } from './modules/auth/reset-password-page';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -26,6 +29,7 @@ async function bootstrap() {
   if (!existsSync(uploadsDir)) {
     mkdirSync(uploadsDir, { recursive: true });
   }
+  app.useStaticAssets(join(process.cwd(), 'public'), { prefix: '/' });
   app.useStaticAssets(uploadsDir, { prefix: '/uploads/' });
 
   const apiPrefix = configService.get<string>('apiPrefix', 'api/v1');
@@ -33,8 +37,10 @@ async function bootstrap() {
 
   const sharingService = app.get(SharingService);
   const teamsService = app.get(TeamsService);
+  const authService = app.get(AuthService);
   const jwtService = app.get(JwtService);
   const expressApp = app.getHttpAdapter().getInstance() as import('express').Express;
+  expressApp.use(urlencoded({ extended: false }));
 
   const resolveViewerUserId = (req: Request): string | undefined => {
     const authorization = req.headers.authorization;
@@ -114,6 +120,76 @@ async function bootstrap() {
 
   expressApp.get('/privacy', (_req: Request, res: Response) => {
     res.status(200).type('text/html; charset=utf-8').send(buildPrivacyPolicyPage());
+  });
+
+  const sendResetPasswordPage = (
+    res: Response,
+    status: number,
+    state: Parameters<typeof buildResetPasswordPage>[0],
+  ) => {
+    res
+      .status(status)
+      .type('text/html; charset=utf-8')
+      .send(
+        buildResetPasswordPage(state),
+      );
+  };
+
+  expressApp.get('/reset-password', async (req: Request, res: Response) => {
+    try {
+      const token = typeof req.query.token === 'string' ? req.query.token : '';
+      const record = await authService.getValidResetToken(token);
+      if (!record) {
+        sendResetPasswordPage(res, 400, { kind: 'invalid' });
+        return;
+      }
+      sendResetPasswordPage(res, 200, { kind: 'form', token });
+    } catch {
+      sendResetPasswordPage(res, 500, { kind: 'invalid' });
+    }
+  });
+
+  expressApp.post('/reset-password', async (req: Request, res: Response) => {
+    const body = (req.body ?? {}) as {
+      token?: string;
+      password?: string;
+      confirmPassword?: string;
+    };
+    const token = typeof body.token === 'string' ? body.token : '';
+    const password = typeof body.password === 'string' ? body.password : '';
+    const confirmPassword =
+      typeof body.confirmPassword === 'string' ? body.confirmPassword : '';
+
+    if (password !== confirmPassword) {
+      sendResetPasswordPage(res, 400, {
+        kind: 'form',
+        token,
+        error: 'Les deux mots de passe ne correspondent pas.',
+      });
+      return;
+    }
+
+    try {
+      await authService.resetPassword({ token, password });
+      sendResetPasswordPage(res, 200, { kind: 'success' });
+    } catch (error) {
+      const message =
+        error instanceof HttpException
+          ? String(
+              typeof error.getResponse() === 'string'
+                ? error.getResponse()
+                : (error.getResponse() as { message?: string | string[] })
+                    .message ?? error.message,
+            )
+          : error instanceof Error
+            ? error.message
+            : 'Impossible de mettre à jour le mot de passe';
+      sendResetPasswordPage(res, 400, {
+        kind: 'form',
+        token,
+        error: message,
+      });
+    }
   });
 
   expressApp.get('/team-invites/:inviteId', async (req: Request, res: Response) => {

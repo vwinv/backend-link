@@ -1,3 +1,5 @@
+// Toute évolution de ce schéma DOIT avoir une migration dans prisma/migrations/.
+// Interdit : prisma db push. Prod = prisma migrate deploy.
 generator client {
   provider = "prisma-client-js"
 }
@@ -165,10 +167,25 @@ model User {
   notificationCampaignsCreated NotificationCampaign[] @relation("NotificationCampaignCreator")
   supportTicketReplies SupportTicketReply[] @relation("SupportTicketReplies")
   paymentInvoices      PaymentInvoice[]
+  passwordResetTokens  PasswordResetToken[]
 
   @@unique([authProvider, providerId])
   @@index([adminRoleId])
   @@map("users")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
 }
 
 // ─── Backoffice RBAC ─────────────────────────────────────────────────────────

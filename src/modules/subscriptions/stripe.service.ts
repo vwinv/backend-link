@@ -110,7 +110,7 @@ export class StripeService {
 
   logDisabledCheckoutAttempt(userId: string) {
     this.logger.warn(
-      `[dev] Paiement Stripe désactivé — abonnement instantané pour ${userId}`,
+      `[dev] Paiement Stripe désactivé - abonnement instantané pour ${userId}`,
     );
   }
 }

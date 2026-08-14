@@ -20,7 +20,7 @@ const uploadsDir = join(process.cwd(), 'uploads');
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class UploadsController {
-  constructor(private readonly uploadsService: UploadsService) {}
+  constructor(private readonly uploadsService: UploadsService) { }
 
   @Post('image')
   @ApiOperation({ summary: 'Uploader une image (logo équipe, avatar, etc.)' })

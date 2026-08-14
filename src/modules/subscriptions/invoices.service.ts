@@ -303,7 +303,7 @@ export class InvoicesService {
         amount: built.amount,
         currency: subscription.offerPrice.currency || 'FCFA',
         status: InvoiceStatus.PENDING,
-        description: `Renouvellement ${billingLabel} — ${built.description}`,
+        description: `Renouvellement ${billingLabel} - ${built.description}`,
         offerSlug: subscription.offer.slug,
         billingType: subscription.offerPrice.billingType,
         seats: built.seats,

@@ -74,7 +74,7 @@ export function buildPrivacyPolicyPage(): string {
   <main>
     <article class="card">
       <p class="brand">DropOne</p>
-      <h1>Politique de confidentialité – DropOne</h1>
+      <h1>Politique de confidentialité - DropOne</h1>
       <p class="updated"><strong>Dernière mise à jour : 21 juillet 2026</strong></p>
 
       <h2>1. Introduction</h2>

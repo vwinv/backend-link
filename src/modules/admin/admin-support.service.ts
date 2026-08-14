@@ -109,7 +109,7 @@ export class AdminSupportService {
     }
     if (ticket.status === SupportTicketStatus.CLOSED) {
       throw new BadRequestException(
-        'Ce ticket est clôturé — aucune réponse possible',
+        'Ce ticket est clôturé - aucune réponse possible',
       );
     }
 

@@ -1,27 +1,40 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
+  NotFoundException,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { AuthProvider, TeamInviteStatus, User, UserRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { createHash, randomBytes } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
+import { MailService } from '../mail/mail.service';
 import { ACCOUNT_DELETED_ERROR } from './auth.constants';
 import { AuthResponseDto } from './dto/auth-response.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { OAuthProfile, OAuthService } from './oauth/oauth.service';
+
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly oauthService: OAuthService,
+    private readonly mailService: MailService,
   ) {}
 
   async register(dto: RegisterDto): Promise<AuthResponseDto> {
@@ -174,14 +187,118 @@ export class AuthService {
     return { message: 'logout' };
   }
 
-  forgotPassword() {
-    // TODO: implémenter forgot password
-    return { message: 'forgot-password' };
+  async forgotPassword(dto: ForgotPasswordDto) {
+    const email = dto.email.trim().toLowerCase();
+    const user = await this.prisma.user.findUnique({ where: { email } });
+
+    if (!user || !user.isActive) {
+      throw new NotFoundException(
+        'Aucun compte DropOne n’est associé à cet e-mail',
+      );
+    }
+
+    if (!user.passwordHash) {
+      throw new BadRequestException(this.oauthOnlyMessage(user.authProvider));
+    }
+
+    try {
+      await this.prisma.passwordResetToken.deleteMany({
+        where: { userId: user.id, usedAt: null },
+      });
+
+      const token = randomBytes(32).toString('hex');
+      const tokenHash = this.hashResetToken(token);
+      await this.prisma.passwordResetToken.create({
+        data: {
+          userId: user.id,
+          tokenHash,
+          expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS),
+        },
+      });
+
+      await this.mailService.sendResetPasswordEmail({
+        to: user.email,
+        firstName: user.firstName,
+        resetUrl: this.getResetPasswordUrl(token),
+      });
+    } catch (error) {
+      this.logger.error('forgotPassword failed', error);
+      throw new ServiceUnavailableException(
+        'Impossible d’envoyer l’e-mail pour le moment. Réessayez plus tard.',
+      );
+    }
+
+    return {
+      message: 'Un e-mail de réinitialisation a été envoyé',
+    };
   }
 
-  resetPassword() {
-    // TODO: implémenter reset password
-    return { message: 'reset-password' };
+  async getValidResetToken(rawToken: string) {
+    const token = rawToken.trim();
+    if (!token) return null;
+
+    try {
+      const record = await this.prisma.passwordResetToken.findUnique({
+        where: { tokenHash: this.hashResetToken(token) },
+      });
+
+      if (!record || record.usedAt || record.expiresAt.getTime() < Date.now()) {
+        return null;
+      }
+
+      return record;
+    } catch (error) {
+      this.logger.error('getValidResetToken failed', error);
+      return null;
+    }
+  }
+
+  async resetPassword(dto: ResetPasswordDto) {
+    const record = await this.getValidResetToken(dto.token);
+    if (!record) {
+      throw new BadRequestException(
+        'Ce lien de réinitialisation est invalide ou a expiré',
+      );
+    }
+
+    const password = dto.password.trim();
+    if (password.length < 8) {
+      throw new BadRequestException(
+        'Le mot de passe doit contenir au moins 8 caractères',
+      );
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: record.userId },
+        data: { passwordHash },
+      }),
+      this.prisma.passwordResetToken.update({
+        where: { id: record.id },
+        data: { usedAt: new Date() },
+      }),
+      this.prisma.passwordResetToken.deleteMany({
+        where: {
+          userId: record.userId,
+          id: { not: record.id },
+          usedAt: null,
+        },
+      }),
+    ]);
+
+    return { message: 'Mot de passe mis à jour' };
+  }
+
+  private getResetPasswordUrl(token: string): string {
+    const base = this.configService
+      .get<string>('wallet.appPublicUrl', 'https://api.dropone.pro')
+      .replace(/\/$/, '');
+    return `${base}/reset-password?token=${encodeURIComponent(token)}`;
+  }
+
+  private hashResetToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
   }
 
   private async authenticateLocal(dto: LoginDto): Promise<User> {

@@ -30,7 +30,7 @@ export function buildContactSubtitle(
   if (!job && !org) return '';
   if (!job) return org;
   if (!org) return job;
-  return `${job} · ${org}`;
+  return `${job} - ${org}`;
 }
 
 export function resolveAvatarColor(seed: string, fallback = DEFAULT_AVATAR_COLOR): number {

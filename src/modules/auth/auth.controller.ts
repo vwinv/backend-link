@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -7,10 +7,12 @@ import {
 } from '@nestjs/swagger';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { AuthResponseDto, AuthUserDto } from './dto/auth-response.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { OAuthAppleDto } from './dto/oauth-apple.dto';
 import { OAuthGoogleDto } from './dto/oauth-google.dto';
 import { RegisterDto } from './dto/register.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { AdminAccessGuard } from './guards/admin-access.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AuthService } from './auth.service';
@@ -107,14 +109,15 @@ export class AuthController {
   }
 
   @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Demande de réinitialisation du mot de passe' })
-  forgotPassword() {
-    return this.authService.forgotPassword();
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto);
   }
 
   @Post('reset-password')
   @ApiOperation({ summary: 'Réinitialiser le mot de passe' })
-  resetPassword() {
-    return this.authService.resetPassword();
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
   }
 }

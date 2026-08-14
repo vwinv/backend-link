@@ -146,13 +146,13 @@ export class SubscriptionsService {
     const storeName =
       process.env.PAYDUNYA_STORE_NAME?.trim() || 'Drop One';
 
-    const seatsLabel = seats != null ? ` · ${seats} utilisateur${seats > 1 ? 's' : ''}` : '';
+    const seatsLabel = seats != null ? ` - ${seats} utilisateur${seats > 1 ? 's' : ''}` : '';
     const billingLabel =
       price.priceLabel ??
       (effectiveBillingType === OfferBillingType.YEARLY ? 'YEARLY' : dto.billingType);
     const inv = await this.paydunyaService.createCheckoutInvoice({
       totalAmountFcfa: amount,
-      description: `${offer.title} — ${billingLabel}${seatsLabel}`,
+      description: `${offer.title} - ${billingLabel}${seatsLabel}`,
       storeName,
       callbackUrl,
       returnUrl: process.env.PAYDUNYA_RETURN_URL?.trim() || undefined,
@@ -483,7 +483,7 @@ export class SubscriptionsService {
     const storeName = process.env.PAYDUNYA_STORE_NAME?.trim() || 'Drop One';
     const inv = await this.paydunyaService.createCheckoutInvoice({
       totalAmountFcfa: amount,
-      description: `${additionalSeats} siège${additionalSeats > 1 ? 's' : ''} en plus — ${subscription.offer.title}`,
+      description: `${additionalSeats} siège${additionalSeats > 1 ? 's' : ''} en plus - ${subscription.offer.title}`,
       storeName,
       callbackUrl,
       returnUrl:

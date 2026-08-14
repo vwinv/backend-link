@@ -1,9 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import nodemailer, { type Transporter } from 'nodemailer';
+import { buildResetPasswordEmail } from './reset-password-email.template';
 import { buildSupportTicketReplyEmail } from './support-ticket-reply-email.template';
 import { buildTeamInviteEmail } from './team-invite-email.template';
 import type {
+  ResetPasswordEmailPayload,
   SupportTicketReplyEmailPayload,
   TeamInviteEmailPayload,
 } from './mail.types';
@@ -45,6 +47,13 @@ export class MailService {
     await this.send({ to: payload.to, subject, text, html });
   }
 
+  async sendResetPasswordEmail(
+    payload: ResetPasswordEmailPayload,
+  ): Promise<void> {
+    const { subject, text, html } = buildResetPasswordEmail(payload);
+    await this.send({ to: payload.to, subject, text, html });
+  }
+
   private async send(input: {
     to: string;
     subject: string;
@@ -57,7 +66,7 @@ export class MailService {
       }
 
       this.logger.warn(
-        `[dev] Email non envoyé (SMTP absent) → ${input.to} · ${input.subject}`,
+        `[dev] Email non envoyé (SMTP absent) → ${input.to} - ${input.subject}`,
       );
       this.logger.debug(input.text);
       return;

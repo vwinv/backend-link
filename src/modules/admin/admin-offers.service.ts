@@ -156,7 +156,7 @@ export class AdminOffersService {
 
     if (existing.slug === FREE_OFFER_SLUG) {
       throw new BadRequestException(
-        'L’offre gratuite ne peut pas être supprimée — désactivez-la ou modifiez ses quotas',
+        'L’offre gratuite ne peut pas être supprimée - désactivez-la ou modifiez ses quotas',
       );
     }
 

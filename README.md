@@ -25,6 +25,10 @@ npm run db:up
 npm run prisma:generate
 npm run prisma:migrate
 
+Toute modification de `prisma/schema.prisma` doit être accompagnée d’une migration
+dans `prisma/migrations/`. Ne jamais utiliser `prisma db push` : Render n’applique
+que `prisma migrate deploy` au démarrage.
+
 # 5. Démarrer le serveur
 npm run start:dev
 ```

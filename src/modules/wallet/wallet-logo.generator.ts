@@ -36,7 +36,7 @@ const LOGO_SIZES = [
   { name: 'logo@3x.png', width: 480, height: 150 },
 ] as const;
 
-/** Thumbnail droite PassKit (90 pt) — photo plus grande que l’ancien logo 50 pt. */
+/** Thumbnail droite PassKit (90 pt) - photo plus grande que l’ancien logo 50 pt. */
 const THUMBNAIL_SIZES = [
   { name: 'thumbnail.png', size: 90 },
   { name: 'thumbnail@2x.png', size: 180 },
@@ -172,7 +172,7 @@ export async function generateWalletThumbnailAssets(input: {
 }
 
 /**
- * @deprecated Conservé pour les appels existants — préfère left logo + thumbnail.
+ * @deprecated Conservé pour les appels existants - préfère left logo + thumbnail.
  */
 export async function generateWalletLogoAssets(
   input: WalletLogoInput,
