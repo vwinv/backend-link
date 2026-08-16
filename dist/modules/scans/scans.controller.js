@@ -35,7 +35,7 @@ let ScansController = class ScansController {
 exports.ScansController = ScansController;
 __decorate([
     (0, common_1.Get)('quota'),
-    (0, swagger_1.ApiOperation)({ summary: 'Quota de scans IA pour la période en cours' }),
+    (0, swagger_1.ApiOperation)({ summary: 'Quota de scans IA pour le mois calendaire en cours' }),
     (0, swagger_1.ApiResponse)({ status: 200, type: usage_quota_dto_1.AiScanQuotaDto }),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),

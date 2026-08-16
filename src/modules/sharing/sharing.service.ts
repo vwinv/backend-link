@@ -123,7 +123,7 @@ export class SharingService {
       throw new NotFoundException('Carte introuvable');
     }
 
-    await this.entitlementsService.assertCanShare(userId);
+    await this.entitlementsService.assertCanShareCard(userId, card.id);
 
     const event = await this.prisma.shareEvent.create({
       data: {
@@ -323,8 +323,10 @@ export class SharingService {
   }
 
   private getOgImageUrl(card: BusinessCard, fullName: string): string {
-    if (card.avatarUrl?.trim()) return card.avatarUrl.trim();
-    if (card.coverImageUrl?.trim()) return card.coverImageUrl.trim();
+    const avatar = card.avatarUrl?.trim();
+    if (avatar) return this.resolvePublicAssetUrl(avatar);
+    const cover = card.coverImageUrl?.trim();
+    if (cover) return this.resolvePublicAssetUrl(cover);
 
     const name = encodeURIComponent(fullName);
     return `https://ui-avatars.com/api/?name=${name}&size=1200&background=1B4DFF&color=ffffff&bold=true&format=png`;

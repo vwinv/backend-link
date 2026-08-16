@@ -210,7 +210,7 @@ __decorate([
     __metadata("design:type", Boolean)
 ], CreateAdminOfferDto.prototype, "hasSocialLinks", void 0);
 __decorate([
-    (0, swagger_1.ApiPropertyOptional)({ description: '-1 = illimité' }),
+    (0, swagger_1.ApiPropertyOptional)({ description: 'Quota par mois calendaire. -1 = illimité' }),
     (0, class_validator_1.IsOptional)(),
     (0, class_transformer_1.Type)(() => Number),
     (0, class_validator_1.IsInt)(),

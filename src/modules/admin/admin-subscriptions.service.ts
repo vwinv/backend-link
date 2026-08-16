@@ -13,10 +13,64 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { AdminSubscriptionsQueryDto } from './dto/admin-subscriptions-query.dto';
 import { CreateAdminSubscriptionDto } from './dto/create-admin-subscription.dto';
+import { UpdateAdminSubscriptionDto } from './dto/update-admin-subscription.dto';
 
 @Injectable()
 export class AdminSubscriptionsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private readonly adminSelect = {
+    id: true,
+    status: true,
+    billingPeriod: true,
+    currentPeriodEnd: true,
+    cancelledAt: true,
+    purchasedSeats: true,
+    createdAt: true,
+    updatedAt: true,
+    stripeSubscriptionId: true,
+    paydunyaInvoiceToken: true,
+    user: {
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        avatarUrl: true,
+      },
+    },
+    team: {
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+      },
+    },
+    offer: {
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        audience: true,
+      },
+    },
+    offerPrice: {
+      select: {
+        id: true,
+        billingType: true,
+        priceAmount: true,
+        currency: true,
+        priceLabel: true,
+      },
+    },
+    plan: {
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+      },
+    },
+  } as const;
 
   async getStats() {
     const now = new Date();
@@ -159,57 +213,7 @@ export class AdminSubscriptionsService {
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          status: true,
-          billingPeriod: true,
-          currentPeriodEnd: true,
-          cancelledAt: true,
-          createdAt: true,
-          updatedAt: true,
-          stripeSubscriptionId: true,
-          paydunyaInvoiceToken: true,
-          user: {
-            select: {
-              id: true,
-              email: true,
-              firstName: true,
-              lastName: true,
-              avatarUrl: true,
-            },
-          },
-          team: {
-            select: {
-              id: true,
-              name: true,
-              slug: true,
-            },
-          },
-          offer: {
-            select: {
-              id: true,
-              title: true,
-              slug: true,
-              audience: true,
-            },
-          },
-          offerPrice: {
-            select: {
-              id: true,
-              billingType: true,
-              priceAmount: true,
-              currency: true,
-              priceLabel: true,
-            },
-          },
-          plan: {
-            select: {
-              id: true,
-              name: true,
-              slug: true,
-            },
-          },
-        },
+        select: this.adminSelect,
       }),
     ]);
 
@@ -236,8 +240,7 @@ export class AdminSubscriptionsService {
         minSeats: true,
         listedInApp: true,
         prices: {
-          where: { isActive: true },
-          orderBy: { sortOrder: 'asc' },
+          orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
           select: {
             id: true,
             billingType: true,
@@ -245,6 +248,7 @@ export class AdminSubscriptionsService {
             pricePerSeat: true,
             currency: true,
             priceLabel: true,
+            isActive: true,
           },
         },
       },
@@ -260,6 +264,7 @@ export class AdminSubscriptionsService {
           price.pricePerSeat == null ? null : Number(price.pricePerSeat),
         currency: price.currency,
         label: price.priceLabel,
+        isActive: price.isActive,
       })),
     }));
   }
@@ -279,16 +284,23 @@ export class AdminSubscriptionsService {
     const offer = await this.prisma.premiumOffer.findUnique({
       where: { id: dto.offerId },
       include: {
-        prices: { where: { isActive: true } },
+        prices: { orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] },
       },
     });
     if (!offer || !offer.isActive) {
       throw new BadRequestException('Offre introuvable ou inactive');
     }
 
-    const price = offer.prices.find((item) => item.id === dto.offerPriceId);
-    if (!price) {
+    const price =
+      (dto.offerPriceId
+        ? offer.prices.find((item) => item.id === dto.offerPriceId)
+        : offer.prices.find((item) => item.isActive) ?? offer.prices[0]) ??
+      null;
+    if (dto.offerPriceId && !price) {
       throw new BadRequestException('Tarif introuvable pour cette offre');
+    }
+    if (!price && offer.prices.length > 0) {
+      throw new BadRequestException('Choisissez un tarif pour cette offre');
     }
 
     let teamId = dto.teamId?.trim() || null;
@@ -320,10 +332,11 @@ export class AdminSubscriptionsService {
         : null;
 
     const plan = await this.ensurePremiumPlan(offer.audience);
-    const billingPeriod = this.mapBillingPeriod(price.billingType);
+    const billingType = price?.billingType ?? OfferBillingType.MONTHLY;
+    const billingPeriod = this.mapBillingPeriod(billingType);
     const currentPeriodEnd = dto.currentPeriodEnd
       ? new Date(dto.currentPeriodEnd)
-      : this.computePeriodEnd(price.billingType);
+      : this.computePeriodEnd(billingType);
 
     if (Number.isNaN(currentPeriodEnd.getTime())) {
       throw new BadRequestException('Date de fin invalide');
@@ -352,66 +365,189 @@ export class AdminSubscriptionsService {
         teamId,
         planId: plan.id,
         offerId: offer.id,
-        offerPriceId: price.id,
+        offerPriceId: price?.id ?? null,
         purchasedSeats,
         status: dto.status ?? SubscriptionStatus.ACTIVE,
         billingPeriod,
         currentPeriodEnd,
       },
-      select: {
-        id: true,
-        status: true,
-        billingPeriod: true,
-        currentPeriodEnd: true,
-        cancelledAt: true,
-        createdAt: true,
-        updatedAt: true,
-        stripeSubscriptionId: true,
-        paydunyaInvoiceToken: true,
-        user: {
-          select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-            avatarUrl: true,
-          },
-        },
-        team: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-          },
-        },
-        offer: {
-          select: {
-            id: true,
-            title: true,
-            slug: true,
-            audience: true,
-          },
-        },
-        offerPrice: {
-          select: {
-            id: true,
-            billingType: true,
-            priceAmount: true,
-            currency: true,
-            priceLabel: true,
-          },
-        },
-        plan: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-          },
-        },
-      },
+      select: this.adminSelect,
     });
 
     return this.serialize(created);
+  }
+
+  async findOne(id: string) {
+    const row = await this.prisma.subscription.findUnique({
+      where: { id },
+      select: this.adminSelect,
+    });
+    if (!row) {
+      throw new NotFoundException('Abonnement introuvable');
+    }
+    return this.serialize(row);
+  }
+
+  async update(id: string, dto: UpdateAdminSubscriptionDto) {
+    const existing = await this.prisma.subscription.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        userId: true,
+        teamId: true,
+        offerId: true,
+        offerPriceId: true,
+        status: true,
+        billingPeriod: true,
+        purchasedSeats: true,
+        currentPeriodEnd: true,
+        cancelledAt: true,
+      },
+    });
+    if (!existing) {
+      throw new NotFoundException('Abonnement introuvable');
+    }
+    if (!existing.userId) {
+      throw new BadRequestException('Cet abonnement n’est lié à aucun client');
+    }
+
+    const offerId = dto.offerId?.trim() || existing.offerId;
+    if (!offerId) {
+      throw new BadRequestException('Offre requise');
+    }
+
+    const offer = await this.prisma.premiumOffer.findUnique({
+      where: { id: offerId },
+      include: {
+        prices: { orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] },
+      },
+    });
+    if (!offer) {
+      throw new BadRequestException('Offre introuvable');
+    }
+    if (
+      !offer.isActive &&
+      dto.offerId &&
+      dto.offerId !== existing.offerId
+    ) {
+      throw new BadRequestException('Cette offre est inactive');
+    }
+
+    const requestedPriceId = dto.offerPriceId?.trim() || existing.offerPriceId;
+    const price =
+      offer.prices.find((item) => item.id === requestedPriceId) ??
+      offer.prices.find((item) => item.isActive) ??
+      offer.prices[0] ??
+      null;
+    if (dto.offerPriceId && !price) {
+      throw new BadRequestException('Tarif introuvable pour cette offre');
+    }
+
+    let teamId = dto.teamId !== undefined ? dto.teamId.trim() || null : existing.teamId;
+    if (offer.audience === OfferAudience.TEAM) {
+      if (teamId) {
+        const team = await this.prisma.team.findFirst({
+          where: { id: teamId, isActive: true },
+          select: { id: true },
+        });
+        if (!team) {
+          throw new BadRequestException('Équipe introuvable');
+        }
+      } else {
+        const ownedTeam = await this.prisma.team.findFirst({
+          where: { ownerId: existing.userId, isActive: true },
+          select: { id: true },
+          orderBy: { createdAt: 'asc' },
+        });
+        teamId = ownedTeam?.id ?? null;
+      }
+    } else {
+      teamId = null;
+    }
+
+    const minSeats = Math.max(1, offer.minSeats ?? 1);
+    const purchasedSeats =
+      offer.audience === OfferAudience.TEAM
+        ? Math.max(minSeats, dto.purchasedSeats ?? existing.purchasedSeats ?? minSeats)
+        : null;
+
+    const plan = await this.ensurePremiumPlan(offer.audience);
+    const billingPeriod = price
+      ? this.mapBillingPeriod(price.billingType)
+      : existing.billingPeriod;
+    const currentPeriodEnd =
+      dto.currentPeriodEnd !== undefined
+        ? new Date(dto.currentPeriodEnd)
+        : existing.currentPeriodEnd;
+    if (currentPeriodEnd && Number.isNaN(currentPeriodEnd.getTime())) {
+      throw new BadRequestException('Date de fin invalide');
+    }
+
+    const nextStatus = dto.status ?? existing.status;
+    const becomingActive = (
+      [
+        SubscriptionStatus.ACTIVE,
+        SubscriptionStatus.TRIAL,
+        SubscriptionStatus.PAST_DUE,
+      ] as SubscriptionStatus[]
+    ).includes(nextStatus);
+    const cancelledAt = becomingActive
+      ? null
+      : nextStatus === SubscriptionStatus.CANCELLED ||
+          nextStatus === SubscriptionStatus.EXPIRED
+        ? existing.cancelledAt ?? new Date()
+        : existing.cancelledAt;
+
+    if (becomingActive) {
+      await this.prisma.subscription.updateMany({
+        where: {
+          userId: existing.userId,
+          id: { not: existing.id },
+          status: {
+            in: [
+              SubscriptionStatus.TRIAL,
+              SubscriptionStatus.ACTIVE,
+              SubscriptionStatus.PAST_DUE,
+            ],
+          },
+        },
+        data: {
+          status: SubscriptionStatus.CANCELLED,
+          cancelledAt: new Date(),
+        },
+      });
+    }
+
+    const updated = await this.prisma.subscription.update({
+      where: { id: existing.id },
+      data: {
+        offerId: offer.id,
+        offerPriceId: price?.id ?? null,
+        planId: plan.id,
+        teamId,
+        purchasedSeats,
+        status: nextStatus,
+        billingPeriod,
+        currentPeriodEnd,
+        cancelledAt,
+      },
+      select: this.adminSelect,
+    });
+
+    return this.serialize(updated);
+  }
+
+  async remove(id: string) {
+    const existing = await this.prisma.subscription.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    if (!existing) {
+      throw new NotFoundException('Abonnement introuvable');
+    }
+
+    await this.prisma.subscription.delete({ where: { id } });
+    return { deleted: true, id };
   }
 
   private serialize(row: {
@@ -420,6 +556,7 @@ export class AdminSubscriptionsService {
     billingPeriod: BillingPeriod;
     currentPeriodEnd: Date | null;
     cancelledAt: Date | null;
+    purchasedSeats: number | null;
     createdAt: Date;
     updatedAt: Date;
     stripeSubscriptionId: string | null;
@@ -453,6 +590,7 @@ export class AdminSubscriptionsService {
       billingPeriod: row.billingPeriod,
       currentPeriodEnd: row.currentPeriodEnd,
       cancelledAt: row.cancelledAt,
+      purchasedSeats: row.purchasedSeats,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       paymentProvider: row.stripeSubscriptionId

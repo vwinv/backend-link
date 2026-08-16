@@ -16,6 +16,7 @@ const client_1 = require("@prisma/client");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const entitlements_types_1 = require("./entitlements.types");
 const free_offer_constants_1 = require("./free-offer.constants");
+const subscription_validity_1 = require("./subscription-validity");
 let EntitlementsService = class EntitlementsService {
     prisma;
     configService;
@@ -59,33 +60,44 @@ let EntitlementsService = class EntitlementsService {
                 select: { ownerId: true },
             });
             if (team) {
-                return this.getUserEntitlements(team.ownerId);
+                return this.requireTeamOffer(team.ownerId);
             }
+            return this.getFreeEntitlements();
+        }
+        if (card.kind === client_1.CardKind.PROFESSIONAL) {
+            return this.requireTeamOffer(userId);
         }
         return this.getUserEntitlements(userId);
+    }
+    async requireTeamOffer(userId) {
+        const entitlements = await this.getUserEntitlements(userId);
+        if (this.hasTeamAccess(entitlements)) {
+            return entitlements;
+        }
+        return this.getFreeEntitlements();
     }
     async assertCanCustomize(userId, cardId) {
         const entitlements = await this.getEntitlementsForCard(userId, cardId);
         if (!entitlements.canCustomize) {
-            throw new common_1.ForbiddenException('Les designs professionnels nécessitent une offre Premium');
+            throw new common_1.ForbiddenException('Les designs professionnels nécessitent une offre Premium adaptée à cette carte');
         }
     }
     async assertCanUseWallet(userId, cardId) {
         const entitlements = await this.getEntitlementsForCard(userId, cardId);
         if (!entitlements.hasWallet) {
-            throw new common_1.ForbiddenException('L’ajout au Wallet nécessite une offre Premium');
+            throw new common_1.ForbiddenException('L’ajout au Wallet nécessite une offre Premium adaptée à cette carte');
         }
     }
     async assertHasAnalytics(userId, cardId) {
         const entitlements = await this.getEntitlementsForCard(userId, cardId);
         if (!entitlements.hasAnalytics) {
-            throw new common_1.ForbiddenException('Les statistiques de consultation nécessitent une offre Premium');
+            throw new common_1.ForbiddenException('Les statistiques de cette carte nécessitent une offre Premium adaptée');
         }
     }
     async assertHasVisitorInsights(userId, cardId) {
         const entitlements = await this.getEntitlementsForCard(userId, cardId);
         if (!entitlements.hasVisitorInsights) {
-            throw new common_1.ForbiddenException('L’historique des visiteurs nécessite Premium Plus');
+            throw new common_1.ForbiddenException('L’historique des visiteurs de cette carte nécessite une offre Premium adaptée');
         }
     }
     async assertCanEditSocialLinks(userId, cardId) {
@@ -103,7 +115,7 @@ let EntitlementsService = class EntitlementsService {
     async assertHasTeamAccess(userId) {
         const entitlements = await this.getUserEntitlements(userId);
         if (!this.hasTeamAccess(entitlements)) {
-            throw new common_1.ForbiddenException('Un abonnement équipe actif est requis pour créer une équipe');
+            throw new common_1.ForbiddenException('Un abonnement équipe actif est requis');
         }
     }
     async getTeamSeatsQuota(userId, teamId) {
@@ -162,7 +174,7 @@ let EntitlementsService = class EntitlementsService {
                 isUnlimited: false,
             };
         }
-        const periodStart = this.getUsagePeriodStart(subscription);
+        const periodStart = this.getCurrentMonthStart();
         const used = await this.prisma.aiScanEvent.count({
             where: {
                 userId,
@@ -184,7 +196,7 @@ let EntitlementsService = class EntitlementsService {
             }
             throw new common_1.BadRequestException(quota.isUnlimited
                 ? 'Scan IA indisponible pour le moment'
-                : `Quota de ${quota.max} scans IA atteint pour cette période`);
+                : `Quota de ${quota.max} scans IA atteint pour ce mois`);
         }
         const event = await this.prisma.aiScanEvent.create({
             data: { userId },
@@ -226,22 +238,49 @@ let EntitlementsService = class EntitlementsService {
         }
         return quota;
     }
+    async assertCanShareCard(userId, cardId) {
+        const quota = await this.assertCanShare(userId);
+        const unlocked = await this.isOfferCardUnlocked(userId, cardId);
+        if (!unlocked) {
+            throw new common_1.ForbiddenException('Renouvelez votre abonnement pour partager cette carte');
+        }
+        return quota;
+    }
     hasTeamAccess(entitlements) {
         return (entitlements.audience === client_1.OfferAudience.TEAM &&
             entitlements.maxTeamMembers !== 0);
     }
+    async isTeamCardCoveredByValidOffer(card) {
+        if (card.kind !== client_1.CardKind.PROFESSIONAL &&
+            card.kind !== client_1.CardKind.MEMBER) {
+            return true;
+        }
+        if (!card.teamId) {
+            return false;
+        }
+        const team = await this.prisma.team.findFirst({
+            where: { id: card.teamId, isActive: true },
+            select: { ownerId: true },
+        });
+        if (!team) {
+            return false;
+        }
+        const entitlements = await this.getUserEntitlements(team.ownerId);
+        return this.hasTeamAccess(entitlements);
+    }
+    async isOfferCardUnlocked(userId, cardId) {
+        const card = await this.prisma.businessCard.findFirst({
+            where: { id: cardId, ownerId: userId, isActive: true },
+            select: { kind: true, teamId: true },
+        });
+        if (!card) {
+            throw new common_1.NotFoundException('Carte introuvable');
+        }
+        return this.isTeamCardCoveredByValidOffer(card);
+    }
     async findActiveSubscription(userId) {
         return this.prisma.subscription.findFirst({
-            where: {
-                userId,
-                status: {
-                    in: [
-                        client_1.SubscriptionStatus.TRIAL,
-                        client_1.SubscriptionStatus.ACTIVE,
-                        client_1.SubscriptionStatus.PAST_DUE,
-                    ],
-                },
-            },
+            where: (0, subscription_validity_1.validSubscriptionWhere)({ userId }),
             include: {
                 offer: true,
                 plan: true,
@@ -266,22 +305,9 @@ let EntitlementsService = class EntitlementsService {
             maxShares: offer.maxShares ?? -1,
         };
     }
-    getUsagePeriodStart(subscription) {
-        if (!subscription) {
-            const now = new Date();
-            return new Date(now.getFullYear(), now.getMonth(), 1);
-        }
-        if (subscription.currentPeriodEnd) {
-            const start = new Date(subscription.currentPeriodEnd);
-            if (subscription.billingPeriod === client_1.BillingPeriod.YEARLY) {
-                start.setFullYear(start.getFullYear() - 1);
-            }
-            else {
-                start.setMonth(start.getMonth() - 1);
-            }
-            return start;
-        }
-        return subscription.createdAt;
+    getCurrentMonthStart() {
+        const now = new Date();
+        return new Date(now.getFullYear(), now.getMonth(), 1);
     }
     async assertTeamAccess(userId, teamId) {
         const team = await this.prisma.team.findFirst({

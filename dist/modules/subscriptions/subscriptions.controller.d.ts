@@ -123,6 +123,9 @@ export declare class SubscriptionsController {
                 om_url?: string;
                 maxit_url?: string;
             } | undefined;
+            om_url: string | undefined;
+            maxit_url: string | undefined;
+            qr_image_base64: string | undefined;
             return_url: string | undefined;
             message: string | undefined;
             fees: number | undefined;
@@ -134,13 +137,8 @@ export declare class SubscriptionsController {
     }, invoiceToken: string): Promise<{
         paid: boolean;
         error: string;
+        subscription?: undefined;
         kind?: undefined;
-        subscription?: undefined;
-    } | {
-        paid: boolean;
-        kind: "already_paid";
-        error?: undefined;
-        subscription?: undefined;
     } | {
         paid: boolean;
         subscription: {
@@ -169,6 +167,11 @@ export declare class SubscriptionsController {
         };
         error?: undefined;
         kind?: undefined;
+    } | {
+        paid: boolean;
+        kind: "already_paid";
+        error?: undefined;
+        subscription?: undefined;
     } | {
         alreadyProcessed: true;
         purchasedSeats: number | null;

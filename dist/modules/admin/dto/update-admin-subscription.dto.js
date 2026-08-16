@@ -9,13 +9,12 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CreateAdminSubscriptionDto = void 0;
+exports.UpdateAdminSubscriptionDto = void 0;
 const swagger_1 = require("@nestjs/swagger");
 const client_1 = require("@prisma/client");
 const class_transformer_1 = require("class-transformer");
 const class_validator_1 = require("class-validator");
-class CreateAdminSubscriptionDto {
-    userId;
+class UpdateAdminSubscriptionDto {
     offerId;
     offerPriceId;
     status;
@@ -23,41 +22,33 @@ class CreateAdminSubscriptionDto {
     purchasedSeats;
     currentPeriodEnd;
 }
-exports.CreateAdminSubscriptionDto = CreateAdminSubscriptionDto;
+exports.UpdateAdminSubscriptionDto = UpdateAdminSubscriptionDto;
 __decorate([
-    (0, swagger_1.ApiProperty)({ description: 'ID du client (utilisateur app)' }),
-    (0, class_validator_1.IsString)(),
-    (0, class_validator_1.MinLength)(1),
-    __metadata("design:type", String)
-], CreateAdminSubscriptionDto.prototype, "userId", void 0);
-__decorate([
-    (0, swagger_1.ApiProperty)({ description: 'ID de l’offre' }),
-    (0, class_validator_1.IsString)(),
-    (0, class_validator_1.MinLength)(1),
-    __metadata("design:type", String)
-], CreateAdminSubscriptionDto.prototype, "offerId", void 0);
-__decorate([
-    (0, swagger_1.ApiPropertyOptional)({ description: 'ID du tarif (optionnel si l’offre n’en a pas)' }),
+    (0, swagger_1.ApiPropertyOptional)({ description: 'ID de l’offre' }),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.MinLength)(1),
     __metadata("design:type", String)
-], CreateAdminSubscriptionDto.prototype, "offerPriceId", void 0);
+], UpdateAdminSubscriptionDto.prototype, "offerId", void 0);
 __decorate([
-    (0, swagger_1.ApiPropertyOptional)({
-        enum: [client_1.SubscriptionStatus.ACTIVE, client_1.SubscriptionStatus.TRIAL],
-        default: client_1.SubscriptionStatus.ACTIVE,
-    }),
+    (0, swagger_1.ApiPropertyOptional)({ description: 'ID du tarif' }),
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsIn)([client_1.SubscriptionStatus.ACTIVE, client_1.SubscriptionStatus.TRIAL]),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(1),
     __metadata("design:type", String)
-], CreateAdminSubscriptionDto.prototype, "status", void 0);
+], UpdateAdminSubscriptionDto.prototype, "offerPriceId", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ enum: client_1.SubscriptionStatus }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsEnum)(client_1.SubscriptionStatus),
+    __metadata("design:type", String)
+], UpdateAdminSubscriptionDto.prototype, "status", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)({ description: 'ID d’équipe (offres pro)' }),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
-], CreateAdminSubscriptionDto.prototype, "teamId", void 0);
+], UpdateAdminSubscriptionDto.prototype, "teamId", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)({ description: 'Nombre de sièges (offres pro)' }),
     (0, class_validator_1.IsOptional)(),
@@ -65,13 +56,13 @@ __decorate([
     (0, class_validator_1.IsInt)(),
     (0, class_validator_1.Min)(1),
     __metadata("design:type", Number)
-], CreateAdminSubscriptionDto.prototype, "purchasedSeats", void 0);
+], UpdateAdminSubscriptionDto.prototype, "purchasedSeats", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)({
-        description: 'Fin de période (ISO). Calculée automatiquement si absente.',
+        description: 'Fin de période (ISO).',
     }),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsDateString)(),
     __metadata("design:type", String)
-], CreateAdminSubscriptionDto.prototype, "currentPeriodEnd", void 0);
-//# sourceMappingURL=create-admin-subscription.dto.js.map
+], UpdateAdminSubscriptionDto.prototype, "currentPeriodEnd", void 0);
+//# sourceMappingURL=update-admin-subscription.dto.js.map

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -9,6 +10,7 @@ import {
   ContactSource,
   ShareMethod,
   SocialPlatform,
+  TeamMemberRole,
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateCardDto } from './dto/create-card.dto';
@@ -19,6 +21,7 @@ import { normalizeCardThemeForStorage } from '../sharing/pro-design/card-theme.u
 import { DEFAULT_PRO_DESIGN_ID } from '../sharing/pro-design/pro-design-catalog';
 import { ContactsService } from '../contacts/contacts.service';
 import { EntitlementsService } from '../subscriptions/entitlements.service';
+import { UploadsService } from '../uploads/uploads.service';
 
 @Injectable()
 export class CardsService {
@@ -26,6 +29,7 @@ export class CardsService {
     private readonly prisma: PrismaService,
     private readonly contactsService: ContactsService,
     private readonly entitlementsService: EntitlementsService,
+    private readonly uploadsService: UploadsService,
   ) {}
 
   async create(userId: string, dto: CreateCardDto): Promise<BusinessCard> {
@@ -42,6 +46,10 @@ export class CardsService {
             : 'Vous avez déjà une carte professionnelle',
         );
       }
+    }
+
+    if (kind === CardKind.PROFESSIONAL) {
+      await this.entitlementsService.assertHasTeamAccess(userId);
     }
 
     if (
@@ -175,6 +183,10 @@ export class CardsService {
   ): Promise<BusinessCard> {
     const card = await this.findOne(userId, id);
 
+    if (dto.logoUrl !== undefined) {
+      await this.assertCanEditTeamLogo(userId, card);
+    }
+
     const updated = await this.prisma.businessCard.update({
       where: { id },
       data: {
@@ -221,9 +233,24 @@ export class CardsService {
       card.teamId &&
       dto.logoUrl !== undefined
     ) {
-      await this.syncTeamMemberCardsVisuals(card.teamId, {
-        logoUrl: updated.logoUrl,
+      await this.prisma.team.update({
+        where: { id: card.teamId },
+        data: { logoUrl: updated.logoUrl },
       });
+      await this.applyTeamLogoToCards(card.teamId, updated.logoUrl);
+    }
+
+    if (dto.avatarUrl !== undefined) {
+      await this.uploadsService.replaceImage(card.avatarUrl, updated.avatarUrl);
+    }
+    if (dto.coverImageUrl !== undefined) {
+      await this.uploadsService.replaceImage(
+        card.coverImageUrl,
+        updated.coverImageUrl,
+      );
+    }
+    if (dto.logoUrl !== undefined) {
+      await this.uploadsService.replaceImage(card.logoUrl, updated.logoUrl);
     }
 
     return updated;
@@ -261,6 +288,23 @@ export class CardsService {
     }
 
     return updated;
+  }
+
+  /**
+   * Applique le logo d’équipe sur toutes les cartes (pro + membres).
+   */
+  async applyTeamLogoToCards(
+    teamId: string,
+    logoUrl: string | null,
+  ): Promise<void> {
+    await this.prisma.businessCard.updateMany({
+      where: {
+        teamId,
+        isActive: true,
+        kind: { in: [CardKind.PROFESSIONAL, CardKind.MEMBER] },
+      },
+      data: { logoUrl },
+    });
   }
 
   /**
@@ -804,6 +848,42 @@ export class CardsService {
 
   private isTeamCardKind(kind: CardKind): boolean {
     return kind === CardKind.PROFESSIONAL || kind === CardKind.MEMBER;
+  }
+
+  private async assertCanEditTeamLogo(userId: string, card: BusinessCard) {
+    if (card.kind === CardKind.MEMBER) {
+      throw new ForbiddenException(
+        'Le logo d’équipe ne peut être modifié que par un administrateur',
+      );
+    }
+
+    if (card.kind !== CardKind.PROFESSIONAL || !card.teamId) {
+      throw new BadRequestException(
+        'Le logo d’équipe n’est disponible que sur la carte professionnelle',
+      );
+    }
+
+    const team = await this.prisma.team.findFirst({
+      where: { id: card.teamId, isActive: true },
+      select: { ownerId: true },
+    });
+    if (!team) {
+      throw new BadRequestException('Équipe introuvable');
+    }
+    if (team.ownerId === userId) return;
+
+    const membership = await this.prisma.teamMember.findUnique({
+      where: { teamId_userId: { teamId: card.teamId, userId } },
+      select: { role: true },
+    });
+    if (
+      membership?.role !== TeamMemberRole.ADMIN &&
+      membership?.role !== TeamMemberRole.OWNER
+    ) {
+      throw new ForbiddenException(
+        'Le logo d’équipe ne peut être modifié que par un administrateur',
+      );
+    }
   }
 
   private optionalString(value?: string | null): string | null {

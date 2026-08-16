@@ -106,7 +106,7 @@ let SharingService = class SharingService {
         if (!card) {
             throw new common_1.NotFoundException('Carte introuvable');
         }
-        await this.entitlementsService.assertCanShare(userId);
+        await this.entitlementsService.assertCanShareCard(userId, card.id);
         const event = await this.prisma.shareEvent.create({
             data: {
                 cardId: card.id,
@@ -274,10 +274,12 @@ let SharingService = class SharingService {
         return 'https://ui-avatars.com/api/?name=DropOne&size=128&background=1B4DFF&color=ffffff&bold=true&format=png';
     }
     getOgImageUrl(card, fullName) {
-        if (card.avatarUrl?.trim())
-            return card.avatarUrl.trim();
-        if (card.coverImageUrl?.trim())
-            return card.coverImageUrl.trim();
+        const avatar = card.avatarUrl?.trim();
+        if (avatar)
+            return this.resolvePublicAssetUrl(avatar);
+        const cover = card.coverImageUrl?.trim();
+        if (cover)
+            return this.resolvePublicAssetUrl(cover);
         const name = encodeURIComponent(fullName);
         return `https://ui-avatars.com/api/?name=${name}&size=1200&background=1B4DFF&color=ffffff&bold=true&format=png`;
     }

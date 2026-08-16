@@ -35,7 +35,7 @@ export class OfferEntitlementsDto {
 
   @ApiProperty({
     example: -1,
-    description: 'Quota de scans IA (-1 = illimité, 0 = aucun)',
+    description: 'Quota de scans IA par mois calendaire (-1 = illimité, 0 = aucun)',
   })
   maxAiScans: number;
 

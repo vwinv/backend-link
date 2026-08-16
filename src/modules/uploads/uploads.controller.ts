@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   Post,
   UploadedFile,
@@ -7,36 +8,24 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { diskStorage } from 'multer';
-import { join } from 'node:path';
+import { memoryStorage } from 'multer';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { buildUploadFilename, isAcceptedImageUpload } from './upload.utils';
+import { isAcceptedImageUpload } from './upload.utils';
 import { UploadsService } from './uploads.service';
-
-const uploadsDir = join(process.cwd(), 'uploads');
 
 @ApiTags('Uploads')
 @Controller('uploads')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class UploadsController {
-  constructor(private readonly uploadsService: UploadsService) { }
+  constructor(private readonly uploadsService: UploadsService) {}
 
   @Post('image')
   @ApiOperation({ summary: 'Uploader une image (logo équipe, avatar, etc.)' })
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: uploadsDir,
-        filename: (
-          _req: Express.Request,
-          file: Express.Multer.File,
-          callback: (error: Error | null, filename: string) => void,
-        ) => {
-          callback(null, buildUploadFilename(file.originalname));
-        },
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: 5 * 1024 * 1024 },
       fileFilter: (
         _req: Express.Request,
@@ -51,10 +40,10 @@ export class UploadsController {
       },
     }),
   )
-  uploadImage(@UploadedFile() file: Express.Multer.File) {
-    return {
-      url: this.uploadsService.buildPublicUrl(file.filename),
-      filename: file.filename,
-    };
+  async uploadImage(@UploadedFile() file: Express.Multer.File) {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException('Fichier image requis');
+    }
+    return this.uploadsService.uploadImage(file);
   }
 }

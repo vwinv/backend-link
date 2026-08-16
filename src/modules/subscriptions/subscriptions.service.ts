@@ -26,6 +26,7 @@ import { SubscribeDto } from './dto/subscribe.dto';
 import { StripeService } from './stripe.service';
 import { InvoicesService } from './invoices.service';
 import type { InvoiceLine } from './invoices.service';
+import { validSubscriptionWhere } from './subscription-validity';
 
 type ActivateSubscriptionInput = {
   userId: string;
@@ -168,6 +169,31 @@ export class SubscriptionsService {
       },
     });
 
+    await this.prisma.paymentInvoice.create({
+      data: {
+        number: this.generateInvoiceNumber(),
+        userId,
+        teamId: dto.teamId?.trim() || null,
+        amount,
+        currency: 'FCFA',
+        status: InvoiceStatus.PENDING,
+        description: `${offer.title} - ${billingLabel}${seatsLabel}`,
+        offerSlug: offer.slug,
+        billingType: effectiveBillingType,
+        seats: seats ?? null,
+        provider: 'paydunya',
+        providerInvoiceId: inv.invoiceToken,
+        lines: [
+          {
+            kind: 'offer',
+            label: `Offre : ${offer.title}`,
+            amount,
+            seats: seats ?? null,
+          },
+        ] as unknown as Prisma.InputJsonValue,
+      },
+    });
+
     return {
       checkoutUrl: inv.checkoutUrl,
       invoiceToken: inv.invoiceToken,
@@ -263,6 +289,9 @@ export class SubscriptionsService {
       softPay: {
         url: soft.url,
         other_url: soft.other_url,
+        om_url: soft.other_url?.om_url,
+        maxit_url: soft.other_url?.maxit_url,
+        qr_image_base64: soft.qrImageBase64,
         return_url: soft.return_url,
         message: soft.message,
         fees: soft.fees,
@@ -281,6 +310,18 @@ export class SubscriptionsService {
       where: { providerInvoiceId: token },
     });
     if (existingPaid?.status === InvoiceStatus.PAID) {
+      if (existingPaid.subscriptionId) {
+        const paidSub = await this.prisma.subscription.findFirst({
+          where: { id: existingPaid.subscriptionId, userId },
+          include: { plan: true, offer: true, offerPrice: true },
+        });
+        if (paidSub) {
+          return {
+            paid: true,
+            subscription: this.toSubscriptionResponse(paidSub),
+          };
+        }
+      }
       return { paid: true, kind: 'already_paid' as const };
     }
 
@@ -300,13 +341,30 @@ export class SubscriptionsService {
       return { paid: false, error: 'confirm_failed' };
     }
     if (!this.paydunyaService.verifyIpnHash(confirmed.hash)) {
-      return { paid: false, error: 'invalid_hash' };
+      this.logger.warn(
+        `PayDunya confirm: hash IPN invalide (on continue, l’API confirm est authentifiée) token=${token.slice(0, 8)}…`,
+      );
     }
     if (confirmed.status !== 'completed') {
       return { paid: false, error: `status_${confirmed.status}` };
     }
 
-    const custom = confirmed.customData;
+    const pending = await this.prisma.paymentInvoice.findUnique({
+      where: { providerInvoiceId: confirmed.invoiceToken },
+    });
+    const custom: Record<string, unknown> = {
+      ...(pending
+        ? {
+            kind: 'subscription',
+            userId: pending.userId,
+            offerSlug: pending.offerSlug ?? '',
+            billingType: pending.billingType ?? '',
+            teamId: pending.teamId ?? '',
+            seats: pending.seats != null ? String(pending.seats) : '',
+          }
+        : {}),
+      ...confirmed.customData,
+    };
     const kind = String(custom['kind'] ?? '').toLowerCase();
 
     if (kind === 'seat_upgrade') {
@@ -368,27 +426,49 @@ export class SubscriptionsService {
       );
     const paid = Math.round(confirmed.totalAmount);
     if (Math.abs(paid - expected) > 1) {
+      this.logger.warn(
+        `PayDunya confirm: écart montant payé=${paid} attendu=${expected}`,
+      );
       return { paid: false, error: 'amount_mismatch' };
     }
 
-    const subscription = await this.activateSubscription({
-      userId,
-      offerSlug: offer.slug,
-      billingType: effectiveBillingType,
-      teamId: String(custom['teamId'] ?? '').trim() || null,
-      offerPriceId: price.id,
-      purchasedSeats,
-      paydunyaInvoiceToken: confirmed.invoiceToken,
-      currentPeriodEnd: this.computePeriodEnd(effectiveBillingType),
-      invoiceAmount: paid,
-      invoiceCurrency: 'FCFA',
-      invoiceProvider: 'paydunya',
-    });
+    try {
+      const subscription = await this.activateSubscription({
+        userId,
+        offerSlug: offer.slug,
+        billingType: effectiveBillingType,
+        teamId: String(custom['teamId'] ?? '').trim() || null,
+        offerPriceId: price.id,
+        purchasedSeats,
+        paydunyaInvoiceToken: confirmed.invoiceToken,
+        currentPeriodEnd: this.computePeriodEnd(effectiveBillingType),
+        invoiceAmount: paid,
+        invoiceCurrency: 'FCFA',
+        invoiceProvider: 'paydunya',
+      });
 
-    return {
-      paid: true,
-      subscription: this.toSubscriptionResponse(subscription),
-    };
+      return {
+        paid: true,
+        subscription: this.toSubscriptionResponse(subscription),
+      };
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        const existingAfterRace = await this.prisma.subscription.findFirst({
+          where: { paydunyaInvoiceToken: confirmed.invoiceToken, userId },
+          include: { plan: true, offer: true, offerPrice: true },
+        });
+        if (existingAfterRace) {
+          return {
+            paid: true,
+            subscription: this.toSubscriptionResponse(existingAfterRace),
+          };
+        }
+      }
+      throw error;
+    }
   }
 
   async createSeatUpgradeCheckout(
@@ -405,16 +485,9 @@ export class SubscriptionsService {
     }
 
     const subscription = await this.prisma.subscription.findFirst({
-      where: {
+      where: validSubscriptionWhere({
         OR: [{ teamId: input.teamId }, { userId }],
-        status: {
-          in: [
-            SubscriptionStatus.ACTIVE,
-            SubscriptionStatus.TRIAL,
-            SubscriptionStatus.PAST_DUE,
-          ],
-        },
-      },
+      }),
       include: { offer: true, offerPrice: true },
       orderBy: { createdAt: 'desc' },
     });
@@ -805,87 +878,42 @@ export class SubscriptionsService {
 
   async handlePaydunyaIpn(body: Record<string, unknown>) {
     const parsed = this.normalizePaydunyaIpnPayload(body);
-    if (!parsed) {
-      this.logger.warn('IPN PayDunya: payload non reconnu');
+    const invoiceToken =
+      parsed?.invoiceToken || this.extractPaydunyaInvoiceToken(body);
+
+    if (!invoiceToken) {
+      this.logger.warn('IPN PayDunya: payload sans token facture');
       return { ok: false as const, error: 'invalid_payload' };
     }
 
-    if (!this.paydunyaService.verifyIpnHash(parsed.hash)) {
+    if (parsed?.hash && !this.paydunyaService.verifyIpnHash(parsed.hash)) {
       this.logger.warn('IPN PayDunya: hash refusé');
       throw new ForbiddenException('Notification PayDunya non authentifiée');
     }
 
-    if (parsed.status.toLowerCase() !== 'completed') {
-      return {
-        ok: true as const,
-        ignored: true as const,
-        status: parsed.status,
-      };
-    }
-
-    if (parsed.kind === 'seat_upgrade') {
-      const result = await this.applySeatUpgradePayment({
-        userId: parsed.userId,
-        invoiceToken: parsed.invoiceToken,
-        subscriptionId: parsed.subscriptionId!,
-        additionalSeats: parsed.additionalSeats!,
-        paidAmount: Math.round(parsed.totalAmount),
-      });
-      return { ok: true as const, seatUpgrade: true as const, ...result };
-    }
-
-    if (parsed.kind === 'invoice_pay') {
-      const result = await this.applyPendingInvoicePayment({
-        userId: parsed.userId,
-        invoiceToken: parsed.invoiceToken,
-        paymentInvoiceId: parsed.paymentInvoiceId!,
-        paidAmount: Math.round(parsed.totalAmount),
-      });
-      return { ok: true as const, invoicePay: true as const, ...result };
-    }
-
-    const existing = await this.prisma.subscription.findFirst({
-      where: { paydunyaInvoiceToken: parsed.invoiceToken },
+    const pending = await this.prisma.paymentInvoice.findUnique({
+      where: { providerInvoiceId: invoiceToken },
     });
-    if (existing) {
-      return { ok: true as const, alreadyProcessed: true as const };
-    }
-
-    const { offer, price, billingMultiplier, effectiveBillingType } =
-      await this.resolveOfferPrice(parsed.offerSlug, parsed.billingType);
-    const { amount: expected, seats: purchasedSeats } =
-      this.resolveCheckoutPricing(
-        offer,
-        price,
-        parsed.seats ?? undefined,
-        billingMultiplier,
-      );
-    const paid = Math.round(parsed.totalAmount);
-    if (Math.abs(paid - expected) > 1) {
+    const userId = parsed?.userId || pending?.userId;
+    if (!userId) {
       this.logger.warn(
-        `IPN PayDunya: écart montant payé=${paid} attendu=${expected}`,
+        `IPN PayDunya: userId introuvable token=${invoiceToken.slice(0, 8)}…`,
       );
-      return { ok: false as const, error: 'amount_mismatch' };
+      return { ok: false as const, error: 'missing_user' };
     }
 
-    await this.activateSubscription({
-      userId: parsed.userId,
-      offerSlug: offer.slug,
-      billingType: effectiveBillingType,
-      teamId: parsed.teamId,
-      offerPriceId: price.id,
-      purchasedSeats,
-      paydunyaInvoiceToken: parsed.invoiceToken,
-      currentPeriodEnd: this.computePeriodEnd(effectiveBillingType),
-      invoiceAmount: paid,
-      invoiceCurrency: 'FCFA',
-      invoiceProvider: 'paydunya',
-    });
+    const result = await this.confirmPaydunyaPayment(userId, invoiceToken);
+    if (result.paid) {
+      this.logger.log(
+        `IPN PayDunya abonnement activé userId=${userId} token=${invoiceToken.slice(0, 8)}…`,
+      );
+      return { ok: true as const, ...result };
+    }
 
-    this.logger.log(
-      `IPN PayDunya abonnement activé userId=${parsed.userId} offer=${offer.slug}`,
+    this.logger.warn(
+      `IPN PayDunya: paiement non activé userId=${userId} error=${'error' in result ? result.error : 'unknown'}`,
     );
-    return { ok: true as const };
+    return { ok: false as const, ...result };
   }
 
   async subscribe(userId: string, dto: SubscribeDto) {
@@ -1051,7 +1079,7 @@ export class SubscriptionsService {
     paymentInvoiceId: string | null;
   } | null {
     let root: Record<string, unknown> = body;
-    const dataRaw = body?.data ?? body;
+    const dataRaw = body?.data ?? body['payload'] ?? body;
 
     if (typeof dataRaw === 'string') {
       try {
@@ -1136,6 +1164,43 @@ export class SubscriptionsService {
       subscriptionId,
       paymentInvoiceId,
     };
+  }
+
+  private extractPaydunyaInvoiceToken(
+    body: Record<string, unknown>,
+  ): string | null {
+    const fromInvoice = (value: unknown): string => {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        return '';
+      }
+      const token = (value as Record<string, unknown>).token;
+      return token == null ? '' : String(token).trim();
+    };
+
+    const direct =
+      String(body['token'] ?? body['invoice_token'] ?? '').trim() ||
+      fromInvoice(body['invoice']);
+    if (direct) return direct;
+
+    const dataRaw = body['data'];
+    if (typeof dataRaw === 'string') {
+      try {
+        const parsed = JSON.parse(dataRaw) as unknown;
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          return this.extractPaydunyaInvoiceToken(
+            parsed as Record<string, unknown>,
+          );
+        }
+      } catch {
+        return null;
+      }
+    }
+    if (dataRaw && typeof dataRaw === 'object' && !Array.isArray(dataRaw)) {
+      return this.extractPaydunyaInvoiceToken(
+        dataRaw as Record<string, unknown>,
+      );
+    }
+    return null;
   }
 
   private parseSeats(raw: unknown): number | null {
@@ -1317,7 +1382,27 @@ export class SubscriptionsService {
         const existingInvoice = await this.prisma.paymentInvoice.findUnique({
           where: { providerInvoiceId },
         });
-        if (!existingInvoice) {
+        if (existingInvoice) {
+          if (existingInvoice.status !== InvoiceStatus.PAID) {
+            await this.prisma.paymentInvoice.update({
+              where: { id: existingInvoice.id },
+              data: {
+                status: InvoiceStatus.PAID,
+                subscriptionId: subscription.id,
+                teamId,
+                amount,
+                currency: input.invoiceCurrency ?? price.currency ?? 'FCFA',
+                description,
+                offerSlug: offer.slug,
+                billingType: price.billingType,
+                seats: input.purchasedSeats ?? null,
+                lines: lines as unknown as Prisma.InputJsonValue,
+                provider: input.invoiceProvider ?? existingInvoice.provider,
+                paidAt: new Date(),
+              },
+            });
+          }
+        } else {
           await this.prisma.paymentInvoice.create({
             data: {
               number: this.generateInvoiceNumber(),
@@ -1617,16 +1702,7 @@ export class SubscriptionsService {
 
   private async findActiveSubscription(userId: string) {
     return this.prisma.subscription.findFirst({
-      where: {
-        userId,
-        status: {
-          in: [
-            SubscriptionStatus.TRIAL,
-            SubscriptionStatus.ACTIVE,
-            SubscriptionStatus.PAST_DUE,
-          ],
-        },
-      },
+      where: validSubscriptionWhere({ userId }),
       include: { plan: true, offer: true, offerPrice: true },
       orderBy: { createdAt: 'desc' },
     });

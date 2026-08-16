@@ -14,7 +14,7 @@ export class ScansController {
   constructor(private readonly scansService: ScansService) {}
 
   @Get('quota')
-  @ApiOperation({ summary: 'Quota de scans IA pour la période en cours' })
+  @ApiOperation({ summary: 'Quota de scans IA pour le mois calendaire en cours' })
   @ApiResponse({ status: 200, type: AiScanQuotaDto })
   getQuota(@CurrentUser() user: { userId: string }) {
     return this.scansService.getQuota(user.userId);

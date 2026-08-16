@@ -1,9 +1,9 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { SubscriptionStatus } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
   IsDateString,
-  IsIn,
+  IsEnum,
   IsInt,
   IsOptional,
   IsString,
@@ -11,29 +11,22 @@ import {
   MinLength,
 } from 'class-validator';
 
-export class CreateAdminSubscriptionDto {
-  @ApiProperty({ description: 'ID du client (utilisateur app)' })
+export class UpdateAdminSubscriptionDto {
+  @ApiPropertyOptional({ description: 'ID de l’offre' })
+  @IsOptional()
   @IsString()
   @MinLength(1)
-  userId!: string;
+  offerId?: string;
 
-  @ApiProperty({ description: 'ID de l’offre' })
-  @IsString()
-  @MinLength(1)
-  offerId!: string;
-
-  @ApiPropertyOptional({ description: 'ID du tarif (optionnel si l’offre n’en a pas)' })
+  @ApiPropertyOptional({ description: 'ID du tarif' })
   @IsOptional()
   @IsString()
   @MinLength(1)
   offerPriceId?: string;
 
-  @ApiPropertyOptional({
-    enum: [SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIAL],
-    default: SubscriptionStatus.ACTIVE,
-  })
+  @ApiPropertyOptional({ enum: SubscriptionStatus })
   @IsOptional()
-  @IsIn([SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIAL])
+  @IsEnum(SubscriptionStatus)
   status?: SubscriptionStatus;
 
   @ApiPropertyOptional({ description: 'ID d’équipe (offres pro)' })
@@ -49,7 +42,7 @@ export class CreateAdminSubscriptionDto {
   purchasedSeats?: number;
 
   @ApiPropertyOptional({
-    description: 'Fin de période (ISO). Calculée automatiquement si absente.',
+    description: 'Fin de période (ISO).',
   })
   @IsOptional()
   @IsDateString()

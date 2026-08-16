@@ -13,12 +13,13 @@ const contacts_module_1 = require("../contacts/contacts.module");
 const subscriptions_module_1 = require("../subscriptions/subscriptions.module");
 const cards_controller_1 = require("./cards.controller");
 const cards_service_1 = require("./cards.service");
+const uploads_module_1 = require("../uploads/uploads.module");
 let CardsModule = class CardsModule {
 };
 exports.CardsModule = CardsModule;
 exports.CardsModule = CardsModule = __decorate([
     (0, common_1.Module)({
-        imports: [auth_module_1.AuthModule, contacts_module_1.ContactsModule, subscriptions_module_1.SubscriptionsModule],
+        imports: [auth_module_1.AuthModule, contacts_module_1.ContactsModule, subscriptions_module_1.SubscriptionsModule, uploads_module_1.UploadsModule],
         controllers: [cards_controller_1.CardsController],
         providers: [cards_service_1.CardsService],
         exports: [cards_service_1.CardsService],

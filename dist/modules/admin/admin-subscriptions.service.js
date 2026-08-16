@@ -18,6 +18,58 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
     constructor(prisma) {
         this.prisma = prisma;
     }
+    adminSelect = {
+        id: true,
+        status: true,
+        billingPeriod: true,
+        currentPeriodEnd: true,
+        cancelledAt: true,
+        purchasedSeats: true,
+        createdAt: true,
+        updatedAt: true,
+        stripeSubscriptionId: true,
+        paydunyaInvoiceToken: true,
+        user: {
+            select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+                avatarUrl: true,
+            },
+        },
+        team: {
+            select: {
+                id: true,
+                name: true,
+                slug: true,
+            },
+        },
+        offer: {
+            select: {
+                id: true,
+                title: true,
+                slug: true,
+                audience: true,
+            },
+        },
+        offerPrice: {
+            select: {
+                id: true,
+                billingType: true,
+                priceAmount: true,
+                currency: true,
+                priceLabel: true,
+            },
+        },
+        plan: {
+            select: {
+                id: true,
+                name: true,
+                slug: true,
+            },
+        },
+    };
     async getStats() {
         const now = new Date();
         const last30Days = new Date(now);
@@ -139,57 +191,7 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
                 skip,
                 take: limit,
                 orderBy: { createdAt: 'desc' },
-                select: {
-                    id: true,
-                    status: true,
-                    billingPeriod: true,
-                    currentPeriodEnd: true,
-                    cancelledAt: true,
-                    createdAt: true,
-                    updatedAt: true,
-                    stripeSubscriptionId: true,
-                    paydunyaInvoiceToken: true,
-                    user: {
-                        select: {
-                            id: true,
-                            email: true,
-                            firstName: true,
-                            lastName: true,
-                            avatarUrl: true,
-                        },
-                    },
-                    team: {
-                        select: {
-                            id: true,
-                            name: true,
-                            slug: true,
-                        },
-                    },
-                    offer: {
-                        select: {
-                            id: true,
-                            title: true,
-                            slug: true,
-                            audience: true,
-                        },
-                    },
-                    offerPrice: {
-                        select: {
-                            id: true,
-                            billingType: true,
-                            priceAmount: true,
-                            currency: true,
-                            priceLabel: true,
-                        },
-                    },
-                    plan: {
-                        select: {
-                            id: true,
-                            name: true,
-                            slug: true,
-                        },
-                    },
-                },
+                select: this.adminSelect,
             }),
         ]);
         return {
@@ -214,8 +216,7 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
                 minSeats: true,
                 listedInApp: true,
                 prices: {
-                    where: { isActive: true },
-                    orderBy: { sortOrder: 'asc' },
+                    orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
                     select: {
                         id: true,
                         billingType: true,
@@ -223,6 +224,7 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
                         pricePerSeat: true,
                         currency: true,
                         priceLabel: true,
+                        isActive: true,
                     },
                 },
             },
@@ -236,6 +238,7 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
                 pricePerSeat: price.pricePerSeat == null ? null : Number(price.pricePerSeat),
                 currency: price.currency,
                 label: price.priceLabel,
+                isActive: price.isActive,
             })),
         }));
     }
@@ -253,15 +256,21 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
         const offer = await this.prisma.premiumOffer.findUnique({
             where: { id: dto.offerId },
             include: {
-                prices: { where: { isActive: true } },
+                prices: { orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] },
             },
         });
         if (!offer || !offer.isActive) {
             throw new common_1.BadRequestException('Offre introuvable ou inactive');
         }
-        const price = offer.prices.find((item) => item.id === dto.offerPriceId);
-        if (!price) {
+        const price = (dto.offerPriceId
+            ? offer.prices.find((item) => item.id === dto.offerPriceId)
+            : offer.prices.find((item) => item.isActive) ?? offer.prices[0]) ??
+            null;
+        if (dto.offerPriceId && !price) {
             throw new common_1.BadRequestException('Tarif introuvable pour cette offre');
+        }
+        if (!price && offer.prices.length > 0) {
+            throw new common_1.BadRequestException('Choisissez un tarif pour cette offre');
         }
         let teamId = dto.teamId?.trim() || null;
         if (offer.audience === client_1.OfferAudience.TEAM) {
@@ -291,10 +300,11 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
             ? Math.max(minSeats, dto.purchasedSeats ?? minSeats)
             : null;
         const plan = await this.ensurePremiumPlan(offer.audience);
-        const billingPeriod = this.mapBillingPeriod(price.billingType);
+        const billingType = price?.billingType ?? client_1.OfferBillingType.MONTHLY;
+        const billingPeriod = this.mapBillingPeriod(billingType);
         const currentPeriodEnd = dto.currentPeriodEnd
             ? new Date(dto.currentPeriodEnd)
-            : this.computePeriodEnd(price.billingType);
+            : this.computePeriodEnd(billingType);
         if (Number.isNaN(currentPeriodEnd.getTime())) {
             throw new common_1.BadRequestException('Date de fin invalide');
         }
@@ -320,65 +330,169 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
                 teamId,
                 planId: plan.id,
                 offerId: offer.id,
-                offerPriceId: price.id,
+                offerPriceId: price?.id ?? null,
                 purchasedSeats,
                 status: dto.status ?? client_1.SubscriptionStatus.ACTIVE,
                 billingPeriod,
                 currentPeriodEnd,
             },
-            select: {
-                id: true,
-                status: true,
-                billingPeriod: true,
-                currentPeriodEnd: true,
-                cancelledAt: true,
-                createdAt: true,
-                updatedAt: true,
-                stripeSubscriptionId: true,
-                paydunyaInvoiceToken: true,
-                user: {
-                    select: {
-                        id: true,
-                        email: true,
-                        firstName: true,
-                        lastName: true,
-                        avatarUrl: true,
-                    },
-                },
-                team: {
-                    select: {
-                        id: true,
-                        name: true,
-                        slug: true,
-                    },
-                },
-                offer: {
-                    select: {
-                        id: true,
-                        title: true,
-                        slug: true,
-                        audience: true,
-                    },
-                },
-                offerPrice: {
-                    select: {
-                        id: true,
-                        billingType: true,
-                        priceAmount: true,
-                        currency: true,
-                        priceLabel: true,
-                    },
-                },
-                plan: {
-                    select: {
-                        id: true,
-                        name: true,
-                        slug: true,
-                    },
-                },
-            },
+            select: this.adminSelect,
         });
         return this.serialize(created);
+    }
+    async findOne(id) {
+        const row = await this.prisma.subscription.findUnique({
+            where: { id },
+            select: this.adminSelect,
+        });
+        if (!row) {
+            throw new common_1.NotFoundException('Abonnement introuvable');
+        }
+        return this.serialize(row);
+    }
+    async update(id, dto) {
+        const existing = await this.prisma.subscription.findUnique({
+            where: { id },
+            select: {
+                id: true,
+                userId: true,
+                teamId: true,
+                offerId: true,
+                offerPriceId: true,
+                status: true,
+                billingPeriod: true,
+                purchasedSeats: true,
+                currentPeriodEnd: true,
+                cancelledAt: true,
+            },
+        });
+        if (!existing) {
+            throw new common_1.NotFoundException('Abonnement introuvable');
+        }
+        if (!existing.userId) {
+            throw new common_1.BadRequestException('Cet abonnement n’est lié à aucun client');
+        }
+        const offerId = dto.offerId?.trim() || existing.offerId;
+        if (!offerId) {
+            throw new common_1.BadRequestException('Offre requise');
+        }
+        const offer = await this.prisma.premiumOffer.findUnique({
+            where: { id: offerId },
+            include: {
+                prices: { orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] },
+            },
+        });
+        if (!offer) {
+            throw new common_1.BadRequestException('Offre introuvable');
+        }
+        if (!offer.isActive &&
+            dto.offerId &&
+            dto.offerId !== existing.offerId) {
+            throw new common_1.BadRequestException('Cette offre est inactive');
+        }
+        const requestedPriceId = dto.offerPriceId?.trim() || existing.offerPriceId;
+        const price = offer.prices.find((item) => item.id === requestedPriceId) ??
+            offer.prices.find((item) => item.isActive) ??
+            offer.prices[0] ??
+            null;
+        if (dto.offerPriceId && !price) {
+            throw new common_1.BadRequestException('Tarif introuvable pour cette offre');
+        }
+        let teamId = dto.teamId !== undefined ? dto.teamId.trim() || null : existing.teamId;
+        if (offer.audience === client_1.OfferAudience.TEAM) {
+            if (teamId) {
+                const team = await this.prisma.team.findFirst({
+                    where: { id: teamId, isActive: true },
+                    select: { id: true },
+                });
+                if (!team) {
+                    throw new common_1.BadRequestException('Équipe introuvable');
+                }
+            }
+            else {
+                const ownedTeam = await this.prisma.team.findFirst({
+                    where: { ownerId: existing.userId, isActive: true },
+                    select: { id: true },
+                    orderBy: { createdAt: 'asc' },
+                });
+                teamId = ownedTeam?.id ?? null;
+            }
+        }
+        else {
+            teamId = null;
+        }
+        const minSeats = Math.max(1, offer.minSeats ?? 1);
+        const purchasedSeats = offer.audience === client_1.OfferAudience.TEAM
+            ? Math.max(minSeats, dto.purchasedSeats ?? existing.purchasedSeats ?? minSeats)
+            : null;
+        const plan = await this.ensurePremiumPlan(offer.audience);
+        const billingPeriod = price
+            ? this.mapBillingPeriod(price.billingType)
+            : existing.billingPeriod;
+        const currentPeriodEnd = dto.currentPeriodEnd !== undefined
+            ? new Date(dto.currentPeriodEnd)
+            : existing.currentPeriodEnd;
+        if (currentPeriodEnd && Number.isNaN(currentPeriodEnd.getTime())) {
+            throw new common_1.BadRequestException('Date de fin invalide');
+        }
+        const nextStatus = dto.status ?? existing.status;
+        const becomingActive = [
+            client_1.SubscriptionStatus.ACTIVE,
+            client_1.SubscriptionStatus.TRIAL,
+            client_1.SubscriptionStatus.PAST_DUE,
+        ].includes(nextStatus);
+        const cancelledAt = becomingActive
+            ? null
+            : nextStatus === client_1.SubscriptionStatus.CANCELLED ||
+                nextStatus === client_1.SubscriptionStatus.EXPIRED
+                ? existing.cancelledAt ?? new Date()
+                : existing.cancelledAt;
+        if (becomingActive) {
+            await this.prisma.subscription.updateMany({
+                where: {
+                    userId: existing.userId,
+                    id: { not: existing.id },
+                    status: {
+                        in: [
+                            client_1.SubscriptionStatus.TRIAL,
+                            client_1.SubscriptionStatus.ACTIVE,
+                            client_1.SubscriptionStatus.PAST_DUE,
+                        ],
+                    },
+                },
+                data: {
+                    status: client_1.SubscriptionStatus.CANCELLED,
+                    cancelledAt: new Date(),
+                },
+            });
+        }
+        const updated = await this.prisma.subscription.update({
+            where: { id: existing.id },
+            data: {
+                offerId: offer.id,
+                offerPriceId: price?.id ?? null,
+                planId: plan.id,
+                teamId,
+                purchasedSeats,
+                status: nextStatus,
+                billingPeriod,
+                currentPeriodEnd,
+                cancelledAt,
+            },
+            select: this.adminSelect,
+        });
+        return this.serialize(updated);
+    }
+    async remove(id) {
+        const existing = await this.prisma.subscription.findUnique({
+            where: { id },
+            select: { id: true },
+        });
+        if (!existing) {
+            throw new common_1.NotFoundException('Abonnement introuvable');
+        }
+        await this.prisma.subscription.delete({ where: { id } });
+        return { deleted: true, id };
     }
     serialize(row) {
         return {
@@ -387,6 +501,7 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
             billingPeriod: row.billingPeriod,
             currentPeriodEnd: row.currentPeriodEnd,
             cancelledAt: row.cancelledAt,
+            purchasedSeats: row.purchasedSeats,
             createdAt: row.createdAt,
             updatedAt: row.updatedAt,
             paymentProvider: row.stripeSubscriptionId

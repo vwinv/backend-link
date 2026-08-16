@@ -6,6 +6,7 @@ export type PaydunyaSoftPayResponse = {
         om_url?: string;
         maxit_url?: string;
     };
+    qrImageBase64?: string;
     fees?: number;
     currency?: string;
     data?: unknown;

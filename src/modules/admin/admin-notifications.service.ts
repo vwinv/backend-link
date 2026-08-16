@@ -8,19 +8,13 @@ import {
   NotificationAudience,
   NotificationCampaignStatus,
   Prisma,
-  SubscriptionStatus,
   UserRole,
 } from '@prisma/client';
 import { FcmPushService } from '../notifications/fcm-push.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AdminNotificationsQueryDto } from './dto/admin-notifications-query.dto';
 import { CreateNotificationCampaignDto } from './dto/create-notification-campaign.dto';
-
-const PREMIUM_STATUSES: SubscriptionStatus[] = [
-  SubscriptionStatus.TRIAL,
-  SubscriptionStatus.ACTIVE,
-  SubscriptionStatus.PAST_DUE,
-];
+import { validSubscriptionWhere } from '../subscriptions/subscription-validity';
 
 @Injectable()
 export class AdminNotificationsService {
@@ -295,10 +289,7 @@ export class AdminNotificationsService {
         where: {
           ...baseWhere,
           subscriptions: {
-            some: {
-              status: { in: PREMIUM_STATUSES },
-              offerId: { not: null },
-            },
+            some: validSubscriptionWhere({ offerId: { not: null } }),
           },
         },
         select: { id: true },
@@ -311,10 +302,7 @@ export class AdminNotificationsService {
         where: {
           ...baseWhere,
           subscriptions: {
-            none: {
-              status: { in: PREMIUM_STATUSES },
-              offerId: { not: null },
-            },
+            none: validSubscriptionWhere({ offerId: { not: null } }),
           },
         },
         select: { id: true },

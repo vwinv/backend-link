@@ -17,21 +17,19 @@ const common_1 = require("@nestjs/common");
 const platform_express_1 = require("@nestjs/platform-express");
 const swagger_1 = require("@nestjs/swagger");
 const multer_1 = require("multer");
-const node_path_1 = require("node:path");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const upload_utils_1 = require("./upload.utils");
 const uploads_service_1 = require("./uploads.service");
-const uploadsDir = (0, node_path_1.join)(process.cwd(), 'uploads');
 let UploadsController = class UploadsController {
     uploadsService;
     constructor(uploadsService) {
         this.uploadsService = uploadsService;
     }
-    uploadImage(file) {
-        return {
-            url: this.uploadsService.buildPublicUrl(file.filename),
-            filename: file.filename,
-        };
+    async uploadImage(file) {
+        if (!file?.buffer?.length) {
+            throw new common_1.BadRequestException('Fichier image requis');
+        }
+        return this.uploadsService.uploadImage(file);
     }
 };
 exports.UploadsController = UploadsController;
@@ -40,12 +38,7 @@ __decorate([
     (0, swagger_1.ApiOperation)({ summary: 'Uploader une image (logo équipe, avatar, etc.)' }),
     (0, swagger_1.ApiConsumes)('multipart/form-data'),
     (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file', {
-        storage: (0, multer_1.diskStorage)({
-            destination: uploadsDir,
-            filename: (_req, file, callback) => {
-                callback(null, (0, upload_utils_1.buildUploadFilename)(file.originalname));
-            },
-        }),
+        storage: (0, multer_1.memoryStorage)(),
         limits: { fileSize: 5 * 1024 * 1024 },
         fileFilter: (_req, file, callback) => {
             if (!(0, upload_utils_1.isAcceptedImageUpload)(file)) {
@@ -58,7 +51,7 @@ __decorate([
     __param(0, (0, common_1.UploadedFile)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:returntype", Promise)
 ], UploadsController.prototype, "uploadImage", null);
 exports.UploadsController = UploadsController = __decorate([
     (0, swagger_1.ApiTags)('Uploads'),

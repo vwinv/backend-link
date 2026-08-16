@@ -15,11 +15,7 @@ const common_1 = require("@nestjs/common");
 const client_1 = require("@prisma/client");
 const fcm_push_service_1 = require("../notifications/fcm-push.service");
 const prisma_service_1 = require("../../prisma/prisma.service");
-const PREMIUM_STATUSES = [
-    client_1.SubscriptionStatus.TRIAL,
-    client_1.SubscriptionStatus.ACTIVE,
-    client_1.SubscriptionStatus.PAST_DUE,
-];
+const subscription_validity_1 = require("../subscriptions/subscription-validity");
 let AdminNotificationsService = AdminNotificationsService_1 = class AdminNotificationsService {
     prisma;
     fcmPushService;
@@ -252,10 +248,7 @@ let AdminNotificationsService = AdminNotificationsService_1 = class AdminNotific
                 where: {
                     ...baseWhere,
                     subscriptions: {
-                        some: {
-                            status: { in: PREMIUM_STATUSES },
-                            offerId: { not: null },
-                        },
+                        some: (0, subscription_validity_1.validSubscriptionWhere)({ offerId: { not: null } }),
                     },
                 },
                 select: { id: true },
@@ -267,10 +260,7 @@ let AdminNotificationsService = AdminNotificationsService_1 = class AdminNotific
                 where: {
                     ...baseWhere,
                     subscriptions: {
-                        none: {
-                            status: { in: PREMIUM_STATUSES },
-                            offerId: { not: null },
-                        },
+                        none: (0, subscription_validity_1.validSubscriptionWhere)({ offerId: { not: null } }),
                     },
                 },
                 select: { id: true },

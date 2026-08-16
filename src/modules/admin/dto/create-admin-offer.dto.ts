@@ -155,7 +155,7 @@ export class CreateAdminOfferDto {
   @IsBoolean()
   hasSocialLinks?: boolean;
 
-  @ApiPropertyOptional({ description: '-1 = illimité' })
+  @ApiPropertyOptional({ description: 'Quota par mois calendaire. -1 = illimité' })
   @IsOptional()
   @Type(() => Number)
   @IsInt()

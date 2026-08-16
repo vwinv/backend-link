@@ -58,6 +58,12 @@ declare const _default: () => {
         apiBaseUrl: string;
         storeName: string;
     };
+    cloudinary: {
+        cloudName: string;
+        apiKey: string;
+        apiSecret: string;
+        folder: string;
+    };
     freeMaxShares: number;
     landingPublicUrl: string;
     mobile: {

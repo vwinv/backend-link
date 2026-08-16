@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import {
   InvoiceStatus,
@@ -9,6 +9,7 @@ import {
 } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
+import { LIVE_SUBSCRIPTION_STATUSES } from './subscription-validity';
 
 /** Génère la facture de renouvellement à J-10 de l’échéance. */
 const UPCOMING_INVOICE_WINDOW_DAYS = 10;
@@ -21,10 +22,17 @@ export type InvoiceLine = {
 };
 
 @Injectable()
-export class InvoicesService {
+export class InvoicesService implements OnModuleInit {
   private readonly logger = new Logger(InvoicesService.name);
 
   constructor(private readonly prisma: PrismaService) {}
+
+  async onModuleInit() {
+    const expired = await this.expireOverdueSubscriptions();
+    if (expired > 0) {
+      this.logger.log(`Abonnements expirés au démarrage : ${expired}`);
+    }
+  }
 
   @Cron(CronExpression.EVERY_DAY_AT_2AM)
   async generateDueUpcomingInvoicesCron() {
@@ -32,6 +40,25 @@ export class InvoicesService {
     if (created > 0) {
       this.logger.log(`Factures à venir générées : ${created}`);
     }
+  }
+
+  @Cron(CronExpression.EVERY_HOUR)
+  async expireOverdueSubscriptionsCron() {
+    const expired = await this.expireOverdueSubscriptions();
+    if (expired > 0) {
+      this.logger.log(`Abonnements marqués expirés : ${expired}`);
+    }
+  }
+
+  async expireOverdueSubscriptions(): Promise<number> {
+    const result = await this.prisma.subscription.updateMany({
+      where: {
+        status: { in: LIVE_SUBSCRIPTION_STATUSES },
+        currentPeriodEnd: { lte: new Date() },
+      },
+      data: { status: SubscriptionStatus.EXPIRED },
+    });
+    return result.count;
   }
 
   async generateDueUpcomingInvoices(): Promise<number> {

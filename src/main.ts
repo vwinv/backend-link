@@ -40,7 +40,7 @@ async function bootstrap() {
   const authService = app.get(AuthService);
   const jwtService = app.get(JwtService);
   const expressApp = app.getHttpAdapter().getInstance() as import('express').Express;
-  expressApp.use(urlencoded({ extended: false }));
+  expressApp.use(urlencoded({ extended: true }));
 
   const resolveViewerUserId = (req: Request): string | undefined => {
     const authorization = req.headers.authorization;

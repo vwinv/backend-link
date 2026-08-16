@@ -66,7 +66,7 @@ __decorate([
 __decorate([
     (0, swagger_1.ApiProperty)({
         example: -1,
-        description: 'Quota de scans IA (-1 = illimité, 0 = aucun)',
+        description: 'Quota de scans IA par mois calendaire (-1 = illimité, 0 = aucun)',
     }),
     __metadata("design:type", Number)
 ], OfferEntitlementsDto.prototype, "maxAiScans", void 0);

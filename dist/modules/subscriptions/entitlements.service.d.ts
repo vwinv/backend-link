@@ -1,4 +1,5 @@
 import { ConfigService } from '@nestjs/config';
+import { CardKind } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AiScanQuota, ShareQuota, TeamSeatsQuota, UserEntitlements } from './entitlements.types';
 export declare class EntitlementsService {
@@ -9,6 +10,7 @@ export declare class EntitlementsService {
     getUserEntitlements(userId: string): Promise<UserEntitlements>;
     private getFreeEntitlements;
     getEntitlementsForCard(userId: string, cardId: string): Promise<UserEntitlements>;
+    private requireTeamOffer;
     assertCanCustomize(userId: string, cardId: string): Promise<void>;
     assertCanUseWallet(userId: string, cardId: string): Promise<void>;
     assertHasAnalytics(userId: string, cardId: string): Promise<void>;
@@ -25,10 +27,16 @@ export declare class EntitlementsService {
     }>;
     getShareQuota(userId: string): Promise<ShareQuota>;
     assertCanShare(userId: string): Promise<ShareQuota>;
-    private hasTeamAccess;
+    assertCanShareCard(userId: string, cardId: string): Promise<ShareQuota>;
+    hasTeamAccess(entitlements: UserEntitlements): boolean;
+    isTeamCardCoveredByValidOffer(card: {
+        kind: CardKind;
+        teamId: string | null;
+    }): Promise<boolean>;
+    isOfferCardUnlocked(userId: string, cardId: string): Promise<boolean>;
     private findActiveSubscription;
     private mapOfferToEntitlements;
-    private getUsagePeriodStart;
+    private getCurrentMonthStart;
     private assertTeamAccess;
     private assertOwnerOrAdmin;
 }

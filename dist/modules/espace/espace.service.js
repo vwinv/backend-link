@@ -18,6 +18,7 @@ const config_1 = require("@nestjs/config");
 const common_1 = require("@nestjs/common");
 const client_1 = require("@prisma/client");
 const prisma_service_1 = require("../../prisma/prisma.service");
+const subscription_validity_1 = require("../subscriptions/subscription-validity");
 let EspaceService = class EspaceService {
     prisma;
     teamsService;
@@ -70,10 +71,9 @@ let EspaceService = class EspaceService {
         const { team, role } = await this.resolveManagedTeam(userId, slug);
         const seats = await this.entitlementsService.getTeamSeatsQuota(team.ownerId, team.id);
         const subscription = await this.prisma.subscription.findFirst({
-            where: {
+            where: (0, subscription_validity_1.validSubscriptionWhere)({
                 OR: [{ teamId: team.id }, { userId: team.ownerId }],
-                status: { in: ['ACTIVE', 'TRIAL', 'PAST_DUE'] },
-            },
+            }),
             include: {
                 offer: { select: { title: true, slug: true, audience: true } },
                 offerPrice: {
@@ -191,10 +191,9 @@ let EspaceService = class EspaceService {
         const { team } = await this.resolveManagedTeam(userId, slug);
         const membersPayload = await this.teamsService.getMembers(userId, team.id);
         const subscription = await this.prisma.subscription.findFirst({
-            where: {
+            where: (0, subscription_validity_1.validSubscriptionWhere)({
                 OR: [{ teamId: team.id }, { userId: team.ownerId }],
-                status: { in: ['ACTIVE', 'TRIAL', 'PAST_DUE'] },
-            },
+            }),
             include: {
                 offer: {
                     select: {

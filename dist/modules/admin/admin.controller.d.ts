@@ -11,6 +11,7 @@ import { AdminClientsQueryDto } from './dto/admin-clients-query.dto';
 import { AdminNotificationsQueryDto } from './dto/admin-notifications-query.dto';
 import { AdminSubscriptionsQueryDto } from './dto/admin-subscriptions-query.dto';
 import { CreateAdminSubscriptionDto } from './dto/create-admin-subscription.dto';
+import { UpdateAdminSubscriptionDto } from './dto/update-admin-subscription.dto';
 import { AdminSupportTicketsQueryDto } from './dto/admin-support-tickets-query.dto';
 import { AdminUsersQueryDto } from './dto/admin-users-query.dto';
 import { CreateAdminOfferDto, CreateAdminOfferPriceDto } from './dto/create-admin-offer.dto';
@@ -108,8 +109,8 @@ export declare class AdminController {
     }>;
     listPermissions(): {
         modules: {
-            key: "subscriptions" | "notifications" | "roles" | "dashboard" | "backoffice_users" | "clients" | "support";
-            label: "Notifications" | "Tableau de bord" | "Utilisateurs backoffice" | "Rôles & permissions" | "Clients" | "Abonnements & offres" | "Support";
+            key: "subscriptions" | "notifications" | "dashboard" | "backoffice_users" | "roles" | "clients" | "support";
+            label: "Tableau de bord" | "Utilisateurs backoffice" | "Rôles & permissions" | "Clients" | "Abonnements & offres" | "Notifications" | "Support";
             permissions: ({
                 readonly key: "dashboard.view";
                 readonly module: "dashboard";
@@ -174,12 +175,12 @@ export declare class AdminController {
                 readonly key: "subscriptions.update";
                 readonly module: "subscriptions";
                 readonly action: "update";
-                readonly label: "Modifier les offres et tarifs";
+                readonly label: "Modifier une offre, un tarif ou un abonnement";
             } | {
                 readonly key: "subscriptions.delete";
                 readonly module: "subscriptions";
                 readonly action: "delete";
-                readonly label: "Supprimer une offre / un tarif";
+                readonly label: "Supprimer une offre, un tarif ou un abonnement";
             } | {
                 readonly key: "notifications.view";
                 readonly module: "notifications";
@@ -311,9 +312,9 @@ export declare class AdminController {
             lastName: string;
             isActive: boolean;
             createdAt: Date;
-            jobTitle: string | null;
             slug: string;
             kind: import("@prisma/client").$Enums.CardKind;
+            jobTitle: string | null;
             company: string | null;
             isPublic: boolean;
         }[];
@@ -326,20 +327,20 @@ export declare class AdminController {
             offer: {
                 id: string;
                 title: string;
-                audience: import("@prisma/client").$Enums.OfferAudience;
                 slug: string;
+                audience: import("@prisma/client").$Enums.OfferAudience;
             } | null;
             plan: {
                 id: string;
-                name: string;
                 slug: string;
+                name: string;
             };
         }[];
         teams: {
             id: string;
-            name: string;
             isActive: boolean;
             slug: string;
+            name: string;
             role: import("@prisma/client").$Enums.TeamMemberRole;
         }[];
         ownedTeams: {
@@ -449,11 +450,12 @@ export declare class AdminController {
             pricePerSeat: number | null;
             currency: string;
             label: string | null;
+            isActive: boolean;
         }[];
         id: string;
         title: string;
-        audience: import("@prisma/client").$Enums.OfferAudience;
         slug: string;
+        audience: import("@prisma/client").$Enums.OfferAudience;
         minSeats: number;
         listedInApp: boolean;
     }[]>;
@@ -464,6 +466,7 @@ export declare class AdminController {
             billingPeriod: import("@prisma/client").$Enums.BillingPeriod;
             currentPeriodEnd: Date | null;
             cancelledAt: Date | null;
+            purchasedSeats: number | null;
             createdAt: Date;
             updatedAt: Date;
             paymentProvider: string | null;
@@ -512,6 +515,7 @@ export declare class AdminController {
         billingPeriod: import("@prisma/client").$Enums.BillingPeriod;
         currentPeriodEnd: Date | null;
         cancelledAt: Date | null;
+        purchasedSeats: number | null;
         createdAt: Date;
         updatedAt: Date;
         paymentProvider: string | null;
@@ -546,6 +550,94 @@ export declare class AdminController {
             currency: string;
             label: string | null;
         } | null;
+    }>;
+    getSubscription(id: string): Promise<{
+        id: string;
+        status: import("@prisma/client").$Enums.SubscriptionStatus;
+        billingPeriod: import("@prisma/client").$Enums.BillingPeriod;
+        currentPeriodEnd: Date | null;
+        cancelledAt: Date | null;
+        purchasedSeats: number | null;
+        createdAt: Date;
+        updatedAt: Date;
+        paymentProvider: string | null;
+        user: {
+            id: string;
+            email: string;
+            firstName: string;
+            lastName: string;
+            avatarUrl: string | null;
+            fullName: string;
+        } | null;
+        team: {
+            id: string;
+            name: string;
+            slug: string;
+        } | null;
+        offer: {
+            id: string;
+            title: string;
+            slug: string;
+            audience: import("@prisma/client").OfferAudience;
+        } | null;
+        plan: {
+            id: string;
+            name: string;
+            slug: string;
+        } | null;
+        price: {
+            id: string;
+            billingType: import("@prisma/client").$Enums.OfferBillingType;
+            amount: number;
+            currency: string;
+            label: string | null;
+        } | null;
+    }>;
+    updateSubscription(id: string, dto: UpdateAdminSubscriptionDto): Promise<{
+        id: string;
+        status: import("@prisma/client").$Enums.SubscriptionStatus;
+        billingPeriod: import("@prisma/client").$Enums.BillingPeriod;
+        currentPeriodEnd: Date | null;
+        cancelledAt: Date | null;
+        purchasedSeats: number | null;
+        createdAt: Date;
+        updatedAt: Date;
+        paymentProvider: string | null;
+        user: {
+            id: string;
+            email: string;
+            firstName: string;
+            lastName: string;
+            avatarUrl: string | null;
+            fullName: string;
+        } | null;
+        team: {
+            id: string;
+            name: string;
+            slug: string;
+        } | null;
+        offer: {
+            id: string;
+            title: string;
+            slug: string;
+            audience: import("@prisma/client").OfferAudience;
+        } | null;
+        plan: {
+            id: string;
+            name: string;
+            slug: string;
+        } | null;
+        price: {
+            id: string;
+            billingType: import("@prisma/client").$Enums.OfferBillingType;
+            amount: number;
+            currency: string;
+            label: string | null;
+        } | null;
+    }>;
+    deleteSubscription(id: string): Promise<{
+        deleted: boolean;
+        id: string;
     }>;
     listOffersAdmin(): Promise<{
         id: string;

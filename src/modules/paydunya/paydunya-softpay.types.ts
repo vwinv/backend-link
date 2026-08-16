@@ -7,6 +7,8 @@ export type PaydunyaSoftPayResponse = {
   message?: string;
   url?: string;
   other_url?: { om_url?: string; maxit_url?: string };
+  /** PNG du QR Orange Money (base64, extrait de `url` / `data[qrcode]`). */
+  qrImageBase64?: string;
   fees?: number;
   currency?: string;
   data?: unknown;

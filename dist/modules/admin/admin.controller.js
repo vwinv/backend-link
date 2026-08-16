@@ -32,6 +32,7 @@ const admin_clients_query_dto_1 = require("./dto/admin-clients-query.dto");
 const admin_notifications_query_dto_1 = require("./dto/admin-notifications-query.dto");
 const admin_subscriptions_query_dto_1 = require("./dto/admin-subscriptions-query.dto");
 const create_admin_subscription_dto_1 = require("./dto/create-admin-subscription.dto");
+const update_admin_subscription_dto_1 = require("./dto/update-admin-subscription.dto");
 const admin_support_tickets_query_dto_1 = require("./dto/admin-support-tickets-query.dto");
 const admin_users_query_dto_1 = require("./dto/admin-users-query.dto");
 const create_admin_offer_dto_1 = require("./dto/create-admin-offer.dto");
@@ -103,6 +104,15 @@ let AdminController = class AdminController {
     }
     createSubscription(dto) {
         return this.subscriptionsService.create(dto);
+    }
+    getSubscription(id) {
+        return this.subscriptionsService.findOne(id);
+    }
+    updateSubscription(id, dto) {
+        return this.subscriptionsService.update(id, dto);
+    }
+    deleteSubscription(id) {
+        return this.subscriptionsService.remove(id);
     }
     listOffersAdmin() {
         return this.offersService.list();
@@ -289,6 +299,34 @@ __decorate([
     __metadata("design:paramtypes", [create_admin_subscription_dto_1.CreateAdminSubscriptionDto]),
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "createSubscription", null);
+__decorate([
+    (0, common_1.Get)('subscriptions/:id'),
+    (0, permissions_decorator_1.RequirePermissions)('subscriptions.view'),
+    (0, swagger_1.ApiOperation)({ summary: 'Détail d’un abonnement' }),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "getSubscription", null);
+__decorate([
+    (0, common_1.Patch)('subscriptions/:id'),
+    (0, permissions_decorator_1.RequirePermissions)('subscriptions.update'),
+    (0, swagger_1.ApiOperation)({ summary: 'Modifier un abonnement' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, update_admin_subscription_dto_1.UpdateAdminSubscriptionDto]),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "updateSubscription", null);
+__decorate([
+    (0, common_1.Delete)('subscriptions/:id'),
+    (0, permissions_decorator_1.RequirePermissions)('subscriptions.delete'),
+    (0, swagger_1.ApiOperation)({ summary: 'Supprimer un abonnement' }),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "deleteSubscription", null);
 __decorate([
     (0, common_1.Get)('offers'),
     (0, permissions_decorator_1.RequirePermissions)('subscriptions.view'),

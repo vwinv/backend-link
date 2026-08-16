@@ -13,6 +13,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CardsService } from '../cards/cards.service';
 import { MailService } from '../mail/mail.service';
 import { EntitlementsService } from '../subscriptions/entitlements.service';
+import { UploadsService } from '../uploads/uploads.service';
 import {
   buildTeamInviteLandingPage,
   buildTeamInviteNotFoundPage,
@@ -30,6 +31,7 @@ export class TeamsService {
     private readonly mailService: MailService,
     private readonly cardsService: CardsService,
     private readonly configService: ConfigService,
+    private readonly uploadsService: UploadsService,
   ) {}
 
   private get appPublicUrl(): string {
@@ -57,7 +59,8 @@ export class TeamsService {
       where: { ownerId: userId, isActive: true },
     });
     if (existingOwnedTeam) {
-      return this.prisma.team.update({
+      const previousLogoUrl = existingOwnedTeam.logoUrl;
+      const updated = await this.prisma.team.update({
         where: { id: existingOwnedTeam.id },
         data: {
           name: dto.name.trim(),
@@ -72,6 +75,14 @@ export class TeamsService {
           }),
         },
       });
+      if (dto.logoUrl !== undefined) {
+        await this.cardsService.applyTeamLogoToCards(
+          updated.id,
+          updated.logoUrl,
+        );
+        await this.uploadsService.replaceImage(previousLogoUrl, updated.logoUrl);
+      }
+      return updated;
     }
 
     const slug = await this.generateUniqueSlug(dto.name);
@@ -162,9 +173,10 @@ export class TeamsService {
   }
 
   async update(userId: string, id: string, dto: UpdateTeamDto) {
-    await this.assertOwner(userId, id);
+    await this.assertOwnerOrAdmin(userId, id);
+    const current = await this.prisma.team.findUnique({ where: { id } });
 
-    return this.prisma.team.update({
+    const updated = await this.prisma.team.update({
       where: { id },
       data: {
         ...(dto.name !== undefined && { name: dto.name.trim() }),
@@ -179,6 +191,13 @@ export class TeamsService {
         }),
       },
     });
+
+    if (dto.logoUrl !== undefined) {
+      await this.cardsService.applyTeamLogoToCards(id, updated.logoUrl);
+      await this.uploadsService.replaceImage(current?.logoUrl, updated.logoUrl);
+    }
+
+    return updated;
   }
 
   async remove(userId: string, id: string) {

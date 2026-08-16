@@ -6,60 +6,155 @@ export declare class PaydunyaWebhookController {
     handle(body: Record<string, unknown>): Promise<{
         ok: false;
         error: string;
-        ignored?: undefined;
-        status?: undefined;
-        alreadyProcessed?: undefined;
     } | {
+        paid: boolean;
+        error: string;
+        subscription?: undefined;
+        kind?: undefined;
         ok: true;
-        ignored: true;
-        status: string;
+    } | {
+        paid: boolean;
+        subscription: {
+            id: string;
+            status: import("@prisma/client").$Enums.SubscriptionStatus;
+            billingPeriod: import("@prisma/client").$Enums.BillingPeriod;
+            planName: string;
+            planSlug: string;
+            offerTitle: string;
+            offerSlug: string;
+            billingType: import("@prisma/client").$Enums.OfferBillingType | null;
+            entitlements: {
+                audience: import("@prisma/client").$Enums.OfferAudience;
+                canCustomize: boolean;
+                maxTeamMembers: number;
+                hasPortfolio: boolean;
+                hasWallet: boolean;
+                hasAnalytics: boolean;
+                hasVisitorInsights: boolean;
+                hasSocialLinks: boolean;
+                maxAiScans: number;
+                maxShares: number;
+            };
+            purchasedSeats: number | null;
+            currentPeriodEnd: string | null;
+        };
         error?: undefined;
-        alreadyProcessed?: undefined;
+        kind?: undefined;
+        ok: true;
+    } | {
+        paid: boolean;
+        kind: "already_paid";
+        error?: undefined;
+        subscription?: undefined;
+        ok: true;
     } | {
         alreadyProcessed: true;
         purchasedSeats: number | null;
         invoiceId: string;
-        ok: true;
-        seatUpgrade: true;
+        paid: boolean;
+        kind: "seat_upgrade";
         error?: undefined;
-        ignored?: undefined;
-        status?: undefined;
+        subscription?: undefined;
+        ok: true;
     } | {
         alreadyProcessed: false;
         purchasedSeats: number | null;
         invoiceId: string;
-        ok: true;
-        seatUpgrade: true;
+        paid: boolean;
+        kind: "seat_upgrade";
         error?: undefined;
-        ignored?: undefined;
-        status?: undefined;
+        subscription?: undefined;
+        ok: true;
     } | {
         alreadyProcessed: true;
         paymentInvoiceId: string;
-        ok: true;
-        invoicePay: true;
+        paid: boolean;
+        kind: "invoice_pay";
         error?: undefined;
-        ignored?: undefined;
-        status?: undefined;
+        subscription?: undefined;
+        ok: true;
     } | {
         alreadyProcessed: false;
         paymentInvoiceId: string;
-        ok: true;
-        invoicePay: true;
+        paid: boolean;
+        kind: "invoice_pay";
         error?: undefined;
-        ignored?: undefined;
-        status?: undefined;
-    } | {
+        subscription?: undefined;
         ok: true;
+    } | {
+        paid: boolean;
+        error: string;
+        subscription?: undefined;
+        kind?: undefined;
+        ok: false;
+    } | {
+        paid: boolean;
+        subscription: {
+            id: string;
+            status: import("@prisma/client").$Enums.SubscriptionStatus;
+            billingPeriod: import("@prisma/client").$Enums.BillingPeriod;
+            planName: string;
+            planSlug: string;
+            offerTitle: string;
+            offerSlug: string;
+            billingType: import("@prisma/client").$Enums.OfferBillingType | null;
+            entitlements: {
+                audience: import("@prisma/client").$Enums.OfferAudience;
+                canCustomize: boolean;
+                maxTeamMembers: number;
+                hasPortfolio: boolean;
+                hasWallet: boolean;
+                hasAnalytics: boolean;
+                hasVisitorInsights: boolean;
+                hasSocialLinks: boolean;
+                maxAiScans: number;
+                maxShares: number;
+            };
+            purchasedSeats: number | null;
+            currentPeriodEnd: string | null;
+        };
+        error?: undefined;
+        kind?: undefined;
+        ok: false;
+    } | {
+        paid: boolean;
+        kind: "already_paid";
+        error?: undefined;
+        subscription?: undefined;
+        ok: false;
+    } | {
         alreadyProcessed: true;
+        purchasedSeats: number | null;
+        invoiceId: string;
+        paid: boolean;
+        kind: "seat_upgrade";
         error?: undefined;
-        ignored?: undefined;
-        status?: undefined;
+        subscription?: undefined;
+        ok: false;
     } | {
-        ok: true;
+        alreadyProcessed: false;
+        purchasedSeats: number | null;
+        invoiceId: string;
+        paid: boolean;
+        kind: "seat_upgrade";
         error?: undefined;
-        ignored?: undefined;
-        status?: undefined;
-        alreadyProcessed?: undefined;
+        subscription?: undefined;
+        ok: false;
+    } | {
+        alreadyProcessed: true;
+        paymentInvoiceId: string;
+        paid: boolean;
+        kind: "invoice_pay";
+        error?: undefined;
+        subscription?: undefined;
+        ok: false;
+    } | {
+        alreadyProcessed: false;
+        paymentInvoiceId: string;
+        paid: boolean;
+        kind: "invoice_pay";
+        error?: undefined;
+        subscription?: undefined;
+        ok: false;
     }>;
 }

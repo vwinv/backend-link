@@ -6,31 +6,33 @@ import { UpdateCardDto } from './dto/update-card.dto';
 import { UpdateCardThemeDto } from './dto/update-card-theme.dto';
 import { ContactsService } from '../contacts/contacts.service';
 import { EntitlementsService } from '../subscriptions/entitlements.service';
+import { UploadsService } from '../uploads/uploads.service';
 export declare class CardsService {
     private readonly prisma;
     private readonly contactsService;
     private readonly entitlementsService;
-    constructor(prisma: PrismaService, contactsService: ContactsService, entitlementsService: EntitlementsService);
+    private readonly uploadsService;
+    constructor(prisma: PrismaService, contactsService: ContactsService, entitlementsService: EntitlementsService, uploadsService: UploadsService);
     create(userId: string, dto: CreateCardDto): Promise<BusinessCard>;
     findAll(userId: string): Promise<{
         id: string;
-        email: string | null;
-        firstName: string;
-        lastName: string;
-        phone: string | null;
-        avatarUrl: string | null;
-        isActive: boolean;
         createdAt: Date;
-        updatedAt: Date;
-        jobTitle: string | null;
         teamId: string | null;
+        updatedAt: Date;
         slug: string;
+        isActive: boolean;
         ownerId: string;
         kind: import("@prisma/client").$Enums.CardKind;
+        firstName: string;
+        lastName: string;
+        jobTitle: string | null;
         company: string | null;
         bio: string | null;
+        email: string | null;
+        phone: string | null;
         address: string | null;
         website: string | null;
+        avatarUrl: string | null;
         coverImageUrl: string | null;
         logoUrl: string | null;
         theme: import("@prisma/client/runtime/client").JsonValue;
@@ -39,6 +41,7 @@ export declare class CardsService {
     findOne(userId: string, id: string): Promise<BusinessCard>;
     update(userId: string, id: string, dto: UpdateCardDto): Promise<BusinessCard>;
     updateTheme(userId: string, id: string, dto: UpdateCardThemeDto): Promise<BusinessCard>;
+    applyTeamLogoToCards(teamId: string, logoUrl: string | null): Promise<void>;
     private syncTeamMemberCardsVisuals;
     remove(id: string): {
         message: string;
@@ -47,20 +50,20 @@ export declare class CardsService {
     syncSocialLinks(userId: string, cardId: string, links: SocialLinkItemDto[]): Promise<{
         id: string;
         createdAt: Date;
-        label: string | null;
+        cardId: string;
         platform: import("@prisma/client").$Enums.SocialPlatform;
+        label: string | null;
         url: string;
         order: number;
-        cardId: string;
     }[]>;
     getSocialLinks(userId: string, cardId: string): Promise<{
         id: string;
         createdAt: Date;
-        label: string | null;
+        cardId: string;
         platform: import("@prisma/client").$Enums.SocialPlatform;
+        label: string | null;
         url: string;
         order: number;
-        cardId: string;
     }[]>;
     addSocialLink(id: string): {
         message: string;
@@ -153,6 +156,7 @@ export declare class CardsService {
         createdAt: string;
     }[]>;
     private isTeamCardKind;
+    private assertCanEditTeamLogo;
     private optionalString;
     private normalizeWebsiteUrl;
     private generateUniqueSlug;

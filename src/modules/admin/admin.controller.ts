@@ -32,6 +32,7 @@ import { AdminClientsQueryDto } from './dto/admin-clients-query.dto';
 import { AdminNotificationsQueryDto } from './dto/admin-notifications-query.dto';
 import { AdminSubscriptionsQueryDto } from './dto/admin-subscriptions-query.dto';
 import { CreateAdminSubscriptionDto } from './dto/create-admin-subscription.dto';
+import { UpdateAdminSubscriptionDto } from './dto/update-admin-subscription.dto';
 import { AdminSupportTicketsQueryDto } from './dto/admin-support-tickets-query.dto';
 import { AdminUsersQueryDto } from './dto/admin-users-query.dto';
 import {
@@ -165,6 +166,30 @@ export class AdminController {
   @ApiOperation({ summary: 'Créer / attribuer un abonnement à un client' })
   createSubscription(@Body() dto: CreateAdminSubscriptionDto) {
     return this.subscriptionsService.create(dto);
+  }
+
+  @Get('subscriptions/:id')
+  @RequirePermissions('subscriptions.view')
+  @ApiOperation({ summary: 'Détail d’un abonnement' })
+  getSubscription(@Param('id') id: string) {
+    return this.subscriptionsService.findOne(id);
+  }
+
+  @Patch('subscriptions/:id')
+  @RequirePermissions('subscriptions.update')
+  @ApiOperation({ summary: 'Modifier un abonnement' })
+  updateSubscription(
+    @Param('id') id: string,
+    @Body() dto: UpdateAdminSubscriptionDto,
+  ) {
+    return this.subscriptionsService.update(id, dto);
+  }
+
+  @Delete('subscriptions/:id')
+  @RequirePermissions('subscriptions.delete')
+  @ApiOperation({ summary: 'Supprimer un abonnement' })
+  deleteSubscription(@Param('id') id: string) {
+    return this.subscriptionsService.remove(id);
   }
 
   @Get('offers')

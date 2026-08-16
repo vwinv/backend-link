@@ -71,6 +71,12 @@ exports.default = () => ({
         apiBaseUrl: process.env.PAYDUNYA_API_BASE_URL ?? 'https://app.paydunya.com',
         storeName: process.env.PAYDUNYA_STORE_NAME ?? 'Drop One',
     },
+    cloudinary: {
+        cloudName: process.env.CLOUDINARY_CLOUD_NAME ?? '',
+        apiKey: process.env.CLOUDINARY_API_KEY ?? '',
+        apiSecret: process.env.CLOUDINARY_API_SECRET ?? '',
+        folder: process.env.CLOUDINARY_FOLDER ?? 'dropone',
+    },
     freeMaxShares: Number(process.env.FREE_MAX_SHARES ?? 10),
     landingPublicUrl: process.env.APP_LANDING_URL ??
         (process.env.NODE_ENV === 'production'

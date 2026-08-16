@@ -17,14 +17,17 @@ const card_theme_util_1 = require("../sharing/pro-design/card-theme.util");
 const pro_design_catalog_1 = require("../sharing/pro-design/pro-design-catalog");
 const contacts_service_1 = require("../contacts/contacts.service");
 const entitlements_service_1 = require("../subscriptions/entitlements.service");
+const uploads_service_1 = require("../uploads/uploads.service");
 let CardsService = class CardsService {
     prisma;
     contactsService;
     entitlementsService;
-    constructor(prisma, contactsService, entitlementsService) {
+    uploadsService;
+    constructor(prisma, contactsService, entitlementsService, uploadsService) {
         this.prisma = prisma;
         this.contactsService = contactsService;
         this.entitlementsService = entitlementsService;
+        this.uploadsService = uploadsService;
     }
     async create(userId, dto) {
         const kind = dto.kind ?? client_1.CardKind.PERSONAL;
@@ -37,6 +40,9 @@ let CardsService = class CardsService {
                     ? 'Vous avez déjà une carte personnelle'
                     : 'Vous avez déjà une carte professionnelle');
             }
+        }
+        if (kind === client_1.CardKind.PROFESSIONAL) {
+            await this.entitlementsService.assertHasTeamAccess(userId);
         }
         if ((kind === client_1.CardKind.PROFESSIONAL || kind === client_1.CardKind.MEMBER) &&
             !dto.teamId) {
@@ -136,6 +142,9 @@ let CardsService = class CardsService {
     }
     async update(userId, id, dto) {
         const card = await this.findOne(userId, id);
+        if (dto.logoUrl !== undefined) {
+            await this.assertCanEditTeamLogo(userId, card);
+        }
         const updated = await this.prisma.businessCard.update({
             where: { id },
             data: {
@@ -179,9 +188,20 @@ let CardsService = class CardsService {
         if (card.kind === client_1.CardKind.PROFESSIONAL &&
             card.teamId &&
             dto.logoUrl !== undefined) {
-            await this.syncTeamMemberCardsVisuals(card.teamId, {
-                logoUrl: updated.logoUrl,
+            await this.prisma.team.update({
+                where: { id: card.teamId },
+                data: { logoUrl: updated.logoUrl },
             });
+            await this.applyTeamLogoToCards(card.teamId, updated.logoUrl);
+        }
+        if (dto.avatarUrl !== undefined) {
+            await this.uploadsService.replaceImage(card.avatarUrl, updated.avatarUrl);
+        }
+        if (dto.coverImageUrl !== undefined) {
+            await this.uploadsService.replaceImage(card.coverImageUrl, updated.coverImageUrl);
+        }
+        if (dto.logoUrl !== undefined) {
+            await this.uploadsService.replaceImage(card.logoUrl, updated.logoUrl);
         }
         return updated;
     }
@@ -204,6 +224,16 @@ let CardsService = class CardsService {
             });
         }
         return updated;
+    }
+    async applyTeamLogoToCards(teamId, logoUrl) {
+        await this.prisma.businessCard.updateMany({
+            where: {
+                teamId,
+                isActive: true,
+                kind: { in: [client_1.CardKind.PROFESSIONAL, client_1.CardKind.MEMBER] },
+            },
+            data: { logoUrl },
+        });
     }
     async syncTeamMemberCardsVisuals(teamId, visuals) {
         const data = {};
@@ -640,6 +670,31 @@ let CardsService = class CardsService {
     isTeamCardKind(kind) {
         return kind === client_1.CardKind.PROFESSIONAL || kind === client_1.CardKind.MEMBER;
     }
+    async assertCanEditTeamLogo(userId, card) {
+        if (card.kind === client_1.CardKind.MEMBER) {
+            throw new common_1.ForbiddenException('Le logo d’équipe ne peut être modifié que par un administrateur');
+        }
+        if (card.kind !== client_1.CardKind.PROFESSIONAL || !card.teamId) {
+            throw new common_1.BadRequestException('Le logo d’équipe n’est disponible que sur la carte professionnelle');
+        }
+        const team = await this.prisma.team.findFirst({
+            where: { id: card.teamId, isActive: true },
+            select: { ownerId: true },
+        });
+        if (!team) {
+            throw new common_1.BadRequestException('Équipe introuvable');
+        }
+        if (team.ownerId === userId)
+            return;
+        const membership = await this.prisma.teamMember.findUnique({
+            where: { teamId_userId: { teamId: card.teamId, userId } },
+            select: { role: true },
+        });
+        if (membership?.role !== client_1.TeamMemberRole.ADMIN &&
+            membership?.role !== client_1.TeamMemberRole.OWNER) {
+            throw new common_1.ForbiddenException('Le logo d’équipe ne peut être modifié que par un administrateur');
+        }
+    }
     optionalString(value) {
         if (value == null)
             return null;
@@ -680,6 +735,7 @@ exports.CardsService = CardsService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
         contacts_service_1.ContactsService,
-        entitlements_service_1.EntitlementsService])
+        entitlements_service_1.EntitlementsService,
+        uploads_service_1.UploadsService])
 ], CardsService);
 //# sourceMappingURL=cards.service.js.map

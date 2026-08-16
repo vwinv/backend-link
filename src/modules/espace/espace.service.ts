@@ -16,6 +16,7 @@ import {
   TeamMemberRole,
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { validSubscriptionWhere } from '../subscriptions/subscription-validity';
 
 @Injectable()
 export class EspaceService {
@@ -79,10 +80,9 @@ export class EspaceService {
     );
 
     const subscription = await this.prisma.subscription.findFirst({
-      where: {
+      where: validSubscriptionWhere({
         OR: [{ teamId: team.id }, { userId: team.ownerId }],
-        status: { in: ['ACTIVE', 'TRIAL', 'PAST_DUE'] },
-      },
+      }),
       include: {
         offer: { select: { title: true, slug: true, audience: true } },
         offerPrice: {
@@ -216,10 +216,9 @@ export class EspaceService {
     const membersPayload = await this.teamsService.getMembers(userId, team.id);
 
     const subscription = await this.prisma.subscription.findFirst({
-      where: {
+      where: validSubscriptionWhere({
         OR: [{ teamId: team.id }, { userId: team.ownerId }],
-        status: { in: ['ACTIVE', 'TRIAL', 'PAST_DUE'] },
-      },
+      }),
       include: {
         offer: {
           select: {

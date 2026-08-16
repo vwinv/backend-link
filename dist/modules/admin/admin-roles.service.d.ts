@@ -7,7 +7,7 @@ export declare class AdminRolesService {
     listPermissions(): {
         modules: {
             key: "subscriptions" | "notifications" | "roles" | "dashboard" | "backoffice_users" | "clients" | "support";
-            label: "Notifications" | "Tableau de bord" | "Utilisateurs backoffice" | "Rôles & permissions" | "Clients" | "Abonnements & offres" | "Support";
+            label: "Tableau de bord" | "Utilisateurs backoffice" | "Rôles & permissions" | "Clients" | "Abonnements & offres" | "Notifications" | "Support";
             permissions: ({
                 readonly key: "dashboard.view";
                 readonly module: "dashboard";
@@ -72,12 +72,12 @@ export declare class AdminRolesService {
                 readonly key: "subscriptions.update";
                 readonly module: "subscriptions";
                 readonly action: "update";
-                readonly label: "Modifier les offres et tarifs";
+                readonly label: "Modifier une offre, un tarif ou un abonnement";
             } | {
                 readonly key: "subscriptions.delete";
                 readonly module: "subscriptions";
                 readonly action: "delete";
-                readonly label: "Supprimer une offre / un tarif";
+                readonly label: "Supprimer une offre, un tarif ou un abonnement";
             } | {
                 readonly key: "notifications.view";
                 readonly module: "notifications";

@@ -16,6 +16,7 @@ const schedule_1 = require("@nestjs/schedule");
 const client_1 = require("@prisma/client");
 const crypto_1 = require("crypto");
 const prisma_service_1 = require("../../prisma/prisma.service");
+const subscription_validity_1 = require("./subscription-validity");
 const UPCOMING_INVOICE_WINDOW_DAYS = 10;
 let InvoicesService = InvoicesService_1 = class InvoicesService {
     prisma;
@@ -23,11 +24,33 @@ let InvoicesService = InvoicesService_1 = class InvoicesService {
     constructor(prisma) {
         this.prisma = prisma;
     }
+    async onModuleInit() {
+        const expired = await this.expireOverdueSubscriptions();
+        if (expired > 0) {
+            this.logger.log(`Abonnements expirés au démarrage : ${expired}`);
+        }
+    }
     async generateDueUpcomingInvoicesCron() {
         const created = await this.generateDueUpcomingInvoices();
         if (created > 0) {
             this.logger.log(`Factures à venir générées : ${created}`);
         }
+    }
+    async expireOverdueSubscriptionsCron() {
+        const expired = await this.expireOverdueSubscriptions();
+        if (expired > 0) {
+            this.logger.log(`Abonnements marqués expirés : ${expired}`);
+        }
+    }
+    async expireOverdueSubscriptions() {
+        const result = await this.prisma.subscription.updateMany({
+            where: {
+                status: { in: subscription_validity_1.LIVE_SUBSCRIPTION_STATUSES },
+                currentPeriodEnd: { lte: new Date() },
+            },
+            data: { status: client_1.SubscriptionStatus.EXPIRED },
+        });
+        return result.count;
     }
     async generateDueUpcomingInvoices() {
         const subscriptions = await this.prisma.subscription.findMany({
@@ -291,6 +314,12 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], InvoicesService.prototype, "generateDueUpcomingInvoicesCron", null);
+__decorate([
+    (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_HOUR),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], InvoicesService.prototype, "expireOverdueSubscriptionsCron", null);
 exports.InvoicesService = InvoicesService = InvoicesService_1 = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService])

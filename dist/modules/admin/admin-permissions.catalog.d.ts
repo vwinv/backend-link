@@ -85,12 +85,12 @@ export declare const ADMIN_PERMISSION_CATALOG: readonly [{
     readonly key: "subscriptions.update";
     readonly module: "subscriptions";
     readonly action: "update";
-    readonly label: "Modifier les offres et tarifs";
+    readonly label: "Modifier une offre, un tarif ou un abonnement";
 }, {
     readonly key: "subscriptions.delete";
     readonly module: "subscriptions";
     readonly action: "delete";
-    readonly label: "Supprimer une offre / un tarif";
+    readonly label: "Supprimer une offre, un tarif ou un abonnement";
 }, {
     readonly key: "notifications.view";
     readonly module: "notifications";

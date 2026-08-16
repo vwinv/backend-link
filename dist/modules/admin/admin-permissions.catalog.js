@@ -108,13 +108,13 @@ exports.ADMIN_PERMISSION_CATALOG = [
         key: 'subscriptions.update',
         module: 'subscriptions',
         action: 'update',
-        label: 'Modifier les offres et tarifs',
+        label: 'Modifier une offre, un tarif ou un abonnement',
     },
     {
         key: 'subscriptions.delete',
         module: 'subscriptions',
         action: 'delete',
-        label: 'Supprimer une offre / un tarif',
+        label: 'Supprimer une offre, un tarif ou un abonnement',
     },
     {
         key: 'notifications.view',

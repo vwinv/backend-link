@@ -2,9 +2,11 @@ import { OfferAudience } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AdminSubscriptionsQueryDto } from './dto/admin-subscriptions-query.dto';
 import { CreateAdminSubscriptionDto } from './dto/create-admin-subscription.dto';
+import { UpdateAdminSubscriptionDto } from './dto/update-admin-subscription.dto';
 export declare class AdminSubscriptionsService {
     private readonly prisma;
     constructor(prisma: PrismaService);
+    private readonly adminSelect;
     getStats(): Promise<{
         generatedAt: string;
         totals: {
@@ -47,6 +49,7 @@ export declare class AdminSubscriptionsService {
             billingPeriod: import("@prisma/client").$Enums.BillingPeriod;
             currentPeriodEnd: Date | null;
             cancelledAt: Date | null;
+            purchasedSeats: number | null;
             createdAt: Date;
             updatedAt: Date;
             paymentProvider: string | null;
@@ -97,6 +100,7 @@ export declare class AdminSubscriptionsService {
             pricePerSeat: number | null;
             currency: string;
             label: string | null;
+            isActive: boolean;
         }[];
         id: string;
         title: string;
@@ -111,6 +115,7 @@ export declare class AdminSubscriptionsService {
         billingPeriod: import("@prisma/client").$Enums.BillingPeriod;
         currentPeriodEnd: Date | null;
         cancelledAt: Date | null;
+        purchasedSeats: number | null;
         createdAt: Date;
         updatedAt: Date;
         paymentProvider: string | null;
@@ -145,6 +150,94 @@ export declare class AdminSubscriptionsService {
             currency: string;
             label: string | null;
         } | null;
+    }>;
+    findOne(id: string): Promise<{
+        id: string;
+        status: import("@prisma/client").$Enums.SubscriptionStatus;
+        billingPeriod: import("@prisma/client").$Enums.BillingPeriod;
+        currentPeriodEnd: Date | null;
+        cancelledAt: Date | null;
+        purchasedSeats: number | null;
+        createdAt: Date;
+        updatedAt: Date;
+        paymentProvider: string | null;
+        user: {
+            id: string;
+            email: string;
+            firstName: string;
+            lastName: string;
+            avatarUrl: string | null;
+            fullName: string;
+        } | null;
+        team: {
+            id: string;
+            name: string;
+            slug: string;
+        } | null;
+        offer: {
+            id: string;
+            title: string;
+            slug: string;
+            audience: OfferAudience;
+        } | null;
+        plan: {
+            id: string;
+            name: string;
+            slug: string;
+        } | null;
+        price: {
+            id: string;
+            billingType: import("@prisma/client").$Enums.OfferBillingType;
+            amount: number;
+            currency: string;
+            label: string | null;
+        } | null;
+    }>;
+    update(id: string, dto: UpdateAdminSubscriptionDto): Promise<{
+        id: string;
+        status: import("@prisma/client").$Enums.SubscriptionStatus;
+        billingPeriod: import("@prisma/client").$Enums.BillingPeriod;
+        currentPeriodEnd: Date | null;
+        cancelledAt: Date | null;
+        purchasedSeats: number | null;
+        createdAt: Date;
+        updatedAt: Date;
+        paymentProvider: string | null;
+        user: {
+            id: string;
+            email: string;
+            firstName: string;
+            lastName: string;
+            avatarUrl: string | null;
+            fullName: string;
+        } | null;
+        team: {
+            id: string;
+            name: string;
+            slug: string;
+        } | null;
+        offer: {
+            id: string;
+            title: string;
+            slug: string;
+            audience: OfferAudience;
+        } | null;
+        plan: {
+            id: string;
+            name: string;
+            slug: string;
+        } | null;
+        price: {
+            id: string;
+            billingType: import("@prisma/client").$Enums.OfferBillingType;
+            amount: number;
+            currency: string;
+            label: string | null;
+        } | null;
+    }>;
+    remove(id: string): Promise<{
+        deleted: boolean;
+        id: string;
     }>;
     private serialize;
     private ensurePremiumPlan;

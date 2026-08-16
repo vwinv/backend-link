@@ -13,11 +13,7 @@ exports.AdminClientsService = void 0;
 const common_1 = require("@nestjs/common");
 const client_1 = require("@prisma/client");
 const prisma_service_1 = require("../../prisma/prisma.service");
-const PREMIUM_STATUSES = [
-    client_1.SubscriptionStatus.TRIAL,
-    client_1.SubscriptionStatus.ACTIVE,
-    client_1.SubscriptionStatus.PAST_DUE,
-];
+const subscription_validity_1 = require("../subscriptions/subscription-validity");
 let AdminClientsService = class AdminClientsService {
     prisma;
     constructor(prisma) {
@@ -49,18 +45,12 @@ let AdminClientsService = class AdminClientsService {
         }
         if (query.isPremium === true) {
             where.subscriptions = {
-                some: {
-                    status: { in: PREMIUM_STATUSES },
-                    offerId: { not: null },
-                },
+                some: (0, subscription_validity_1.validSubscriptionWhere)({ offerId: { not: null } }),
             };
         }
         else if (query.isPremium === false) {
             where.subscriptions = {
-                none: {
-                    status: { in: PREMIUM_STATUSES },
-                    offerId: { not: null },
-                },
+                none: (0, subscription_validity_1.validSubscriptionWhere)({ offerId: { not: null } }),
             };
         }
         const [total, users] = await Promise.all([
@@ -242,10 +232,7 @@ let AdminClientsService = class AdminClientsService {
             createdAt: true,
             updatedAt: true,
             subscriptions: {
-                where: {
-                    status: { in: PREMIUM_STATUSES },
-                    offerId: { not: null },
-                },
+                where: (0, subscription_validity_1.validSubscriptionWhere)({ offerId: { not: null } }),
                 orderBy: { createdAt: 'desc' },
                 take: 1,
                 select: {

@@ -22,6 +22,66 @@ function strVal(v) {
         return String(v);
     return '';
 }
+function firstNonEmpty(...vals) {
+    for (const val of vals) {
+        const s = strVal(val).trim();
+        if (s)
+            return s;
+    }
+    return undefined;
+}
+function parseOtherUrl(raw) {
+    let rec = null;
+    if (typeof raw === 'string') {
+        const trimmed = raw.trim();
+        if (!trimmed)
+            return undefined;
+        try {
+            const parsed = JSON.parse(trimmed);
+            if (isRecord(parsed))
+                rec = parsed;
+        }
+        catch {
+            return undefined;
+        }
+    }
+    else if (isRecord(raw)) {
+        rec = raw;
+    }
+    if (!rec)
+        return undefined;
+    const om = firstNonEmpty(rec['om_url'], rec['omUrl'], rec['orange_money_url']);
+    const mx = firstNonEmpty(rec['maxit_url'], rec['maxitUrl'], rec['max_it_url']);
+    if (!om && !mx)
+        return undefined;
+    return {
+        ...(om ? { om_url: om } : {}),
+        ...(mx ? { maxit_url: mx } : {}),
+    };
+}
+function extractOmQrImageBase64(url, data) {
+    const fromData = isRecord(data)
+        ? firstNonEmpty(data['qrcode'], data['qr_code'], data['qrCode'])
+        : undefined;
+    if (fromData?.startsWith('iVBOR')) {
+        return fromData.replace(/\s/g, '');
+    }
+    if (!url)
+        return undefined;
+    try {
+        const parsed = new URL(url);
+        const qr = parsed.searchParams.get('data[qrcode]') ??
+            parsed.searchParams.get('data[qrCode]') ??
+            parsed.searchParams.get('qrcode');
+        const cleaned = qr?.replace(/\s/g, '');
+        if (cleaned?.startsWith('iVBOR'))
+            return cleaned;
+    }
+    catch {
+        return undefined;
+    }
+    return undefined;
+}
 function redactSoftPayBodyForLog(body) {
     const out = {};
     for (const [key, val] of Object.entries(body)) {
@@ -82,35 +142,33 @@ let PaydunyaService = PaydunyaService_1 = class PaydunyaService {
         if (!isRecord(raw)) {
             return { success: false, message: 'Réponse SoftPay invalide' };
         }
-        const success = raw['success'] === true;
-        const message = strVal(raw['message']).trim() || undefined;
-        const url = strVal(raw['url']).trim() || undefined;
-        let other_url;
-        const ou = raw['other_url'];
-        if (isRecord(ou)) {
-            const om = strVal(ou['om_url']).trim();
-            const mx = strVal(ou['maxit_url']).trim();
-            if (om || mx) {
-                other_url = {
-                    ...(om ? { om_url: om } : {}),
-                    ...(mx ? { maxit_url: mx } : {}),
-                };
-            }
-        }
-        const feesRaw = raw['fees'];
+        const nested = isRecord(raw['data']) ? raw['data'] : undefined;
+        const success = raw['success'] === true ||
+            raw['success'] === 'true' ||
+            raw['success'] === 1;
+        const message = firstNonEmpty(raw['message'], nested?.['message']) || undefined;
+        const url = firstNonEmpty(raw['url'], nested?.['url']);
+        const other_url = parseOtherUrl(raw['other_url']) ??
+            parseOtherUrl(raw['otherUrl']) ??
+            parseOtherUrl(nested?.['other_url']) ??
+            parseOtherUrl(nested?.['otherUrl']);
+        const qrImageBase64 = extractOmQrImageBase64(url, nested);
+        const feesRaw = raw['fees'] ?? nested?.['fees'];
         const fees = typeof feesRaw === 'number' && Number.isFinite(feesRaw)
             ? feesRaw
             : undefined;
-        const currency = strVal(raw['currency']).trim() || undefined;
+        const currency = firstNonEmpty(raw['currency'], nested?.['currency']) || undefined;
         const data = raw['data'];
-        const return_url = strVal(raw['return_url']).trim() || undefined;
-        const token = strVal(raw['token']).trim() || undefined;
+        const return_url = firstNonEmpty(raw['return_url'], raw['returnUrl']) || undefined;
+        const token = firstNonEmpty(raw['token'], nested?.['token']);
         const errors = raw['errors'];
+        this.logger.log(`SoftPay parse: success=${String(success)} url=${url ? 'yes' : 'no'} om=${other_url?.om_url ? 'yes' : 'no'} maxit=${other_url?.maxit_url ? 'yes' : 'no'} qrPng=${qrImageBase64 ? 'yes' : 'no'}`);
         return {
             success,
             message,
             url,
             other_url,
+            qrImageBase64,
             fees,
             currency,
             data: data !== undefined ? data : undefined,

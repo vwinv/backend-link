@@ -33,7 +33,7 @@ async function bootstrap() {
     const authService = app.get(auth_service_1.AuthService);
     const jwtService = app.get(jwt_1.JwtService);
     const expressApp = app.getHttpAdapter().getInstance();
-    expressApp.use((0, express_1.urlencoded)({ extended: false }));
+    expressApp.use((0, express_1.urlencoded)({ extended: true }));
     const resolveViewerUserId = (req) => {
         const authorization = req.headers.authorization;
         if (!authorization?.startsWith('Bearer ')) {

@@ -52,6 +52,7 @@ const prisma_service_1 = require("../../prisma/prisma.service");
 const cards_service_1 = require("../cards/cards.service");
 const mail_service_1 = require("../mail/mail.service");
 const entitlements_service_1 = require("../subscriptions/entitlements.service");
+const uploads_service_1 = require("../uploads/uploads.service");
 const team_invite_page_1 = require("./team-invite-page");
 let TeamsService = class TeamsService {
     prisma;
@@ -59,12 +60,14 @@ let TeamsService = class TeamsService {
     mailService;
     cardsService;
     configService;
-    constructor(prisma, entitlementsService, mailService, cardsService, configService) {
+    uploadsService;
+    constructor(prisma, entitlementsService, mailService, cardsService, configService, uploadsService) {
         this.prisma = prisma;
         this.entitlementsService = entitlementsService;
         this.mailService = mailService;
         this.cardsService = cardsService;
         this.configService = configService;
+        this.uploadsService = uploadsService;
     }
     get appPublicUrl() {
         return (this.configService.get('wallet.appPublicUrl') ??
@@ -83,7 +86,8 @@ let TeamsService = class TeamsService {
             where: { ownerId: userId, isActive: true },
         });
         if (existingOwnedTeam) {
-            return this.prisma.team.update({
+            const previousLogoUrl = existingOwnedTeam.logoUrl;
+            const updated = await this.prisma.team.update({
                 where: { id: existingOwnedTeam.id },
                 data: {
                     name: dto.name.trim(),
@@ -98,6 +102,11 @@ let TeamsService = class TeamsService {
                     }),
                 },
             });
+            if (dto.logoUrl !== undefined) {
+                await this.cardsService.applyTeamLogoToCards(updated.id, updated.logoUrl);
+                await this.uploadsService.replaceImage(previousLogoUrl, updated.logoUrl);
+            }
+            return updated;
         }
         const slug = await this.generateUniqueSlug(dto.name);
         return this.prisma.$transaction(async (tx) => {
@@ -174,8 +183,9 @@ let TeamsService = class TeamsService {
         };
     }
     async update(userId, id, dto) {
-        await this.assertOwner(userId, id);
-        return this.prisma.team.update({
+        await this.assertOwnerOrAdmin(userId, id);
+        const current = await this.prisma.team.findUnique({ where: { id } });
+        const updated = await this.prisma.team.update({
             where: { id },
             data: {
                 ...(dto.name !== undefined && { name: dto.name.trim() }),
@@ -190,6 +200,11 @@ let TeamsService = class TeamsService {
                 }),
             },
         });
+        if (dto.logoUrl !== undefined) {
+            await this.cardsService.applyTeamLogoToCards(id, updated.logoUrl);
+            await this.uploadsService.replaceImage(current?.logoUrl, updated.logoUrl);
+        }
+        return updated;
     }
     async remove(userId, id) {
         await this.assertOwner(userId, id);
@@ -632,6 +647,7 @@ exports.TeamsService = TeamsService = __decorate([
         entitlements_service_1.EntitlementsService,
         mail_service_1.MailService,
         cards_service_1.CardsService,
-        config_1.ConfigService])
+        config_1.ConfigService,
+        uploads_service_1.UploadsService])
 ], TeamsService);
 //# sourceMappingURL=teams.service.js.map

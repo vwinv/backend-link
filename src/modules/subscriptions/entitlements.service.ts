@@ -6,10 +6,8 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
-  BillingPeriod,
   CardKind,
   OfferAudience,
-  SubscriptionStatus,
   TeamInviteStatus,
   TeamMemberRole,
 } from '@prisma/client';
@@ -22,6 +20,7 @@ import {
   UserEntitlements,
 } from './entitlements.types';
 import { FREE_OFFER_SLUG } from './free-offer.constants';
+import { validSubscriptionWhere } from './subscription-validity';
 
 @Injectable()
 export class EntitlementsService {
@@ -63,8 +62,9 @@ export class EntitlementsService {
 
   /**
    * Droits effectifs pour une carte :
-   * - carte membre → offre du propriétaire de l'équipe
-   * - sinon → offre personnelle de l'utilisateur
+   * - carte perso → offre perso (ou équipe, si l’utilisateur en a une)
+   * - carte pro → uniquement une offre équipe valide du propriétaire
+   * - carte membre → offre équipe du propriétaire de l’équipe
    */
   async getEntitlementsForCard(
     userId: string,
@@ -85,18 +85,32 @@ export class EntitlementsService {
         select: { ownerId: true },
       });
       if (team) {
-        return this.getUserEntitlements(team.ownerId);
+        return this.requireTeamOffer(team.ownerId);
       }
+      return this.getFreeEntitlements();
+    }
+
+    if (card.kind === CardKind.PROFESSIONAL) {
+      return this.requireTeamOffer(userId);
     }
 
     return this.getUserEntitlements(userId);
+  }
+
+  /** Offre équipe active, sinon plan gratuit (pas d’héritage d’une offre perso). */
+  private async requireTeamOffer(userId: string): Promise<UserEntitlements> {
+    const entitlements = await this.getUserEntitlements(userId);
+    if (this.hasTeamAccess(entitlements)) {
+      return entitlements;
+    }
+    return this.getFreeEntitlements();
   }
 
   async assertCanCustomize(userId: string, cardId: string): Promise<void> {
     const entitlements = await this.getEntitlementsForCard(userId, cardId);
     if (!entitlements.canCustomize) {
       throw new ForbiddenException(
-        'Les designs professionnels nécessitent une offre Premium',
+        'Les designs professionnels nécessitent une offre Premium adaptée à cette carte',
       );
     }
   }
@@ -105,7 +119,7 @@ export class EntitlementsService {
     const entitlements = await this.getEntitlementsForCard(userId, cardId);
     if (!entitlements.hasWallet) {
       throw new ForbiddenException(
-        'L’ajout au Wallet nécessite une offre Premium',
+        'L’ajout au Wallet nécessite une offre Premium adaptée à cette carte',
       );
     }
   }
@@ -114,7 +128,7 @@ export class EntitlementsService {
     const entitlements = await this.getEntitlementsForCard(userId, cardId);
     if (!entitlements.hasAnalytics) {
       throw new ForbiddenException(
-        'Les statistiques de consultation nécessitent une offre Premium',
+        'Les statistiques de cette carte nécessitent une offre Premium adaptée',
       );
     }
   }
@@ -126,7 +140,7 @@ export class EntitlementsService {
     const entitlements = await this.getEntitlementsForCard(userId, cardId);
     if (!entitlements.hasVisitorInsights) {
       throw new ForbiddenException(
-        'L’historique des visiteurs nécessite Premium Plus',
+        'L’historique des visiteurs de cette carte nécessite une offre Premium adaptée',
       );
     }
   }
@@ -156,7 +170,7 @@ export class EntitlementsService {
     const entitlements = await this.getUserEntitlements(userId);
     if (!this.hasTeamAccess(entitlements)) {
       throw new ForbiddenException(
-        'Un abonnement équipe actif est requis pour créer une équipe',
+        'Un abonnement équipe actif est requis',
       );
     }
   }
@@ -239,7 +253,7 @@ export class EntitlementsService {
       };
     }
 
-    const periodStart = this.getUsagePeriodStart(subscription);
+    const periodStart = this.getCurrentMonthStart();
     const used = await this.prisma.aiScanEvent.count({
       where: {
         userId,
@@ -268,7 +282,7 @@ export class EntitlementsService {
       throw new BadRequestException(
         quota.isUnlimited
           ? 'Scan IA indisponible pour le moment'
-          : `Quota de ${quota.max} scans IA atteint pour cette période`,
+          : `Quota de ${quota.max} scans IA atteint pour ce mois`,
       );
     }
 
@@ -324,25 +338,70 @@ export class EntitlementsService {
     return quota;
   }
 
-  private hasTeamAccess(entitlements: UserEntitlements): boolean {
+  async assertCanShareCard(userId: string, cardId: string): Promise<ShareQuota> {
+    const quota = await this.assertCanShare(userId);
+    const unlocked = await this.isOfferCardUnlocked(userId, cardId);
+    if (!unlocked) {
+      throw new ForbiddenException(
+        'Renouvelez votre abonnement pour partager cette carte',
+      );
+    }
+    return quota;
+  }
+
+  hasTeamAccess(entitlements: UserEntitlements): boolean {
     return (
       entitlements.audience === OfferAudience.TEAM &&
       entitlements.maxTeamMembers !== 0
     );
   }
 
+  /**
+   * Carte pro / membre : l’offre équipe du propriétaire doit être valide.
+   * Carte perso : toujours « déverrouillée » (les features Premium sont
+   * gated ailleurs). Sans offre perso valide, on retombe sur le plan gratuit.
+   */
+  async isTeamCardCoveredByValidOffer(card: {
+    kind: CardKind;
+    teamId: string | null;
+  }): Promise<boolean> {
+    if (
+      card.kind !== CardKind.PROFESSIONAL &&
+      card.kind !== CardKind.MEMBER
+    ) {
+      return true;
+    }
+
+    if (!card.teamId) {
+      return false;
+    }
+
+    const team = await this.prisma.team.findFirst({
+      where: { id: card.teamId, isActive: true },
+      select: { ownerId: true },
+    });
+    if (!team) {
+      return false;
+    }
+
+    const entitlements = await this.getUserEntitlements(team.ownerId);
+    return this.hasTeamAccess(entitlements);
+  }
+
+  async isOfferCardUnlocked(userId: string, cardId: string): Promise<boolean> {
+    const card = await this.prisma.businessCard.findFirst({
+      where: { id: cardId, ownerId: userId, isActive: true },
+      select: { kind: true, teamId: true },
+    });
+    if (!card) {
+      throw new NotFoundException('Carte introuvable');
+    }
+    return this.isTeamCardCoveredByValidOffer(card);
+  }
+
   private async findActiveSubscription(userId: string) {
     return this.prisma.subscription.findFirst({
-      where: {
-        userId,
-        status: {
-          in: [
-            SubscriptionStatus.TRIAL,
-            SubscriptionStatus.ACTIVE,
-            SubscriptionStatus.PAST_DUE,
-          ],
-        },
-      },
+      where: validSubscriptionWhere({ userId }),
       include: {
         offer: true,
         plan: true,
@@ -385,29 +444,10 @@ export class EntitlementsService {
     };
   }
 
-  private getUsagePeriodStart(
-    subscription: {
-      billingPeriod: BillingPeriod;
-      currentPeriodEnd: Date | null;
-      createdAt: Date;
-    } | null,
-  ): Date {
-    if (!subscription) {
-      const now = new Date();
-      return new Date(now.getFullYear(), now.getMonth(), 1);
-    }
-
-    if (subscription.currentPeriodEnd) {
-      const start = new Date(subscription.currentPeriodEnd);
-      if (subscription.billingPeriod === BillingPeriod.YEARLY) {
-        start.setFullYear(start.getFullYear() - 1);
-      } else {
-        start.setMonth(start.getMonth() - 1);
-      }
-      return start;
-    }
-
-    return subscription.createdAt;
+  /** Quota scans IA : mois calendaire, même si l’abonnement est annuel. */
+  private getCurrentMonthStart(): Date {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
   }
 
   private async assertTeamAccess(userId: string, teamId: string) {

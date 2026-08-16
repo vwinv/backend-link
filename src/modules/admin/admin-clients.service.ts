@@ -7,12 +7,7 @@ import { Prisma, SubscriptionStatus, UserRole } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AdminClientsQueryDto } from './dto/admin-clients-query.dto';
 import { UpdateAdminClientDto } from './dto/update-admin-client.dto';
-
-const PREMIUM_STATUSES: SubscriptionStatus[] = [
-  SubscriptionStatus.TRIAL,
-  SubscriptionStatus.ACTIVE,
-  SubscriptionStatus.PAST_DUE,
-];
+import { validSubscriptionWhere } from '../subscriptions/subscription-validity';
 
 @Injectable()
 export class AdminClientsService {
@@ -48,17 +43,11 @@ export class AdminClientsService {
 
     if (query.isPremium === true) {
       where.subscriptions = {
-        some: {
-          status: { in: PREMIUM_STATUSES },
-          offerId: { not: null },
-        },
+        some: validSubscriptionWhere({ offerId: { not: null } }),
       };
     } else if (query.isPremium === false) {
       where.subscriptions = {
-        none: {
-          status: { in: PREMIUM_STATUSES },
-          offerId: { not: null },
-        },
+        none: validSubscriptionWhere({ offerId: { not: null } }),
       };
     }
 
@@ -253,10 +242,7 @@ export class AdminClientsService {
       createdAt: true,
       updatedAt: true,
       subscriptions: {
-        where: {
-          status: { in: PREMIUM_STATUSES },
-          offerId: { not: null },
-        },
+        where: validSubscriptionWhere({ offerId: { not: null } }),
         orderBy: { createdAt: 'desc' as const },
         take: 1,
         select: {
