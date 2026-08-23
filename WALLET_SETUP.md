@@ -187,30 +187,34 @@ APPLE_PASS_SIGNER_KEY_PASSPHRASE=
    - Console → **Google Wallet API**
    - Notez l’**Issuer ID** (nombre long) → `GOOGLE_WALLET_ISSUER_ID`
 
-2. **Classe Generic — créée automatiquement**
-   - Aucune action manuelle : le backend inclut la définition de la classe **inline** dans le JWT « Save to Wallet ». Google la crée/insère à la volée au premier enregistrement.
+2. **Classe Generic — créée par l’API**
+   - Aucune action manuelle en console : au premier « Ajouter à Google Wallet », le backend crée (ou nettoie) la classe via l’API `genericClass`.
    - Le backend utilise par défaut le suffixe `link_business_card`
    - Class ID final : `{ISSUER_ID}.link_business_card`
    - Vous pouvez changer le suffixe avec `GOOGLE_WALLET_CLASS_SUFFIX`
 
-3. **Compte de service**
+3. **Mode test (très fréquent si « Something went wrong »)**
+   - Tant que l’émetteur est en **Demo / Test**, seuls les comptes Google ajoutés comme testeurs dans la Wallet Console peuvent enregistrer le pass.
+   - Tester sur un **téléphone Android réel** avec l’app Google Wallet (l’émulateur échoue souvent).
+
+4. **Compte de service**
    - Google Cloud Console → **IAM & Admin** → **Service Accounts**
    - Créez un compte de service
    - Accordez le rôle **Google Wallet API Admin** (ou éditeur Wallet selon la doc Google)
    - Créez une clé **JSON** et enregistrez-la :
      `backend-link/certs/google-wallet-service-account.json`
 
-4. **Lier le compte de service à la console Wallet**
+5. **Lier le compte de service à la console Wallet**
    - Google Pay & Wallet Console → utilisateurs / accès API
    - Ajoutez l’email du compte de service (`...@....iam.gserviceaccount.com`) avec les droits d’édition
 
-5. **Variables `.env` backend**
+6. **Variables `.env` backend**
 
 ```env
 GOOGLE_WALLET_ISSUER_ID=3388000000000000000
 GOOGLE_WALLET_CLASS_SUFFIX=link_business_card
 GOOGLE_WALLET_SERVICE_ACCOUNT_PATH=./certs/google-wallet-service-account.json
-GOOGLE_WALLET_ORIGINS=https://link.app
+GOOGLE_WALLET_ORIGINS=https://dropone.pro,https://api.dropone.pro
 ```
 
 ### Test Android
@@ -268,7 +272,7 @@ Réponse Android :
 |----------|--------|
 | « Apple Wallet n’est pas configuré » | Vérifier les chemins PEM dans `.env` et redémarrer le backend |
 | Pass iOS refusé | Pass Type ID / Team ID / certificats incohérents ; capability Wallet absente dans Xcode |
-| Google « save URL » ne s’ouvre pas | Google Wallet installé ? `queries` Android OK ? Issuer ID + service account |
+| Google « Something went wrong » | Compte de service ajouté à la [Wallet Console](https://pay.google.com/business/console) ? Compte Google de test ajouté (mode Demo) ? Tester sur **téléphone réel** (l’émulateur casse souvent Wallet) |
 | QR code incorrect | Mettre à jour `APP_PUBLIC_URL` |
 | Simulateur iOS | Tester sur **appareil réel** |
 

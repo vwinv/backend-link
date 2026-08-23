@@ -52,7 +52,7 @@ export class WalletService {
       };
     }
 
-    const saveUrl = this.googleWalletService.generateSaveUrl(card);
+    const saveUrl = await this.googleWalletService.generateSaveUrl(card);
     const passId = this.googleWalletService.getPassId(card);
     const savedCard = await this.upsertSavedCard(
       userId,
