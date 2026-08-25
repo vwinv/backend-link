@@ -1,5 +1,6 @@
 export declare class PaymentConfigResponseDto {
     paymentsEnabled: boolean;
+    hideInAppPayments: boolean;
     provider?: string;
 }
 export declare class CheckoutSessionResponseDto {

@@ -12,11 +12,14 @@ export declare class WalletConfig {
     get googleIssuerId(): string;
     get googleClassSuffix(): string;
     get googleServiceAccountPath(): string;
+    get googleServiceAccountJson(): string;
     get googleOrigins(): string[];
     isAppleConfigured(): boolean;
     isGoogleConfigured(): boolean;
     describe(): Record<string, unknown>;
     loadGoogleServiceAccount(): Record<string, unknown>;
     walletAssetsDir(): string;
+    private hasGoogleServiceAccount;
     private fileExists;
+    private resolvePath;
 }

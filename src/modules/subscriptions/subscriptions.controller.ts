@@ -38,7 +38,7 @@ export class SubscriptionsController {
   @Get('config')
   @ApiOperation({
     summary:
-      'Configuration paiement (PayDunya SoftPay activé ou mode test instantané)',
+      'Configuration paiement (PayDunya, masquage in-app, ou mode test)',
   })
   @ApiResponse({ status: 200, type: PaymentConfigResponseDto })
   getPaymentConfig() {
@@ -114,6 +114,20 @@ export class SubscriptionsController {
       user.userId,
       invoiceToken,
     );
+  }
+
+  @Post('signup-request')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      'Enregistrer une demande d’inscription (paiement masqué, review Apple)',
+  })
+  createSignupRequest(
+    @CurrentUser() user: { userId: string },
+    @Body() dto: SubscribeDto,
+  ) {
+    return this.subscriptionsService.createSignupRequest(user.userId, dto);
   }
 
   @Post('subscribe')

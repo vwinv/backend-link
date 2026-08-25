@@ -1,10 +1,16 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PushPlatform } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { FcmPushService } from './fcm-push.service';
 
 @Injectable()
 export class NotificationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(NotificationsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly fcmPushService: FcmPushService,
+  ) {}
 
   async listMine(userId: string, page = 1, limit = 30) {
     const skip = (page - 1) * limit;
@@ -132,5 +138,50 @@ export class NotificationsService {
       where: { userId, token: token.trim() },
     });
     return { ok: true };
+  }
+
+  /** Inbox in-app + push FCM (abonnements, etc.). */
+  async notifyUser(input: {
+    userId: string;
+    title: string;
+    body: string;
+    data?: Record<string, string>;
+  }): Promise<void> {
+    const userId = input.userId.trim();
+    if (!userId) return;
+
+    await this.prisma.userNotification.create({
+      data: {
+        userId,
+        title: input.title,
+        body: input.body,
+      },
+    });
+
+    const pushTokens = await this.prisma.devicePushToken.findMany({
+      where: { userId },
+      select: { token: true },
+    });
+    const tokens = pushTokens.map((row) => row.token);
+    if (tokens.length === 0) return;
+
+    const pushResult = await this.fcmPushService.sendToTokens({
+      tokens,
+      title: input.title,
+      body: input.body,
+      data: input.data,
+    });
+
+    if (pushResult.invalidTokens.length > 0) {
+      await this.prisma.devicePushToken.deleteMany({
+        where: { token: { in: pushResult.invalidTokens } },
+      });
+    }
+
+    if (!pushResult.configured) {
+      this.logger.warn(
+        `Inbox livrée pour ${userId}, FCM non configuré (${tokens.length} token(s))`,
+      );
+    }
   }
 }

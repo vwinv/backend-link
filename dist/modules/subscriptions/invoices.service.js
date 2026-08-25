@@ -16,13 +16,16 @@ const schedule_1 = require("@nestjs/schedule");
 const client_1 = require("@prisma/client");
 const crypto_1 = require("crypto");
 const prisma_service_1 = require("../../prisma/prisma.service");
+const notifications_service_1 = require("../notifications/notifications.service");
 const subscription_validity_1 = require("./subscription-validity");
 const UPCOMING_INVOICE_WINDOW_DAYS = 10;
 let InvoicesService = InvoicesService_1 = class InvoicesService {
     prisma;
+    notificationsService;
     logger = new common_1.Logger(InvoicesService_1.name);
-    constructor(prisma) {
+    constructor(prisma, notificationsService) {
         this.prisma = prisma;
+        this.notificationsService = notificationsService;
     }
     async onModuleInit() {
         const expired = await this.expireOverdueSubscriptions();
@@ -43,14 +46,46 @@ let InvoicesService = InvoicesService_1 = class InvoicesService {
         }
     }
     async expireOverdueSubscriptions() {
-        const result = await this.prisma.subscription.updateMany({
+        const due = await this.prisma.subscription.findMany({
             where: {
                 status: { in: subscription_validity_1.LIVE_SUBSCRIPTION_STATUSES },
                 currentPeriodEnd: { lte: new Date() },
             },
+            select: {
+                id: true,
+                userId: true,
+                offer: { select: { title: true } },
+                team: { select: { ownerId: true } },
+            },
+        });
+        if (due.length === 0)
+            return 0;
+        await this.prisma.subscription.updateMany({
+            where: { id: { in: due.map((item) => item.id) } },
             data: { status: client_1.SubscriptionStatus.EXPIRED },
         });
-        return result.count;
+        for (const subscription of due) {
+            const userId = subscription.userId ?? subscription.team?.ownerId;
+            if (!userId)
+                continue;
+            const offerTitle = subscription.offer?.title?.trim() || 'Premium';
+            try {
+                await this.notificationsService.notifyUser({
+                    userId,
+                    title: 'Votre abonnement a expiré',
+                    body: `Votre offre ${offerTitle} n’est plus active. Renouvelez-la pour retrouver vos avantages.`,
+                    data: {
+                        type: 'subscription_expired',
+                        subscriptionId: subscription.id,
+                    },
+                });
+            }
+            catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                this.logger.error(`Notification expiration impossible subscription=${subscription.id}: ${message}`);
+            }
+        }
+        return due.length;
     }
     async generateDueUpcomingInvoices() {
         const subscriptions = await this.prisma.subscription.findMany({
@@ -322,6 +357,7 @@ __decorate([
 ], InvoicesService.prototype, "expireOverdueSubscriptionsCron", null);
 exports.InvoicesService = InvoicesService = InvoicesService_1 = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        notifications_service_1.NotificationsService])
 ], InvoicesService);
 //# sourceMappingURL=invoices.service.js.map

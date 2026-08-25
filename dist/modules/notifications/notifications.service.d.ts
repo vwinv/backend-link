@@ -1,8 +1,11 @@
 import { PushPlatform } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { FcmPushService } from './fcm-push.service';
 export declare class NotificationsService {
     private readonly prisma;
-    constructor(prisma: PrismaService);
+    private readonly fcmPushService;
+    private readonly logger;
+    constructor(prisma: PrismaService, fcmPushService: FcmPushService);
     listMine(userId: string, page?: number, limit?: number): Promise<{
         data: {
             id: string;
@@ -39,11 +42,17 @@ export declare class NotificationsService {
     }>;
     registerPushToken(userId: string, token: string, platform: PushPlatform): Promise<{
         id: string;
-        token: string;
         updatedAt: Date;
+        token: string;
         platform: import("@prisma/client").$Enums.PushPlatform;
     }>;
     unregisterPushToken(userId: string, token: string): Promise<{
         ok: boolean;
     }>;
+    notifyUser(input: {
+        userId: string;
+        title: string;
+        body: string;
+        data?: Record<string, string>;
+    }): Promise<void>;
 }

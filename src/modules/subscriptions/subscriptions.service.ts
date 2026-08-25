@@ -27,6 +27,8 @@ import { StripeService } from './stripe.service';
 import { InvoicesService } from './invoices.service';
 import type { InvoiceLine } from './invoices.service';
 import { validSubscriptionWhere } from './subscription-validity';
+import { MailService } from '../mail/mail.service';
+import { ConfigService } from '@nestjs/config';
 
 type ActivateSubscriptionInput = {
   userId: string;
@@ -69,12 +71,25 @@ export class SubscriptionsService {
     private readonly stripeService: StripeService,
     private readonly paydunyaService: PaydunyaService,
     private readonly invoicesService: InvoicesService,
+    private readonly mailService: MailService,
+    private readonly config: ConfigService,
   ) {}
 
+  isInAppPaymentsHidden(): boolean {
+    return this.config.get<boolean>('hideInAppPayments') === true;
+  }
+
   getPaymentConfig() {
+    const hideInAppPayments = this.isInAppPaymentsHidden();
     return {
-      paymentsEnabled: this.paydunyaService.isConfigured(),
-      provider: this.paydunyaService.isConfigured() ? 'paydunya' : 'none',
+      paymentsEnabled:
+        !hideInAppPayments && this.paydunyaService.isConfigured(),
+      hideInAppPayments,
+      provider: hideInAppPayments
+        ? 'signup_request'
+        : this.paydunyaService.isConfigured()
+          ? 'paydunya'
+          : 'none',
     };
   }
 
@@ -111,6 +126,7 @@ export class SubscriptionsService {
   }
 
   async createCheckout(userId: string, dto: CheckoutDto) {
+    this.assertInAppCheckoutAllowed();
     if (!this.paydunyaService.isConfigured()) {
       throw new BadRequestException(
         'Le paiement PayDunya est désactivé. Utilisez /subscriptions/subscribe pour les tests.',
@@ -205,6 +221,7 @@ export class SubscriptionsService {
   }
 
   async softPay(userId: string, dto: SoftPaySubscriptionDto) {
+    this.assertInAppCheckoutAllowed();
     if (!this.paydunyaService.isConfigured()) {
       throw new ServiceUnavailableException(
         'Paiement PayDunya non configuré sur le serveur',
@@ -355,13 +372,13 @@ export class SubscriptionsService {
     const custom: Record<string, unknown> = {
       ...(pending
         ? {
-            kind: 'subscription',
-            userId: pending.userId,
-            offerSlug: pending.offerSlug ?? '',
-            billingType: pending.billingType ?? '',
-            teamId: pending.teamId ?? '',
-            seats: pending.seats != null ? String(pending.seats) : '',
-          }
+          kind: 'subscription',
+          userId: pending.userId,
+          offerSlug: pending.offerSlug ?? '',
+          billingType: pending.billingType ?? '',
+          teamId: pending.teamId ?? '',
+          seats: pending.seats != null ? String(pending.seats) : '',
+        }
         : {}),
       ...confirmed.customData,
     };
@@ -956,6 +973,86 @@ export class SubscriptionsService {
     return this.toSubscriptionResponse(subscription);
   }
 
+  async createSignupRequest(userId: string, dto: SubscribeDto) {
+    const { offer, price, billingMultiplier, effectiveBillingType } =
+      await this.resolveOfferPrice(dto.offerSlug, dto.billingType);
+
+    if (dto.teamId && offer.audience !== OfferAudience.TEAM) {
+      throw new BadRequestException(
+        'Cette offre ne couvre pas un espace équipe',
+      );
+    }
+
+    const { seats } = this.resolveCheckoutPricing(
+      offer,
+      price,
+      dto.seats,
+      billingMultiplier,
+    );
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+      },
+    });
+    if (!user) {
+      throw new NotFoundException('Utilisateur introuvable');
+    }
+
+    const request = await this.prisma.subscriptionSignupRequest.create({
+      data: {
+        userId,
+        offerSlug: offer.slug,
+        offerTitle: offer.title,
+        billingType: effectiveBillingType,
+        seats: seats ?? null,
+        teamId: dto.teamId?.trim() || null,
+      },
+    });
+
+    const notifyTo =
+      this.config.get<string>('subscriptionRequestsNotifyEmail')?.trim() ||
+      'contact@mega-sn.com';
+    try {
+      await this.mailService.sendSubscriptionSignupNotice({
+        to: notifyTo,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        phone: user.phone,
+        offerTitle: offer.title,
+        billingType: effectiveBillingType,
+        seats: seats ?? null,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `E-mail demande d’inscription non envoyé : ${
+          error instanceof Error ? error.message : 'erreur inconnue'
+        }`,
+      );
+    }
+
+    return {
+      id: request.id,
+      firstName: user.firstName,
+      offerTitle: offer.title,
+      billingType: effectiveBillingType,
+    };
+  }
+
+  private assertInAppCheckoutAllowed() {
+    if (this.isInAppPaymentsHidden()) {
+      throw new BadRequestException(
+        'Le paiement in-app est désactivé. Enregistrez une demande d’inscription.',
+      );
+    }
+  }
+
   async handleStripeWebhook(payload: Buffer, signature?: string) {
     if (!this.stripeService.isEnabled()) {
       throw new BadRequestException('Stripe est désactivé');
@@ -1269,7 +1366,7 @@ export class SubscriptionsService {
       const amount = Math.round(
         ((Number.isFinite(baseAmount) ? baseAmount : 0) +
           perSeat * extraSeats) *
-          factor,
+        factor,
       );
       return { amount, seats };
     }

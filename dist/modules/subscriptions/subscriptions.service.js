@@ -20,22 +20,37 @@ const paydunya_service_1 = require("../paydunya/paydunya.service");
 const stripe_service_1 = require("./stripe.service");
 const invoices_service_1 = require("./invoices.service");
 const subscription_validity_1 = require("./subscription-validity");
+const mail_service_1 = require("../mail/mail.service");
+const config_1 = require("@nestjs/config");
 let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
     prisma;
     stripeService;
     paydunyaService;
     invoicesService;
+    mailService;
+    config;
     logger = new common_1.Logger(SubscriptionsService_1.name);
-    constructor(prisma, stripeService, paydunyaService, invoicesService) {
+    constructor(prisma, stripeService, paydunyaService, invoicesService, mailService, config) {
         this.prisma = prisma;
         this.stripeService = stripeService;
         this.paydunyaService = paydunyaService;
         this.invoicesService = invoicesService;
+        this.mailService = mailService;
+        this.config = config;
+    }
+    isInAppPaymentsHidden() {
+        return this.config.get('hideInAppPayments') === true;
     }
     getPaymentConfig() {
+        const hideInAppPayments = this.isInAppPaymentsHidden();
         return {
-            paymentsEnabled: this.paydunyaService.isConfigured(),
-            provider: this.paydunyaService.isConfigured() ? 'paydunya' : 'none',
+            paymentsEnabled: !hideInAppPayments && this.paydunyaService.isConfigured(),
+            hideInAppPayments,
+            provider: hideInAppPayments
+                ? 'signup_request'
+                : this.paydunyaService.isConfigured()
+                    ? 'paydunya'
+                    : 'none',
         };
     }
     async getOffers() {
@@ -65,6 +80,7 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
         return this.toSubscriptionResponse(subscription);
     }
     async createCheckout(userId, dto) {
+        this.assertInAppCheckoutAllowed();
         if (!this.paydunyaService.isConfigured()) {
             throw new common_1.BadRequestException('Le paiement PayDunya est désactivé. Utilisez /subscriptions/subscribe pour les tests.');
         }
@@ -136,6 +152,7 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
         };
     }
     async softPay(userId, dto) {
+        this.assertInAppCheckoutAllowed();
         if (!this.paydunyaService.isConfigured()) {
             throw new common_1.ServiceUnavailableException('Paiement PayDunya non configuré sur le serveur');
         }
@@ -717,6 +734,64 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
             purchasedSeats: seats,
         });
         return this.toSubscriptionResponse(subscription);
+    }
+    async createSignupRequest(userId, dto) {
+        const { offer, price, billingMultiplier, effectiveBillingType } = await this.resolveOfferPrice(dto.offerSlug, dto.billingType);
+        if (dto.teamId && offer.audience !== client_1.OfferAudience.TEAM) {
+            throw new common_1.BadRequestException('Cette offre ne couvre pas un espace équipe');
+        }
+        const { seats } = this.resolveCheckoutPricing(offer, price, dto.seats, billingMultiplier);
+        const user = await this.prisma.user.findUnique({
+            where: { id: userId },
+            select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+                phone: true,
+            },
+        });
+        if (!user) {
+            throw new common_1.NotFoundException('Utilisateur introuvable');
+        }
+        const request = await this.prisma.subscriptionSignupRequest.create({
+            data: {
+                userId,
+                offerSlug: offer.slug,
+                offerTitle: offer.title,
+                billingType: effectiveBillingType,
+                seats: seats ?? null,
+                teamId: dto.teamId?.trim() || null,
+            },
+        });
+        const notifyTo = this.config.get('subscriptionRequestsNotifyEmail')?.trim() ||
+            'contact@mega-sn.com';
+        try {
+            await this.mailService.sendSubscriptionSignupNotice({
+                to: notifyTo,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                email: user.email,
+                phone: user.phone,
+                offerTitle: offer.title,
+                billingType: effectiveBillingType,
+                seats: seats ?? null,
+            });
+        }
+        catch (error) {
+            this.logger.warn(`E-mail demande d’inscription non envoyé : ${error instanceof Error ? error.message : 'erreur inconnue'}`);
+        }
+        return {
+            id: request.id,
+            firstName: user.firstName,
+            offerTitle: offer.title,
+            billingType: effectiveBillingType,
+        };
+    }
+    assertInAppCheckoutAllowed() {
+        if (this.isInAppPaymentsHidden()) {
+            throw new common_1.BadRequestException('Le paiement in-app est désactivé. Enregistrez une demande d’inscription.');
+        }
     }
     async handleStripeWebhook(payload, signature) {
         if (!this.stripeService.isEnabled()) {
@@ -1412,6 +1487,8 @@ exports.SubscriptionsService = SubscriptionsService = SubscriptionsService_1 = _
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
         stripe_service_1.StripeService,
         paydunya_service_1.PaydunyaService,
-        invoices_service_1.InvoicesService])
+        invoices_service_1.InvoicesService,
+        mail_service_1.MailService,
+        config_1.ConfigService])
 ], SubscriptionsService);
 //# sourceMappingURL=subscriptions.service.js.map

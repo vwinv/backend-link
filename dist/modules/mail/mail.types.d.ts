@@ -19,3 +19,13 @@ export type ResetPasswordEmailPayload = {
     firstName: string;
     resetUrl: string;
 };
+export type SubscriptionSignupNoticePayload = {
+    to: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string | null;
+    offerTitle: string;
+    billingType: string;
+    seats?: number | null;
+};

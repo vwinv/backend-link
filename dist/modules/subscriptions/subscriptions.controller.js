@@ -53,6 +53,9 @@ let SubscriptionsController = class SubscriptionsController {
     confirmPaydunya(user, invoiceToken) {
         return this.subscriptionsService.confirmPaydunyaPayment(user.userId, invoiceToken);
     }
+    createSignupRequest(user, dto) {
+        return this.subscriptionsService.createSignupRequest(user.userId, dto);
+    }
     subscribe(user, dto) {
         return this.subscriptionsService.subscribe(user.userId, dto);
     }
@@ -72,7 +75,7 @@ exports.SubscriptionsController = SubscriptionsController;
 __decorate([
     (0, common_1.Get)('config'),
     (0, swagger_1.ApiOperation)({
-        summary: 'Configuration paiement (PayDunya SoftPay activé ou mode test instantané)',
+        summary: 'Configuration paiement (PayDunya, masquage in-app, ou mode test)',
     }),
     (0, swagger_1.ApiResponse)({ status: 200, type: payment_config_response_dto_1.PaymentConfigResponseDto }),
     __metadata("design:type", Function),
@@ -152,6 +155,19 @@ __decorate([
     __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)
 ], SubscriptionsController.prototype, "confirmPaydunya", null);
+__decorate([
+    (0, common_1.Post)('signup-request'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Enregistrer une demande d’inscription (paiement masqué, review Apple)',
+    }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, subscribe_dto_1.SubscribeDto]),
+    __metadata("design:returntype", void 0)
+], SubscriptionsController.prototype, "createSignupRequest", null);
 __decorate([
     (0, common_1.Post)('subscribe'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),

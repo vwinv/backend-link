@@ -6,9 +6,11 @@ import { buildSupportTicketReplyEmail } from './support-ticket-reply-email.templ
 import { buildTeamInviteEmail } from './team-invite-email.template';
 import type {
   ResetPasswordEmailPayload,
+  SubscriptionSignupNoticePayload,
   SupportTicketReplyEmailPayload,
   TeamInviteEmailPayload,
 } from './mail.types';
+import { buildSubscriptionSignupNoticeEmail } from './subscription-signup-email';
 
 @Injectable()
 export class MailService {
@@ -51,6 +53,13 @@ export class MailService {
     payload: ResetPasswordEmailPayload,
   ): Promise<void> {
     const { subject, text, html } = buildResetPasswordEmail(payload);
+    await this.send({ to: payload.to, subject, text, html });
+  }
+
+  async sendSubscriptionSignupNotice(
+    payload: SubscriptionSignupNoticePayload,
+  ): Promise<void> {
+    const { subject, text, html } = buildSubscriptionSignupNoticeEmail(payload);
     await this.send({ to: payload.to, subject, text, html });
   }
 

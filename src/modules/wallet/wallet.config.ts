@@ -44,11 +44,15 @@ export class WalletConfig {
   }
 
   get googleClassSuffix(): string {
-    return this.config.get<string>('wallet.google.classSuffix') ?? 'link_business_card';
+    return this.config.get<string>('wallet.google.classSuffix') ?? 'dropone_card_v2';
   }
 
   get googleServiceAccountPath(): string {
     return this.config.get<string>('wallet.google.serviceAccountPath') ?? '';
+  }
+
+  get googleServiceAccountJson(): string {
+    return this.config.get<string>('wallet.google.serviceAccountJson') ?? '';
   }
 
   get googleOrigins(): string[] {
@@ -70,9 +74,7 @@ export class WalletConfig {
 
   isGoogleConfigured(): boolean {
     return Boolean(
-      this.googleIssuerId &&
-        this.googleServiceAccountPath &&
-        this.fileExists(this.googleServiceAccountPath),
+      this.googleIssuerId.trim() && this.hasGoogleServiceAccount(),
     );
   }
 
@@ -91,7 +93,8 @@ export class WalletConfig {
       },
       google: {
         configured: this.isGoogleConfigured(),
-        issuerIdSet: Boolean(this.googleIssuerId),
+        issuerIdSet: Boolean(this.googleIssuerId.trim()),
+        serviceAccountJsonSet: Boolean(this.googleServiceAccountJson.trim()),
         serviceAccountPath: this.googleServiceAccountPath || null,
         serviceAccountExists: this.fileExists(this.googleServiceAccountPath),
       },
@@ -99,7 +102,16 @@ export class WalletConfig {
   }
 
   loadGoogleServiceAccount(): Record<string, unknown> {
-    const raw = fs.readFileSync(this.googleServiceAccountPath, 'utf8');
+    const inline = this.googleServiceAccountJson.trim();
+    if (inline) {
+      return JSON.parse(inline) as Record<string, unknown>;
+    }
+
+    const resolved = this.resolvePath(this.googleServiceAccountPath);
+    if (!resolved) {
+      throw new Error('Compte de service Google Wallet introuvable');
+    }
+    const raw = fs.readFileSync(resolved, 'utf8');
     return JSON.parse(raw) as Record<string, unknown>;
   }
 
@@ -107,12 +119,30 @@ export class WalletConfig {
     return path.join(process.cwd(), 'wallet-assets');
   }
 
+  private hasGoogleServiceAccount(): boolean {
+    if (this.googleServiceAccountJson.trim()) return true;
+    return this.fileExists(this.googleServiceAccountPath);
+  }
+
   private fileExists(filePath: string): boolean {
-    if (!filePath) return false;
-    try {
-      return fs.existsSync(filePath);
-    } catch {
-      return false;
+    return Boolean(this.resolvePath(filePath));
+  }
+
+  private resolvePath(filePath: string): string | null {
+    if (!filePath?.trim()) return null;
+    const candidates = path.isAbsolute(filePath)
+      ? [filePath]
+      : [
+          path.resolve(process.cwd(), filePath),
+          path.resolve(process.cwd(), 'backend-link', filePath),
+        ];
+    for (const candidate of candidates) {
+      try {
+        if (fs.existsSync(candidate)) return candidate;
+      } catch {
+        // ignore
+      }
     }
+    return null;
   }
 }

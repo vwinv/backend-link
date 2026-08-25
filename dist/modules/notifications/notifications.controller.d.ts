@@ -45,8 +45,8 @@ export declare class NotificationsController {
     }>;
     registerToken(user: AuthUserPayload, dto: RegisterPushTokenDto): Promise<{
         id: string;
-        token: string;
         updatedAt: Date;
+        token: string;
         platform: import("@prisma/client").$Enums.PushPlatform;
     }>;
     unregisterToken(user: AuthUserPayload, dto: UnregisterPushTokenDto): Promise<{

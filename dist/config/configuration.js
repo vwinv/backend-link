@@ -46,8 +46,9 @@ exports.default = () => ({
         },
         google: {
             issuerId: process.env.GOOGLE_WALLET_ISSUER_ID ?? '',
-            classSuffix: process.env.GOOGLE_WALLET_CLASS_SUFFIX ?? 'link_business_card',
+            classSuffix: process.env.GOOGLE_WALLET_CLASS_SUFFIX ?? 'dropone_card_v2',
             serviceAccountPath: process.env.GOOGLE_WALLET_SERVICE_ACCOUNT_PATH ?? '',
+            serviceAccountJson: process.env.GOOGLE_WALLET_SERVICE_ACCOUNT_JSON ?? '',
             origins: (process.env.GOOGLE_WALLET_ORIGINS ?? '')
                 .split(',')
                 .map((origin) => origin.trim())
@@ -71,6 +72,9 @@ exports.default = () => ({
         apiBaseUrl: process.env.PAYDUNYA_API_BASE_URL ?? 'https://app.paydunya.com',
         storeName: process.env.PAYDUNYA_STORE_NAME ?? 'Drop One',
     },
+    hideInAppPayments: process.env.HIDE_IN_APP_PAYMENTS === 'true',
+    subscriptionRequestsNotifyEmail: process.env.SUBSCRIPTION_REQUESTS_NOTIFY_EMAIL ??
+        'contact@mega-sn.com',
     cloudinary: {
         cloudName: process.env.CLOUDINARY_CLOUD_NAME ?? '',
         apiKey: process.env.CLOUDINARY_API_KEY ?? '',

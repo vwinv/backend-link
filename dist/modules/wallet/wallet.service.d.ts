@@ -14,10 +14,12 @@ export declare class WalletService {
         savedCardId: string;
         passBase64: string;
         saveUrl?: undefined;
+        saveJwt?: undefined;
     } | {
         walletType: "GOOGLE_WALLET";
         savedCardId: string;
         saveUrl: string;
+        saveJwt: string;
         passBase64?: undefined;
     }>;
     findAll(userId: string): Promise<({
@@ -33,9 +35,9 @@ export declare class WalletService {
         id: string;
         userId: string;
         cardId: string;
-        savedAt: Date;
         walletType: import("@prisma/client").$Enums.WalletType;
         passId: string | null;
+        savedAt: Date;
     })[]>;
     remove(userId: string, id: string): Promise<{
         message: string;

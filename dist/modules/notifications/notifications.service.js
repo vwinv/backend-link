@@ -8,14 +8,19 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var NotificationsService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.NotificationsService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
-let NotificationsService = class NotificationsService {
+const fcm_push_service_1 = require("./fcm-push.service");
+let NotificationsService = NotificationsService_1 = class NotificationsService {
     prisma;
-    constructor(prisma) {
+    fcmPushService;
+    logger = new common_1.Logger(NotificationsService_1.name);
+    constructor(prisma, fcmPushService) {
         this.prisma = prisma;
+        this.fcmPushService = fcmPushService;
     }
     async listMine(userId, page = 1, limit = 30) {
         const skip = (page - 1) * limit;
@@ -122,10 +127,44 @@ let NotificationsService = class NotificationsService {
         });
         return { ok: true };
     }
+    async notifyUser(input) {
+        const userId = input.userId.trim();
+        if (!userId)
+            return;
+        await this.prisma.userNotification.create({
+            data: {
+                userId,
+                title: input.title,
+                body: input.body,
+            },
+        });
+        const pushTokens = await this.prisma.devicePushToken.findMany({
+            where: { userId },
+            select: { token: true },
+        });
+        const tokens = pushTokens.map((row) => row.token);
+        if (tokens.length === 0)
+            return;
+        const pushResult = await this.fcmPushService.sendToTokens({
+            tokens,
+            title: input.title,
+            body: input.body,
+            data: input.data,
+        });
+        if (pushResult.invalidTokens.length > 0) {
+            await this.prisma.devicePushToken.deleteMany({
+                where: { token: { in: pushResult.invalidTokens } },
+            });
+        }
+        if (!pushResult.configured) {
+            this.logger.warn(`Inbox livrée pour ${userId}, FCM non configuré (${tokens.length} token(s))`);
+        }
+    }
 };
 exports.NotificationsService = NotificationsService;
-exports.NotificationsService = NotificationsService = __decorate([
+exports.NotificationsService = NotificationsService = NotificationsService_1 = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        fcm_push_service_1.FcmPushService])
 ], NotificationsService);
 //# sourceMappingURL=notifications.service.js.map

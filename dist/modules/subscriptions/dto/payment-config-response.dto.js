@@ -13,6 +13,7 @@ exports.CheckoutSessionResponseDto = exports.PaymentConfigResponseDto = void 0;
 const swagger_1 = require("@nestjs/swagger");
 class PaymentConfigResponseDto {
     paymentsEnabled;
+    hideInAppPayments;
     provider;
 }
 exports.PaymentConfigResponseDto = PaymentConfigResponseDto;
@@ -22,6 +23,12 @@ __decorate([
     }),
     __metadata("design:type", Boolean)
 ], PaymentConfigResponseDto.prototype, "paymentsEnabled", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: 'Si true, Wave / Orange Money sont masqués : l’utilisateur envoie une demande d’inscription.',
+    }),
+    __metadata("design:type", Boolean)
+], PaymentConfigResponseDto.prototype, "hideInAppPayments", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({ example: 'paydunya', required: false }),
     __metadata("design:type", String)

@@ -52,7 +52,8 @@ export class WalletService {
       };
     }
 
-    const saveUrl = await this.googleWalletService.generateSaveUrl(card);
+    const { saveUrl, saveJwt } =
+      await this.googleWalletService.generateSaveUrl(card);
     const passId = this.googleWalletService.getPassId(card);
     const savedCard = await this.upsertSavedCard(
       userId,
@@ -65,6 +66,7 @@ export class WalletService {
       walletType: WalletType.GOOGLE_WALLET,
       savedCardId: savedCard.id,
       saveUrl,
+      saveJwt,
     };
   }
 

@@ -9,6 +9,7 @@ import {
 } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { LIVE_SUBSCRIPTION_STATUSES } from './subscription-validity';
 
 /** Génère la facture de renouvellement à J-10 de l’échéance. */
@@ -25,7 +26,10 @@ export type InvoiceLine = {
 export class InvoicesService implements OnModuleInit {
   private readonly logger = new Logger(InvoicesService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async onModuleInit() {
     const expired = await this.expireOverdueSubscriptions();
@@ -51,14 +55,49 @@ export class InvoicesService implements OnModuleInit {
   }
 
   async expireOverdueSubscriptions(): Promise<number> {
-    const result = await this.prisma.subscription.updateMany({
+    const due = await this.prisma.subscription.findMany({
       where: {
         status: { in: LIVE_SUBSCRIPTION_STATUSES },
         currentPeriodEnd: { lte: new Date() },
       },
+      select: {
+        id: true,
+        userId: true,
+        offer: { select: { title: true } },
+        team: { select: { ownerId: true } },
+      },
+    });
+
+    if (due.length === 0) return 0;
+
+    await this.prisma.subscription.updateMany({
+      where: { id: { in: due.map((item) => item.id) } },
       data: { status: SubscriptionStatus.EXPIRED },
     });
-    return result.count;
+
+    for (const subscription of due) {
+      const userId = subscription.userId ?? subscription.team?.ownerId;
+      if (!userId) continue;
+      const offerTitle = subscription.offer?.title?.trim() || 'Premium';
+      try {
+        await this.notificationsService.notifyUser({
+          userId,
+          title: 'Votre abonnement a expiré',
+          body: `Votre offre ${offerTitle} n’est plus active. Renouvelez-la pour retrouver vos avantages.`,
+          data: {
+            type: 'subscription_expired',
+            subscriptionId: subscription.id,
+          },
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.error(
+          `Notification expiration impossible subscription=${subscription.id}: ${message}`,
+        );
+      }
+    }
+
+    return due.length;
   }
 
   async generateDueUpcomingInvoices(): Promise<number> {

@@ -6,15 +6,21 @@ import { SubscribeDto } from './dto/subscribe.dto';
 import { StripeService } from './stripe.service';
 import { InvoicesService } from './invoices.service';
 import type { InvoiceLine } from './invoices.service';
+import { MailService } from '../mail/mail.service';
+import { ConfigService } from '@nestjs/config';
 export declare class SubscriptionsService {
     private readonly prisma;
     private readonly stripeService;
     private readonly paydunyaService;
     private readonly invoicesService;
+    private readonly mailService;
+    private readonly config;
     private readonly logger;
-    constructor(prisma: PrismaService, stripeService: StripeService, paydunyaService: PaydunyaService, invoicesService: InvoicesService);
+    constructor(prisma: PrismaService, stripeService: StripeService, paydunyaService: PaydunyaService, invoicesService: InvoicesService, mailService: MailService, config: ConfigService);
+    isInAppPaymentsHidden(): boolean;
     getPaymentConfig(): {
         paymentsEnabled: boolean;
+        hideInAppPayments: boolean;
         provider: string;
     };
     getOffers(): Promise<{
@@ -564,6 +570,13 @@ export declare class SubscriptionsService {
         purchasedSeats: number | null;
         currentPeriodEnd: string | null;
     }>;
+    createSignupRequest(userId: string, dto: SubscribeDto): Promise<{
+        id: string;
+        firstName: string;
+        offerTitle: string;
+        billingType: import("@prisma/client").$Enums.OfferBillingType;
+    }>;
+    private assertInAppCheckoutAllowed;
     handleStripeWebhook(payload: Buffer, signature?: string): Promise<{
         received: boolean;
     }>;

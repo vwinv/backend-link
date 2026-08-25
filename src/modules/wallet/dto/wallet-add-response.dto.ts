@@ -13,4 +13,7 @@ export class WalletAddResponseDto {
 
   @ApiProperty({ required: false })
   saveUrl?: string;
+
+  @ApiProperty({ required: false })
+  saveJwt?: string;
 }

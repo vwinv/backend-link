@@ -7,7 +7,7 @@ export declare class AdminRolesService {
     listPermissions(): {
         modules: {
             key: "subscriptions" | "notifications" | "roles" | "dashboard" | "backoffice_users" | "clients" | "support";
-            label: "Tableau de bord" | "Utilisateurs backoffice" | "Rôles & permissions" | "Clients" | "Abonnements & offres" | "Notifications" | "Support";
+            label: "Notifications" | "Tableau de bord" | "Utilisateurs backoffice" | "Rôles & permissions" | "Clients" | "Abonnements & offres" | "Support";
             permissions: ({
                 readonly key: "dashboard.view";
                 readonly module: "dashboard";

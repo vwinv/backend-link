@@ -1,6 +1,7 @@
 import { OnModuleInit } from '@nestjs/common';
 import { OfferAudience, OfferBillingType, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 export type InvoiceLine = {
     label: string;
     amount: number;
@@ -9,8 +10,9 @@ export type InvoiceLine = {
 };
 export declare class InvoicesService implements OnModuleInit {
     private readonly prisma;
+    private readonly notificationsService;
     private readonly logger;
-    constructor(prisma: PrismaService);
+    constructor(prisma: PrismaService, notificationsService: NotificationsService);
     onModuleInit(): Promise<void>;
     generateDueUpcomingInvoicesCron(): Promise<void>;
     expireOverdueSubscriptionsCron(): Promise<void>;
@@ -19,20 +21,20 @@ export declare class InvoicesService implements OnModuleInit {
     ensureUpcomingForOwner(ownerId: string, teamId?: string | null): Promise<{
         number: string;
         id: string;
-        userId: string;
-        teamId: string | null;
-        status: import("@prisma/client").$Enums.InvoiceStatus;
+        description: string | null;
+        provider: string | null;
         createdAt: Date;
         updatedAt: Date;
+        userId: string;
+        status: import("@prisma/client").$Enums.InvoiceStatus;
+        teamId: string | null;
         billingType: string | null;
         currency: string;
-        providerInvoiceId: string | null;
-        subscriptionId: string | null;
-        amount: Prisma.Decimal;
-        description: string | null;
         offerSlug: string | null;
         seats: number | null;
-        provider: string | null;
+        subscriptionId: string | null;
+        providerInvoiceId: string | null;
+        amount: Prisma.Decimal;
         lines: Prisma.JsonValue;
         dueAt: Date | null;
         paidAt: Date | null;

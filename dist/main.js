@@ -52,7 +52,10 @@ async function bootstrap() {
     const appleAppId = `${appleTeamId}.${appleBundleId}`;
     const androidPackageName = configService.get('mobile.androidPackageName', 'com.mega.dropone');
     const androidSha256Fingerprints = configService.get('mobile.androidSha256Fingerprints', []);
-    const defaultAndroidFingerprint = 'B5:F8:5C:04:90:E6:3D:B2:F1:AB:DB:86:9D:7F:6E:9E:7E:02:07:BE:3D:1A:C5:FD:C6:23:F0:CC:D6:94:63:D9';
+    const defaultAndroidFingerprints = [
+        '03:1D:B9:11:24:22:D0:7D:41:54:EA:4D:BF:34:A0:ED:22:3F:F0:5F:AB:45:06:33:65:15:2A:32:F1:29:5F:F4',
+        '80:66:3B:F7:B0:0D:45:4F:DA:EF:DD:B8:2A:1D:77:A5:D9:02:F3:63:71:EB:E3:73:64:F9:EF:B2:3E:79:DE:DD',
+    ];
     const appleAppSiteAssociation = {
         applinks: {
             apps: [],
@@ -66,13 +69,16 @@ async function bootstrap() {
     };
     const androidAssetLinks = [
         {
-            relation: ['delegate_permission/common.handle_all_urls'],
+            relation: [
+                'delegate_permission/common.handle_all_urls',
+                'delegate_permission/common.get_login_creds',
+            ],
             target: {
                 namespace: 'android_app',
                 package_name: androidPackageName,
                 sha256_cert_fingerprints: androidSha256Fingerprints.length > 0
                     ? androidSha256Fingerprints
-                    : [defaultAndroidFingerprint],
+                    : defaultAndroidFingerprints,
             },
         },
     ];

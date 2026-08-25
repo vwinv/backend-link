@@ -153,7 +153,8 @@ APPLE_PASS_SIGNER_KEY_PASSPHRASE=
    APPLE_PASS_SIGNER_KEY_PASSPHRASE=
    GOOGLE_WALLET_ISSUER_ID=<issuer id>
    GOOGLE_WALLET_SERVICE_ACCOUNT_PATH=/etc/secrets/dropone-xxxx.json
-   GOOGLE_WALLET_ORIGINS=https://dropone.pro
+   # Alternative Render : coller le JSON dans GOOGLE_WALLET_SERVICE_ACCOUNT_JSON
+   GOOGLE_WALLET_ORIGINS=https://dropone.pro,https://api.dropone.pro
    ```
    - **Save Changes** → Render redéploie automatiquement.
 
@@ -189,9 +190,9 @@ APPLE_PASS_SIGNER_KEY_PASSPHRASE=
 
 2. **Classe Generic — créée par l’API**
    - Aucune action manuelle en console : au premier « Ajouter à Google Wallet », le backend crée (ou nettoie) la classe via l’API `genericClass`.
-   - Le backend utilise par défaut le suffixe `link_business_card`
-   - Class ID final : `{ISSUER_ID}.link_business_card`
-   - Vous pouvez changer le suffixe avec `GOOGLE_WALLET_CLASS_SUFFIX`
+   - Le backend utilise par défaut le suffixe `dropone_card_v2`
+   - Class ID final : `{ISSUER_ID}.dropone_card_v2`
+   - Vous pouvez changer le suffixe avec `GOOGLE_WALLET_CLASS_SUFFIX` (évitez `link_business_card`, classe historique cassée)
 
 3. **Mode test (très fréquent si « Something went wrong »)**
    - Tant que l’émetteur est en **Demo / Test**, seuls les comptes Google ajoutés comme testeurs dans la Wallet Console peuvent enregistrer le pass.
@@ -212,17 +213,20 @@ APPLE_PASS_SIGNER_KEY_PASSPHRASE=
 
 ```env
 GOOGLE_WALLET_ISSUER_ID=3388000000000000000
-GOOGLE_WALLET_CLASS_SUFFIX=link_business_card
+GOOGLE_WALLET_CLASS_SUFFIX=dropone_card_v2
 GOOGLE_WALLET_SERVICE_ACCOUNT_PATH=./certs/google-wallet-service-account.json
+# Sur Render, coller le JSON du compte de service si le fichier n’est pas monté :
+# GOOGLE_WALLET_SERVICE_ACCOUNT_JSON={"type":"service_account",...}
 GOOGLE_WALLET_ORIGINS=https://dropone.pro,https://api.dropone.pro
 ```
 
 ### Test Android
 
-- Backend configuré
-- App sur appareil Android avec **Google Wallet** installé
-- Créer une carte → **Ajouter au Wallet**
-- Le navigateur / Google Wallet s’ouvre avec l’écran « Enregistrer »
+- Backend **déployé** (l’app parle à `https://api.dropone.pro`)
+- Téléphone Android **réel** avec l’app **Google Wallet**
+- Si l’émetteur est encore en Demo : ajoutez votre compte Gmail comme testeur dans la Wallet Console
+- Créer une carte → **Ajouter à Google Wallet**
+- Le sheet natif Google Wallet doit s’ouvrir (plus l’écran web « Something went wrong »)
 
 ---
 

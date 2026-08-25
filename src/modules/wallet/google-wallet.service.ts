@@ -3,6 +3,7 @@ import {
   Injectable,
   InternalServerErrorException,
   Logger,
+  OnModuleInit,
 } from '@nestjs/common';
 import { BusinessCard, CardKind } from '@prisma/client';
 import { JWT } from 'google-auth-library';
@@ -20,17 +21,63 @@ type TextModule = {
   body: string;
 };
 
+type SaveToGoogleWallet = {
+  saveUrl: string;
+  saveJwt: string;
+};
+
 @Injectable()
-export class GoogleWalletService {
+export class GoogleWalletService implements OnModuleInit {
   private readonly logger = new Logger(GoogleWalletService.name);
-  private readonly ensuredClassIds = new Set<string>();
+  private accessTokenCache: { token: string; expiresAt: number } | null = null;
 
   constructor(private readonly walletConfig: WalletConfig) {}
 
-  async generateSaveUrl(card: BusinessCard): Promise<string> {
+  onModuleInit() {
+    if (this.walletConfig.isGoogleConfigured()) {
+      this.logger.log('Google Wallet configuré');
+      return;
+    }
+    const status = this.walletConfig.describe().google as {
+      issuerIdSet?: boolean;
+      serviceAccountJsonSet?: boolean;
+      serviceAccountExists?: boolean;
+    };
+    this.logger.warn(
+      `Google Wallet non configuré (issuerId=${status.issuerIdSet ? 'ok' : 'manquant'}, compte de service=${
+        status.serviceAccountJsonSet || status.serviceAccountExists ? 'ok' : 'manquant'
+      })`,
+    );
+  }
+
+  /**
+   * Ancienne classe `link_business_card` : modèle JWT cassé + PUT `{id}` trop
+   * agressif. On force une classe neuve sauf suffixe custom explicite.
+   */
+  private get classSuffix(): string {
+    const suffix = this.walletConfig.googleClassSuffix?.trim();
+    if (!suffix || suffix === 'link_business_card') {
+      return 'dropone_card_v2';
+    }
+    return suffix;
+  }
+
+  async generateSaveUrl(card: BusinessCard): Promise<SaveToGoogleWallet> {
     if (!this.walletConfig.isGoogleConfigured()) {
+      const google = this.walletConfig.describe().google as {
+        issuerIdSet?: boolean;
+        serviceAccountJsonSet?: boolean;
+        serviceAccountExists?: boolean;
+      };
+      const missing: string[] = [];
+      if (!google.issuerIdSet) missing.push('GOOGLE_WALLET_ISSUER_ID');
+      if (!google.serviceAccountJsonSet && !google.serviceAccountExists) {
+        missing.push(
+          'GOOGLE_WALLET_SERVICE_ACCOUNT_PATH ou GOOGLE_WALLET_SERVICE_ACCOUNT_JSON',
+        );
+      }
       throw new BadRequestException(
-        'Google Wallet n’est pas configuré côté serveur. Consultez WALLET_SETUP.md.',
+        `Google Wallet n’est pas configuré côté serveur (${missing.join(', ')}). Consultez WALLET_SETUP.md.`,
       );
     }
 
@@ -41,76 +88,47 @@ export class GoogleWalletService {
       );
     }
 
-    const issuerId = this.walletConfig.googleIssuerId;
-    const classId = `${issuerId}.${this.walletConfig.googleClassSuffix}`;
-    const objectId = `${issuerId}.card_${card.id}`;
-    const fullName = this.clip(`${card.firstName} ${card.lastName}`.trim(), 32);
-    const subtitle = this.clip(
-      [card.jobTitle, card.company].filter(Boolean).join(' · '),
-      32,
+    const issuerId = this.walletConfig.googleIssuerId.trim();
+    if (!/^\d+$/.test(issuerId)) {
+      throw new BadRequestException(
+        'GOOGLE_WALLET_ISSUER_ID est invalide (attendu : identifiant numérique de la Wallet Console).',
+      );
+    }
+
+    const classId = `${issuerId}.${this.classSuffix}`;
+    const objectId = `${issuerId}.card_${this.safeId(card.id)}`;
+    const genericObject = this.buildGenericObject(card, classId, objectId);
+
+    await this.ensureGenericClass(account, classId);
+    const objectReady = await this.upsertGenericObject(
+      account,
+      objectId,
+      genericObject,
     );
-    const cardUrl = `${this.walletConfig.appPublicUrl}/cards/${card.slug}`;
-    const textModulesData = this.buildTextModules(card);
-    const genericClass = { id: classId };
-    const classReady = await this.ensureGenericClass(account, genericClass);
-
-    const genericObject: Record<string, unknown> = {
-      id: objectId,
-      classId,
-      state: 'ACTIVE',
-      genericType: 'GENERIC_TYPE_UNSPECIFIED',
-      hexBackgroundColor: '#0D0D0D',
-      cardTitle: {
-        defaultValue: { language: 'fr', value: 'DropOne' },
-      },
-      header: {
-        defaultValue: { language: 'fr', value: fullName || 'DropOne' },
-      },
-      barcode: {
-        type: 'QR_CODE',
-        value: cardUrl,
-        alternateText: 'Carte DropOne',
-      },
-      linksModuleData: {
-        uris: [
-          {
-            uri: cardUrl,
-            description: 'Voir la carte',
-            id: 'card',
-          },
-        ],
-      },
-    };
-
-    if (subtitle) {
-      genericObject.subheader = {
-        defaultValue: { language: 'fr', value: subtitle },
-      };
-    }
-    if (textModulesData.length > 0) {
-      genericObject.textModulesData = textModulesData;
-    }
 
     try {
-      const now = Math.floor(Date.now() / 1000);
       const token = jwt.sign(
         {
           iss: account.client_email,
           aud: 'google',
           typ: 'savetowallet',
-          iat: now,
-          exp: now + 60 * 60,
+          iat: Math.floor(Date.now() / 1000),
           origins: this.resolveOrigins(),
-          payload: {
-            ...(classReady ? {} : { genericClasses: [genericClass] }),
-            genericObjects: [genericObject],
-          },
+          payload: objectReady
+            ? { genericObjects: [{ id: objectId, classId }] }
+            : {
+                genericClasses: [{ id: classId }],
+                genericObjects: [genericObject],
+              },
         },
         account.private_key,
         { algorithm: 'RS256' },
       );
 
-      return `https://pay.google.com/gp/v/save/${token}`;
+      return {
+        saveJwt: token,
+        saveUrl: `https://pay.google.com/gp/v/save/${token}`,
+      };
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Erreur inconnue Google Wallet';
@@ -121,18 +139,73 @@ export class GoogleWalletService {
   }
 
   getPassId(card: BusinessCard): string {
-    return `${this.walletConfig.googleIssuerId}.card_${card.id}`;
+    return `${this.walletConfig.googleIssuerId.trim()}.card_${this.safeId(card.id)}`;
   }
 
-  private buildTextModules(card: BusinessCard): TextModule[] {
-    const modules: TextModule[] = [];
+  private buildGenericObject(
+    card: BusinessCard,
+    classId: string,
+    objectId: string,
+  ): Record<string, unknown> {
+    const fullName = this.clip(`${card.firstName} ${card.lastName}`.trim(), 32);
+    const subtitle = this.clip(
+      [card.jobTitle, card.company].filter(Boolean).join(' - '),
+      32,
+    );
+    const cardUrl = `${this.walletConfig.appPublicUrl}/cards/${card.slug}`;
+    const textModulesData = this.buildTextModules(card, fullName);
+
+    const genericObject: Record<string, unknown> = {
+      id: objectId,
+      classId,
+      state: 'ACTIVE',
+      hexBackgroundColor: '#0D0D0D',
+      cardTitle: {
+        defaultValue: { language: 'fr', value: 'DropOne' },
+      },
+      header: {
+        defaultValue: { language: 'fr', value: fullName || 'DropOne' },
+      },
+      barcode: {
+        type: 'QR_CODE',
+        value: cardUrl,
+      },
+      linksModuleData: {
+        uris: [
+          {
+            uri: cardUrl,
+            description: 'Voir la carte',
+            id: 'card',
+          },
+        ],
+      },
+      textModulesData,
+    };
+
+    if (subtitle) {
+      genericObject.subheader = {
+        defaultValue: { language: 'fr', value: subtitle },
+      };
+    }
+
+    return genericObject;
+  }
+
+  private buildTextModules(card: BusinessCard, fullName: string): TextModule[] {
+    const modules: TextModule[] = [
+      {
+        id: 'name',
+        header: 'Nom',
+        body: fullName || 'DropOne',
+      },
+    ];
     if (card.email?.trim()) {
       modules.push({ id: 'email', header: 'Email', body: card.email.trim() });
     }
     if (card.phone?.trim()) {
       modules.push({
         id: 'phone',
-        header: 'Téléphone',
+        header: 'Telephone',
         body: card.phone.trim(),
       });
     }
@@ -147,10 +220,18 @@ export class GoogleWalletService {
   }
 
   private resolveOrigins(): string[] {
-    const origins = new Set(this.walletConfig.googleOrigins);
-    for (const value of [this.walletConfig.appPublicUrl, 'https://dropone.pro']) {
+    const origins = new Set<string>();
+    for (const value of [
+      ...this.walletConfig.googleOrigins,
+      this.walletConfig.appPublicUrl,
+      'https://dropone.pro',
+      'https://api.dropone.pro',
+    ]) {
       try {
-        origins.add(new URL(value).origin);
+        const url = new URL(value.includes('://') ? value : `https://${value}`);
+        if (url.protocol === 'http:' || url.protocol === 'https:') {
+          origins.add(url.origin);
+        }
       } catch {
         // Ignore invalid URLs.
       }
@@ -161,74 +242,164 @@ export class GoogleWalletService {
   private clip(value: string, max: number): string {
     const trimmed = value.trim();
     if (trimmed.length <= max) return trimmed;
-    return `${trimmed.slice(0, max - 1).trimEnd()}…`;
+    return `${trimmed.slice(0, max - 1).trimEnd()}...`;
+  }
+
+  private safeId(value: string): string {
+    return value.replace(/[^A-Za-z0-9._-]/g, '_');
   }
 
   private async ensureGenericClass(
     account: GoogleServiceAccount,
-    genericClass: { id: string },
+    classId: string,
+  ): Promise<void> {
+    const existing = await this.walletRequest(
+      account,
+      'GET',
+      `/genericClass/${classId}`,
+    );
+
+    if (existing.status === 200) return;
+
+    if (existing.status !== 404) {
+      this.throwWalletApiError('lecture de la classe', existing);
+    }
+
+    const created = await this.walletRequest(
+      account,
+      'POST',
+      '/genericClass',
+      { id: classId },
+    );
+    if (created.status !== 200 && created.status !== 201) {
+      this.throwWalletApiError('création de la classe', created);
+    }
+  }
+
+  private async upsertGenericObject(
+    account: GoogleServiceAccount,
+    objectId: string,
+    genericObject: Record<string, unknown>,
   ): Promise<boolean> {
-    if (this.ensuredClassIds.has(genericClass.id)) return true;
-
     try {
-      const client = new JWT({
-        email: account.client_email,
-        key: account.private_key,
-        scopes: ['https://www.googleapis.com/auth/wallet_object.issuer'],
-      });
-      const { token } = await client.getAccessToken();
-      if (!token) {
-        throw new Error('Jeton Google Wallet introuvable');
-      }
+      const existing = await this.walletRequest(
+        account,
+        'GET',
+        `/genericObject/${objectId}`,
+      );
 
-      const headers = {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      };
-      const endpoint = `https://walletobjects.googleapis.com/walletobjects/v1/genericClass/${genericClass.id}`;
-      const existing = await fetch(endpoint, { headers });
-
-      if (existing.status === 404) {
-        const created = await fetch(
-          'https://walletobjects.googleapis.com/walletobjects/v1/genericClass',
-          {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(genericClass),
-          },
+      if (existing.status === 200) {
+        const updated = await this.walletRequest(
+          account,
+          'PUT',
+          `/genericObject/${objectId}`,
+          genericObject,
         );
-        if (!created.ok) {
-          const body = await created.text();
-          throw new Error(`création classe ${created.status}: ${body}`);
+        if (updated.status !== 200) {
+          this.logger.warn(
+            `Mise à jour objet Google Wallet ${updated.status}: ${updated.body.slice(0, 300)}`,
+          );
         }
-        this.ensuredClassIds.add(genericClass.id);
-        return true;
+        return updated.status === 200;
       }
 
-      if (!existing.ok) {
-        const body = await existing.text();
-        throw new Error(`lecture classe ${existing.status}: ${body}`);
+      if (existing.status !== 404) {
+        this.throwWalletApiError('lecture de l’objet', existing);
       }
 
-      const updated = await fetch(endpoint, {
-        method: 'PUT',
-        headers,
-        body: JSON.stringify(genericClass),
-      });
-      if (!updated.ok) {
-        const body = await updated.text();
-        this.logger.warn(
-          `Impossible de nettoyer la classe Google Wallet (${updated.status}): ${body}`,
-        );
+      const created = await this.walletRequest(
+        account,
+        'POST',
+        '/genericObject',
+        genericObject,
+      );
+      if (created.status !== 200 && created.status !== 201) {
+        this.throwWalletApiError('création de l’objet', created);
       }
-
-      this.ensuredClassIds.add(genericClass.id);
       return true;
     } catch (error) {
+      if (
+        error instanceof BadRequestException ||
+        error instanceof InternalServerErrorException
+      ) {
+        throw error;
+      }
       this.logger.warn(
-        `Classe Google Wallet non préparée (${error instanceof Error ? error.message : 'erreur inconnue'}). Le JWT inclura la classe.`,
+        `Objet Google Wallet non préparé (${error instanceof Error ? error.message : 'erreur inconnue'}). JWT complet en secours.`,
       );
       return false;
     }
+  }
+
+  private async walletRequest(
+    account: GoogleServiceAccount,
+    method: 'GET' | 'POST' | 'PUT',
+    path: string,
+    body?: Record<string, unknown>,
+  ): Promise<{ status: number; body: string }> {
+    const token = await this.getAccessToken(account);
+    const response = await fetch(
+      `https://walletobjects.googleapis.com/walletobjects/v1${path}`,
+      {
+        method,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: body ? JSON.stringify(body) : undefined,
+      },
+    );
+    return {
+      status: response.status,
+      body: await response.text(),
+    };
+  }
+
+  private async getAccessToken(account: GoogleServiceAccount): Promise<string> {
+    if (
+      this.accessTokenCache &&
+      this.accessTokenCache.expiresAt > Date.now() + 60_000
+    ) {
+      return this.accessTokenCache.token;
+    }
+
+    const client = new JWT({
+      email: account.client_email,
+      key: account.private_key,
+      scopes: ['https://www.googleapis.com/auth/wallet_object.issuer'],
+    });
+    const { token } = await client.getAccessToken();
+    if (!token) {
+      throw new BadRequestException(
+        'Impossible d’obtenir un jeton Google Wallet. Vérifiez le compte de service.',
+      );
+    }
+    this.accessTokenCache = {
+      token,
+      expiresAt: Date.now() + 50 * 60 * 1000,
+    };
+    return token;
+  }
+
+  private throwWalletApiError(
+    action: string,
+    result: { status: number; body: string },
+  ): never {
+    const snippet = result.body.replace(/\s+/g, ' ').slice(0, 280);
+    this.logger.error(`Google Wallet ${action} ${result.status}: ${snippet}`);
+
+    if (result.status === 403) {
+      throw new BadRequestException(
+        'Le compte de service n’a pas accès à Google Wallet. Dans la Wallet Console, ajoutez l’email du compte de service (Utilisateurs) avec le rôle Développeur ou Admin, puis réessayez.',
+      );
+    }
+    if (result.status === 401) {
+      throw new BadRequestException(
+        'Authentification Google Wallet refusée. Vérifiez le JSON du compte de service sur le serveur.',
+      );
+    }
+    throw new BadRequestException(
+      `Google Wallet a refusé ${action} (HTTP ${result.status}). ${snippet || 'Sans détail.'}`,
+    );
   }
 }

@@ -67,6 +67,13 @@ enum WalletType {
   GOOGLE_WALLET
 }
 
+enum SubscriptionSignupStatus {
+  PENDING
+  CONTACTED
+  CONVERTED
+  CANCELLED
+}
+
 enum AuthProvider {
   LOCAL
   GOOGLE
@@ -168,6 +175,7 @@ model User {
   supportTicketReplies SupportTicketReply[] @relation("SupportTicketReplies")
   paymentInvoices      PaymentInvoice[]
   passwordResetTokens  PasswordResetToken[]
+  signupRequests       SubscriptionSignupRequest[]
 
   @@unique([authProvider, providerId])
   @@index([adminRoleId])
@@ -435,6 +443,25 @@ model Subscription {
   invoices   PaymentInvoice[]
 
   @@map("subscriptions")
+}
+
+model SubscriptionSignupRequest {
+  id          String                    @id @default(cuid())
+  userId      String
+  offerSlug   String
+  offerTitle  String
+  billingType OfferBillingType
+  seats       Int?
+  teamId      String?
+  status      SubscriptionSignupStatus  @default(PENDING)
+  createdAt   DateTime                  @default(now())
+  updatedAt   DateTime                  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@map("subscription_signup_requests")
 }
 
 model PaymentInvoice {

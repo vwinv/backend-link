@@ -51,13 +51,14 @@ let WalletService = class WalletService {
                 passBase64: passBuffer.toString('base64'),
             };
         }
-        const saveUrl = this.googleWalletService.generateSaveUrl(card);
+        const { saveUrl, saveJwt } = await this.googleWalletService.generateSaveUrl(card);
         const passId = this.googleWalletService.getPassId(card);
         const savedCard = await this.upsertSavedCard(userId, cardId, client_1.WalletType.GOOGLE_WALLET, passId);
         return {
             walletType: client_1.WalletType.GOOGLE_WALLET,
             savedCardId: savedCard.id,
             saveUrl,
+            saveJwt,
         };
     }
     async findAll(userId) {

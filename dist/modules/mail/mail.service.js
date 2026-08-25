@@ -20,6 +20,7 @@ const nodemailer_1 = __importDefault(require("nodemailer"));
 const reset_password_email_template_1 = require("./reset-password-email.template");
 const support_ticket_reply_email_template_1 = require("./support-ticket-reply-email.template");
 const team_invite_email_template_1 = require("./team-invite-email.template");
+const subscription_signup_email_1 = require("./subscription-signup-email");
 let MailService = MailService_1 = class MailService {
     configService;
     logger = new common_1.Logger(MailService_1.name);
@@ -45,6 +46,10 @@ let MailService = MailService_1 = class MailService {
     }
     async sendResetPasswordEmail(payload) {
         const { subject, text, html } = (0, reset_password_email_template_1.buildResetPasswordEmail)(payload);
+        await this.send({ to: payload.to, subject, text, html });
+    }
+    async sendSubscriptionSignupNotice(payload) {
+        const { subject, text, html } = (0, subscription_signup_email_1.buildSubscriptionSignupNoticeEmail)(payload);
         await this.send({ to: payload.to, subject, text, html });
     }
     async send(input) {

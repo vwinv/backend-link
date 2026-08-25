@@ -4,4 +4,5 @@ export declare class WalletAddResponseDto {
     savedCardId: string;
     passBase64?: string;
     saveUrl?: string;
+    saveJwt?: string;
 }

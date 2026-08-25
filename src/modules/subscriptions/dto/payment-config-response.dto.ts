@@ -7,6 +7,12 @@ export class PaymentConfigResponseDto {
   })
   paymentsEnabled!: boolean;
 
+  @ApiProperty({
+    description:
+      'Si true, Wave / Orange Money sont masqués : l’utilisateur envoie une demande d’inscription.',
+  })
+  hideInAppPayments!: boolean;
+
   @ApiProperty({ example: 'paydunya', required: false })
   provider?: string;
 }

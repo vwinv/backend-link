@@ -40,6 +40,7 @@ declare const _default: () => {
             issuerId: string;
             classSuffix: string;
             serviceAccountPath: string;
+            serviceAccountJson: string;
             origins: string[];
         };
     };
@@ -58,6 +59,8 @@ declare const _default: () => {
         apiBaseUrl: string;
         storeName: string;
     };
+    hideInAppPayments: boolean;
+    subscriptionRequestsNotifyEmail: string;
     cloudinary: {
         cloudName: string;
         apiKey: string;

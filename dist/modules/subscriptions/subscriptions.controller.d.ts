@@ -9,6 +9,7 @@ export declare class SubscriptionsController {
     constructor(subscriptionsService: SubscriptionsService);
     getPaymentConfig(): {
         paymentsEnabled: boolean;
+        hideInAppPayments: boolean;
         provider: string;
     };
     getOffers(): Promise<{
@@ -202,6 +203,14 @@ export declare class SubscriptionsController {
         kind: "invoice_pay";
         error?: undefined;
         subscription?: undefined;
+    }>;
+    createSignupRequest(user: {
+        userId: string;
+    }, dto: SubscribeDto): Promise<{
+        id: string;
+        firstName: string;
+        offerTitle: string;
+        billingType: import("@prisma/client").$Enums.OfferBillingType;
     }>;
     subscribe(user: {
         userId: string;

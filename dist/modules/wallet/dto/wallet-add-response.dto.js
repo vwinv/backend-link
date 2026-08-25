@@ -17,6 +17,7 @@ class WalletAddResponseDto {
     savedCardId;
     passBase64;
     saveUrl;
+    saveJwt;
 }
 exports.WalletAddResponseDto = WalletAddResponseDto;
 __decorate([
@@ -35,4 +36,8 @@ __decorate([
     (0, swagger_1.ApiProperty)({ required: false }),
     __metadata("design:type", String)
 ], WalletAddResponseDto.prototype, "saveUrl", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    __metadata("design:type", String)
+], WalletAddResponseDto.prototype, "saveJwt", void 0);
 //# sourceMappingURL=wallet-add-response.dto.js.map

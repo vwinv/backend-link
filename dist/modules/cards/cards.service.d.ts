@@ -16,25 +16,25 @@ export declare class CardsService {
     create(userId: string, dto: CreateCardDto): Promise<BusinessCard>;
     findAll(userId: string): Promise<{
         id: string;
-        createdAt: Date;
-        teamId: string | null;
-        updatedAt: Date;
-        slug: string;
-        isActive: boolean;
-        ownerId: string;
-        kind: import("@prisma/client").$Enums.CardKind;
+        email: string | null;
         firstName: string;
         lastName: string;
+        phone: string | null;
+        avatarUrl: string | null;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
         jobTitle: string | null;
+        teamId: string | null;
+        slug: string;
+        logoUrl: string | null;
+        ownerId: string;
+        kind: import("@prisma/client").$Enums.CardKind;
         company: string | null;
         bio: string | null;
-        email: string | null;
-        phone: string | null;
         address: string | null;
         website: string | null;
-        avatarUrl: string | null;
         coverImageUrl: string | null;
-        logoUrl: string | null;
         theme: import("@prisma/client/runtime/client").JsonValue;
         isPublic: boolean;
     }[]>;
@@ -50,20 +50,20 @@ export declare class CardsService {
     syncSocialLinks(userId: string, cardId: string, links: SocialLinkItemDto[]): Promise<{
         id: string;
         createdAt: Date;
-        cardId: string;
-        platform: import("@prisma/client").$Enums.SocialPlatform;
         label: string | null;
+        platform: import("@prisma/client").$Enums.SocialPlatform;
         url: string;
         order: number;
+        cardId: string;
     }[]>;
     getSocialLinks(userId: string, cardId: string): Promise<{
         id: string;
         createdAt: Date;
-        cardId: string;
-        platform: import("@prisma/client").$Enums.SocialPlatform;
         label: string | null;
+        platform: import("@prisma/client").$Enums.SocialPlatform;
         url: string;
         order: number;
+        cardId: string;
     }[]>;
     addSocialLink(id: string): {
         message: string;
