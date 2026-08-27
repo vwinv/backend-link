@@ -60,6 +60,13 @@ declare const _default: () => {
         storeName: string;
     };
     hideInAppPayments: boolean;
+    appleIap: {
+        productsJson: string;
+        bundleId: string;
+        environment: string;
+        appAppleId: string;
+        rootCaPath: string;
+    };
     subscriptionRequestsNotifyEmail: string;
     cloudinary: {
         cloudName: string;

@@ -29,6 +29,8 @@ import type { InvoiceLine } from './invoices.service';
 import { validSubscriptionWhere } from './subscription-validity';
 import { MailService } from '../mail/mail.service';
 import { ConfigService } from '@nestjs/config';
+import { AppleIapService } from './apple-iap.service';
+import { AppleIapVerifyDto } from './dto/apple-iap-verify.dto';
 
 type ActivateSubscriptionInput = {
   userId: string;
@@ -40,6 +42,7 @@ type ActivateSubscriptionInput = {
   stripeSubscriptionId?: string | null;
   stripeCheckoutSessionId?: string | null;
   paydunyaInvoiceToken?: string | null;
+  appleOriginalTransactionId?: string | null;
   currentPeriodEnd?: Date | null;
   invoiceAmount?: number | null;
   invoiceCurrency?: string | null;
@@ -73,6 +76,7 @@ export class SubscriptionsService {
     private readonly invoicesService: InvoicesService,
     private readonly mailService: MailService,
     private readonly config: ConfigService,
+    private readonly appleIapService: AppleIapService,
   ) {}
 
   isInAppPaymentsHidden(): boolean {
@@ -81,13 +85,13 @@ export class SubscriptionsService {
 
   getPaymentConfig() {
     const hideInAppPayments = this.isInAppPaymentsHidden();
+    const paydunyaReady = this.paydunyaService.isConfigured();
     return {
-      paymentsEnabled:
-        !hideInAppPayments && this.paydunyaService.isConfigured(),
+      paymentsEnabled: paydunyaReady,
       hideInAppPayments,
       provider: hideInAppPayments
-        ? 'signup_request'
-        : this.paydunyaService.isConfigured()
+        ? 'apple_iap'
+        : paydunyaReady
           ? 'paydunya'
           : 'none',
     };
@@ -126,7 +130,6 @@ export class SubscriptionsService {
   }
 
   async createCheckout(userId: string, dto: CheckoutDto) {
-    this.assertInAppCheckoutAllowed();
     if (!this.paydunyaService.isConfigured()) {
       throw new BadRequestException(
         'Le paiement PayDunya est désactivé. Utilisez /subscriptions/subscribe pour les tests.',
@@ -221,7 +224,6 @@ export class SubscriptionsService {
   }
 
   async softPay(userId: string, dto: SoftPaySubscriptionDto) {
-    this.assertInAppCheckoutAllowed();
     if (!this.paydunyaService.isConfigured()) {
       throw new ServiceUnavailableException(
         'Paiement PayDunya non configuré sur le serveur',
@@ -1045,12 +1047,89 @@ export class SubscriptionsService {
     };
   }
 
-  private assertInAppCheckoutAllowed() {
-    if (this.isInAppPaymentsHidden()) {
+  async confirmAppleIap(userId: string, dto: AppleIapVerifyDto) {
+    if (!this.isInAppPaymentsHidden()) {
       throw new BadRequestException(
-        'Le paiement in-app est désactivé. Enregistrez une demande d’inscription.',
+        'Les achats Apple ne sont disponibles que lorsque HIDE_IN_APP_PAYMENTS=true.',
       );
     }
+
+    const verified = await this.appleIapService.verifyTransaction(
+      dto.signedTransaction,
+    );
+    if (
+      (dto.offerSlug && dto.offerSlug !== verified.offerSlug) ||
+      (dto.billingType && dto.billingType !== verified.billingType)
+    ) {
+      throw new BadRequestException(
+        'Le produit Apple ne correspond pas à l’offre sélectionnée.',
+      );
+    }
+
+    const existing = await this.prisma.subscription.findUnique({
+      where: { appleOriginalTransactionId: verified.originalTransactionId },
+      include: { plan: true, offer: true, offerPrice: true },
+    });
+    if (existing) {
+      if (existing.userId && existing.userId !== userId) {
+        throw new BadRequestException(
+          'Cet achat Apple est déjà lié à un autre compte.',
+        );
+      }
+      const { offer, price, effectiveBillingType } =
+        await this.resolveOfferPrice(
+          verified.offerSlug,
+          verified.billingType,
+        );
+      const plan = await this.ensurePremiumPlan(offer);
+      const periodEnd =
+        verified.expiresAt ??
+        (verified.billingType === OfferBillingType.LIFETIME
+          ? this.computePeriodEnd(OfferBillingType.LIFETIME)
+          : existing.currentPeriodEnd);
+      const updated = await this.prisma.subscription.update({
+        where: { id: existing.id },
+        data: {
+          userId,
+          status: SubscriptionStatus.ACTIVE,
+          currentPeriodEnd: periodEnd,
+          cancelledAt: null,
+          offerId: offer.id,
+          offerPriceId: price.id,
+          planId: plan.id,
+          billingPeriod: this.mapBillingPeriod(effectiveBillingType),
+        },
+        include: { plan: true, offer: true, offerPrice: true },
+      });
+      return this.toSubscriptionResponse(updated);
+    }
+
+    const { seats } = await this.resolveOfferPrice(
+      verified.offerSlug,
+      verified.billingType,
+    ).then(async ({ offer, price, billingMultiplier }) =>
+      this.resolveCheckoutPricing(
+        offer,
+        price,
+        dto.seats,
+        billingMultiplier,
+      ),
+    );
+
+    const subscription = await this.activateSubscription({
+      userId,
+      offerSlug: verified.offerSlug,
+      billingType: verified.billingType,
+      teamId: dto.teamId ?? null,
+      purchasedSeats: seats,
+      appleOriginalTransactionId: verified.originalTransactionId,
+      currentPeriodEnd:
+        verified.expiresAt ??
+        this.computePeriodEnd(verified.billingType),
+      invoiceProvider: 'apple',
+    });
+
+    return this.toSubscriptionResponse(subscription);
   }
 
   async handleStripeWebhook(payload: Buffer, signature?: string) {
@@ -1433,6 +1512,7 @@ export class SubscriptionsService {
         stripeSubscriptionId: input.stripeSubscriptionId ?? null,
         stripeCheckoutSessionId: input.stripeCheckoutSessionId ?? null,
         paydunyaInvoiceToken: input.paydunyaInvoiceToken ?? null,
+        appleOriginalTransactionId: input.appleOriginalTransactionId ?? null,
       },
       include: {
         plan: true,
@@ -1958,11 +2038,15 @@ export class SubscriptionsService {
       maxAiScans: offer.maxAiScans,
       maxShares: offer.maxShares,
       sortOrder: offer.sortOrder,
-      prices: offer.prices.map((price) => this.toOfferPriceResponse(price)),
+      prices: offer.prices.map((price) =>
+        this.toOfferPriceResponse(offer.slug, price),
+      ),
     };
   }
 
-  private toOfferPriceResponse(price: {
+  private toOfferPriceResponse(
+    offerSlug: string,
+    price: {
     id: string;
     billingType: OfferBillingType;
     priceLabel: string | null;
@@ -1973,7 +2057,8 @@ export class SubscriptionsService {
     badgeLabel: string | null;
     isPopular: boolean;
     sortOrder: number;
-  }) {
+  },
+  ) {
     const priceAmount =
       typeof price.priceAmount === 'number'
         ? price.priceAmount
@@ -2000,6 +2085,10 @@ export class SubscriptionsService {
       badgeLabel: price.badgeLabel,
       isPopular: price.isPopular,
       sortOrder: price.sortOrder,
+      appleProductId: this.appleIapService.productIdFor(
+        offerSlug,
+        price.billingType,
+      ),
     };
   }
 }

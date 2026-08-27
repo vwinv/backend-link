@@ -22,6 +22,7 @@ const invoices_service_1 = require("./invoices.service");
 const subscription_validity_1 = require("./subscription-validity");
 const mail_service_1 = require("../mail/mail.service");
 const config_1 = require("@nestjs/config");
+const apple_iap_service_1 = require("./apple-iap.service");
 let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
     prisma;
     stripeService;
@@ -29,26 +30,29 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
     invoicesService;
     mailService;
     config;
+    appleIapService;
     logger = new common_1.Logger(SubscriptionsService_1.name);
-    constructor(prisma, stripeService, paydunyaService, invoicesService, mailService, config) {
+    constructor(prisma, stripeService, paydunyaService, invoicesService, mailService, config, appleIapService) {
         this.prisma = prisma;
         this.stripeService = stripeService;
         this.paydunyaService = paydunyaService;
         this.invoicesService = invoicesService;
         this.mailService = mailService;
         this.config = config;
+        this.appleIapService = appleIapService;
     }
     isInAppPaymentsHidden() {
         return this.config.get('hideInAppPayments') === true;
     }
     getPaymentConfig() {
         const hideInAppPayments = this.isInAppPaymentsHidden();
+        const paydunyaReady = this.paydunyaService.isConfigured();
         return {
-            paymentsEnabled: !hideInAppPayments && this.paydunyaService.isConfigured(),
+            paymentsEnabled: paydunyaReady,
             hideInAppPayments,
             provider: hideInAppPayments
-                ? 'signup_request'
-                : this.paydunyaService.isConfigured()
+                ? 'apple_iap'
+                : paydunyaReady
                     ? 'paydunya'
                     : 'none',
         };
@@ -80,7 +84,6 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
         return this.toSubscriptionResponse(subscription);
     }
     async createCheckout(userId, dto) {
-        this.assertInAppCheckoutAllowed();
         if (!this.paydunyaService.isConfigured()) {
             throw new common_1.BadRequestException('Le paiement PayDunya est désactivé. Utilisez /subscriptions/subscribe pour les tests.');
         }
@@ -152,7 +155,6 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
         };
     }
     async softPay(userId, dto) {
-        this.assertInAppCheckoutAllowed();
         if (!this.paydunyaService.isConfigured()) {
             throw new common_1.ServiceUnavailableException('Paiement PayDunya non configuré sur le serveur');
         }
@@ -788,10 +790,58 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
             billingType: effectiveBillingType,
         };
     }
-    assertInAppCheckoutAllowed() {
-        if (this.isInAppPaymentsHidden()) {
-            throw new common_1.BadRequestException('Le paiement in-app est désactivé. Enregistrez une demande d’inscription.');
+    async confirmAppleIap(userId, dto) {
+        if (!this.isInAppPaymentsHidden()) {
+            throw new common_1.BadRequestException('Les achats Apple ne sont disponibles que lorsque HIDE_IN_APP_PAYMENTS=true.');
         }
+        const verified = await this.appleIapService.verifyTransaction(dto.signedTransaction);
+        if ((dto.offerSlug && dto.offerSlug !== verified.offerSlug) ||
+            (dto.billingType && dto.billingType !== verified.billingType)) {
+            throw new common_1.BadRequestException('Le produit Apple ne correspond pas à l’offre sélectionnée.');
+        }
+        const existing = await this.prisma.subscription.findUnique({
+            where: { appleOriginalTransactionId: verified.originalTransactionId },
+            include: { plan: true, offer: true, offerPrice: true },
+        });
+        if (existing) {
+            if (existing.userId && existing.userId !== userId) {
+                throw new common_1.BadRequestException('Cet achat Apple est déjà lié à un autre compte.');
+            }
+            const { offer, price, effectiveBillingType } = await this.resolveOfferPrice(verified.offerSlug, verified.billingType);
+            const plan = await this.ensurePremiumPlan(offer);
+            const periodEnd = verified.expiresAt ??
+                (verified.billingType === client_1.OfferBillingType.LIFETIME
+                    ? this.computePeriodEnd(client_1.OfferBillingType.LIFETIME)
+                    : existing.currentPeriodEnd);
+            const updated = await this.prisma.subscription.update({
+                where: { id: existing.id },
+                data: {
+                    userId,
+                    status: client_1.SubscriptionStatus.ACTIVE,
+                    currentPeriodEnd: periodEnd,
+                    cancelledAt: null,
+                    offerId: offer.id,
+                    offerPriceId: price.id,
+                    planId: plan.id,
+                    billingPeriod: this.mapBillingPeriod(effectiveBillingType),
+                },
+                include: { plan: true, offer: true, offerPrice: true },
+            });
+            return this.toSubscriptionResponse(updated);
+        }
+        const { seats } = await this.resolveOfferPrice(verified.offerSlug, verified.billingType).then(async ({ offer, price, billingMultiplier }) => this.resolveCheckoutPricing(offer, price, dto.seats, billingMultiplier));
+        const subscription = await this.activateSubscription({
+            userId,
+            offerSlug: verified.offerSlug,
+            billingType: verified.billingType,
+            teamId: dto.teamId ?? null,
+            purchasedSeats: seats,
+            appleOriginalTransactionId: verified.originalTransactionId,
+            currentPeriodEnd: verified.expiresAt ??
+                this.computePeriodEnd(verified.billingType),
+            invoiceProvider: 'apple',
+        });
+        return this.toSubscriptionResponse(subscription);
     }
     async handleStripeWebhook(payload, signature) {
         if (!this.stripeService.isEnabled()) {
@@ -1076,6 +1126,7 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
                 stripeSubscriptionId: input.stripeSubscriptionId ?? null,
                 stripeCheckoutSessionId: input.stripeCheckoutSessionId ?? null,
                 paydunyaInvoiceToken: input.paydunyaInvoiceToken ?? null,
+                appleOriginalTransactionId: input.appleOriginalTransactionId ?? null,
             },
             include: {
                 plan: true,
@@ -1452,10 +1503,10 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
             maxAiScans: offer.maxAiScans,
             maxShares: offer.maxShares,
             sortOrder: offer.sortOrder,
-            prices: offer.prices.map((price) => this.toOfferPriceResponse(price)),
+            prices: offer.prices.map((price) => this.toOfferPriceResponse(offer.slug, price)),
         };
     }
-    toOfferPriceResponse(price) {
+    toOfferPriceResponse(offerSlug, price) {
         const priceAmount = typeof price.priceAmount === 'number'
             ? price.priceAmount
             : Number(price.priceAmount);
@@ -1478,6 +1529,7 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
             badgeLabel: price.badgeLabel,
             isPopular: price.isPopular,
             sortOrder: price.sortOrder,
+            appleProductId: this.appleIapService.productIdFor(offerSlug, price.billingType),
         };
     }
 };
@@ -1489,6 +1541,7 @@ exports.SubscriptionsService = SubscriptionsService = SubscriptionsService_1 = _
         paydunya_service_1.PaydunyaService,
         invoices_service_1.InvoicesService,
         mail_service_1.MailService,
-        config_1.ConfigService])
+        config_1.ConfigService,
+        apple_iap_service_1.AppleIapService])
 ], SubscriptionsService);
 //# sourceMappingURL=subscriptions.service.js.map

@@ -12,8 +12,8 @@ export declare class NotificationsService {
             title: string;
             createdAt: Date;
             isRead: boolean;
-            campaignId: string | null;
             body: string;
+            campaignId: string | null;
             readAt: Date | null;
         }[];
         meta: {
@@ -33,8 +33,8 @@ export declare class NotificationsService {
         createdAt: Date;
         userId: string;
         isRead: boolean;
-        campaignId: string | null;
         body: string;
+        campaignId: string | null;
         readAt: Date | null;
     }>;
     markAllRead(userId: string): Promise<{

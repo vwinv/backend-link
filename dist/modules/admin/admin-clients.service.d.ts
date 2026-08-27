@@ -41,13 +41,13 @@ export declare class AdminClientsService {
         stripeCustomerId: string | null;
         cards: {
             id: string;
-            firstName: string;
-            lastName: string;
+            slug: string;
             isActive: boolean;
             createdAt: Date;
-            jobTitle: string | null;
-            slug: string;
             kind: import("@prisma/client").$Enums.CardKind;
+            firstName: string;
+            lastName: string;
+            jobTitle: string | null;
             company: string | null;
             isPublic: boolean;
         }[];
@@ -60,20 +60,20 @@ export declare class AdminClientsService {
             offer: {
                 id: string;
                 title: string;
-                audience: import("@prisma/client").$Enums.OfferAudience;
                 slug: string;
+                audience: import("@prisma/client").$Enums.OfferAudience;
             } | null;
             plan: {
                 id: string;
-                name: string;
                 slug: string;
+                name: string;
             };
         }[];
         teams: {
             id: string;
-            name: string;
-            isActive: boolean;
             slug: string;
+            isActive: boolean;
+            name: string;
             role: import("@prisma/client").$Enums.TeamMemberRole;
         }[];
         ownedTeams: {

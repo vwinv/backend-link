@@ -5,6 +5,9 @@ node_modules
 # Wallet certificates (see WALLET_SETUP.md) — NE JAMAIS committer les certs/cles
 certs/*
 !certs/.gitkeep
+# Certificat racine public Apple (vérif StoreKit 2) — pas un secret
+!certs/AppleRootCA-G3.cer
+!certs/AppleRootCA-G3.pem
 
 uploads/*
 !uploads/.gitkeep

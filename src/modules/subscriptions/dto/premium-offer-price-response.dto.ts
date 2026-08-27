@@ -35,4 +35,10 @@ export class PremiumOfferPriceResponseDto {
 
   @ApiProperty({ example: 1 })
   sortOrder: number;
+
+  @ApiPropertyOptional({
+    example: 'com.mega.dropone.premium.yearly',
+    description: 'Identifiant produit App Store (IAP iOS)',
+  })
+  appleProductId?: string | null;
 }

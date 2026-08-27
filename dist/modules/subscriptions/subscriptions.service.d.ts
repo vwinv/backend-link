@@ -8,6 +8,8 @@ import { InvoicesService } from './invoices.service';
 import type { InvoiceLine } from './invoices.service';
 import { MailService } from '../mail/mail.service';
 import { ConfigService } from '@nestjs/config';
+import { AppleIapService } from './apple-iap.service';
+import { AppleIapVerifyDto } from './dto/apple-iap-verify.dto';
 export declare class SubscriptionsService {
     private readonly prisma;
     private readonly stripeService;
@@ -15,8 +17,9 @@ export declare class SubscriptionsService {
     private readonly invoicesService;
     private readonly mailService;
     private readonly config;
+    private readonly appleIapService;
     private readonly logger;
-    constructor(prisma: PrismaService, stripeService: StripeService, paydunyaService: PaydunyaService, invoicesService: InvoicesService, mailService: MailService, config: ConfigService);
+    constructor(prisma: PrismaService, stripeService: StripeService, paydunyaService: PaydunyaService, invoicesService: InvoicesService, mailService: MailService, config: ConfigService, appleIapService: AppleIapService);
     isInAppPaymentsHidden(): boolean;
     getPaymentConfig(): {
         paymentsEnabled: boolean;
@@ -51,6 +54,7 @@ export declare class SubscriptionsService {
             badgeLabel: string | null;
             isPopular: boolean;
             sortOrder: number;
+            appleProductId: string | null;
         }[];
     }[]>;
     getPlans(): Promise<{
@@ -81,6 +85,7 @@ export declare class SubscriptionsService {
             badgeLabel: string | null;
             isPopular: boolean;
             sortOrder: number;
+            appleProductId: string | null;
         }[];
     }[]>;
     getPlan(slug: string): {
@@ -576,7 +581,30 @@ export declare class SubscriptionsService {
         offerTitle: string;
         billingType: import("@prisma/client").$Enums.OfferBillingType;
     }>;
-    private assertInAppCheckoutAllowed;
+    confirmAppleIap(userId: string, dto: AppleIapVerifyDto): Promise<{
+        id: string;
+        status: import("@prisma/client").$Enums.SubscriptionStatus;
+        billingPeriod: import("@prisma/client").$Enums.BillingPeriod;
+        planName: string;
+        planSlug: string;
+        offerTitle: string;
+        offerSlug: string;
+        billingType: import("@prisma/client").$Enums.OfferBillingType | null;
+        entitlements: {
+            audience: import("@prisma/client").$Enums.OfferAudience;
+            canCustomize: boolean;
+            maxTeamMembers: number;
+            hasPortfolio: boolean;
+            hasWallet: boolean;
+            hasAnalytics: boolean;
+            hasVisitorInsights: boolean;
+            hasSocialLinks: boolean;
+            maxAiScans: number;
+            maxShares: number;
+        };
+        purchasedSeats: number | null;
+        currentPeriodEnd: string | null;
+    }>;
     handleStripeWebhook(payload: Buffer, signature?: string): Promise<{
         received: boolean;
     }>;

@@ -33,9 +33,9 @@ export declare class WalletController {
         id: string;
         userId: string;
         cardId: string;
+        savedAt: Date;
         walletType: import("@prisma/client").$Enums.WalletType;
         passId: string | null;
-        savedAt: Date;
     })[]>;
     remove(user: {
         userId: string;

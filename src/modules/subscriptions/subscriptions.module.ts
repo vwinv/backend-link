@@ -7,6 +7,7 @@ import { PaydunyaWebhookController } from '../paydunya/paydunya-webhook.controll
 import { EntitlementsService } from './entitlements.service';
 import { InvoicesService } from './invoices.service';
 import { StripeService } from './stripe.service';
+import { AppleIapService } from './apple-iap.service';
 import { SubscriptionsController } from './subscriptions.controller';
 import { SubscriptionsService } from './subscriptions.service';
 
@@ -23,6 +24,7 @@ import { SubscriptionsService } from './subscriptions.service';
     EntitlementsService,
     StripeService,
     InvoicesService,
+    AppleIapService,
   ],
   exports: [
     SubscriptionsService,

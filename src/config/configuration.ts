@@ -74,8 +74,18 @@ export default () => ({
       process.env.PAYDUNYA_API_BASE_URL ?? 'https://app.paydunya.com',
     storeName: process.env.PAYDUNYA_STORE_NAME ?? 'Drop One',
   },
-  /** true = pas de Wave/OM dans l’app, seulement une demande d’inscription. */
+  /** true = iOS : Apple IAP. Android / web : PayDunya inchangé. */
   hideInAppPayments: process.env.HIDE_IN_APP_PAYMENTS === 'true',
+  appleIap: {
+    productsJson: process.env.APPLE_IAP_PRODUCTS ?? '',
+    bundleId:
+      process.env.APPLE_IAP_BUNDLE_ID ||
+      process.env.APPLE_CLIENT_ID ||
+      'com.mega.dropone',
+    environment: process.env.APPLE_IAP_ENVIRONMENT ?? 'auto',
+    appAppleId: process.env.APPLE_IAP_APP_APPLE_ID ?? '',
+    rootCaPath: process.env.APPLE_IAP_ROOT_CA_PATH ?? './certs/AppleRootCA-G3.cer',
+  },
   subscriptionRequestsNotifyEmail:
     process.env.SUBSCRIPTION_REQUESTS_NOTIFY_EMAIL ??
     'contact@mega-sn.com',

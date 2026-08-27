@@ -104,8 +104,8 @@ export declare class AdminSubscriptionsService {
         }[];
         id: string;
         title: string;
-        audience: import("@prisma/client").$Enums.OfferAudience;
         slug: string;
+        audience: import("@prisma/client").$Enums.OfferAudience;
         minSeats: number;
         listedInApp: boolean;
     }[]>;

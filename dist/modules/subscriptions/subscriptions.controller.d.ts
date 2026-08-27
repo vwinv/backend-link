@@ -3,6 +3,7 @@ import type { Request } from 'express';
 import { CheckoutDto } from './dto/checkout.dto';
 import { SoftPaySubscriptionDto } from './dto/softpay-subscription.dto';
 import { SubscribeDto } from './dto/subscribe.dto';
+import { AppleIapVerifyDto } from './dto/apple-iap-verify.dto';
 import { SubscriptionsService } from './subscriptions.service';
 export declare class SubscriptionsController {
     private readonly subscriptionsService;
@@ -40,6 +41,7 @@ export declare class SubscriptionsController {
             badgeLabel: string | null;
             isPopular: boolean;
             sortOrder: number;
+            appleProductId: string | null;
         }[];
     }[]>;
     getPlans(): Promise<{
@@ -70,6 +72,7 @@ export declare class SubscriptionsController {
             badgeLabel: string | null;
             isPopular: boolean;
             sortOrder: number;
+            appleProductId: string | null;
         }[];
     }[]>;
     getMySubscription(user: {
@@ -211,6 +214,32 @@ export declare class SubscriptionsController {
         firstName: string;
         offerTitle: string;
         billingType: import("@prisma/client").$Enums.OfferBillingType;
+    }>;
+    confirmAppleIap(user: {
+        userId: string;
+    }, dto: AppleIapVerifyDto): Promise<{
+        id: string;
+        status: import("@prisma/client").$Enums.SubscriptionStatus;
+        billingPeriod: import("@prisma/client").$Enums.BillingPeriod;
+        planName: string;
+        planSlug: string;
+        offerTitle: string;
+        offerSlug: string;
+        billingType: import("@prisma/client").$Enums.OfferBillingType | null;
+        entitlements: {
+            audience: import("@prisma/client").$Enums.OfferAudience;
+            canCustomize: boolean;
+            maxTeamMembers: number;
+            hasPortfolio: boolean;
+            hasWallet: boolean;
+            hasAnalytics: boolean;
+            hasVisitorInsights: boolean;
+            hasSocialLinks: boolean;
+            maxAiScans: number;
+            maxShares: number;
+        };
+        purchasedSeats: number | null;
+        currentPeriodEnd: string | null;
     }>;
     subscribe(user: {
         userId: string;

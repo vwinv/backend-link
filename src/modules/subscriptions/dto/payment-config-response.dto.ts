@@ -9,7 +9,7 @@ export class PaymentConfigResponseDto {
 
   @ApiProperty({
     description:
-      'Si true, Wave / Orange Money sont masqués : l’utilisateur envoie une demande d’inscription.',
+      'Si true, l’app iOS affiche l’achat Apple (StoreKit). Android et le web ignorent ce flag et gardent PayDunya.',
   })
   hideInAppPayments!: boolean;
 

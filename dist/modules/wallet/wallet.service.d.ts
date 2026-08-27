@@ -35,9 +35,9 @@ export declare class WalletService {
         id: string;
         userId: string;
         cardId: string;
+        savedAt: Date;
         walletType: import("@prisma/client").$Enums.WalletType;
         passId: string | null;
-        savedAt: Date;
     })[]>;
     remove(userId: string, id: string): Promise<{
         message: string;

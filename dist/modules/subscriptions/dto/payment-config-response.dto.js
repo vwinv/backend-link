@@ -25,7 +25,7 @@ __decorate([
 ], PaymentConfigResponseDto.prototype, "paymentsEnabled", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({
-        description: 'Si true, Wave / Orange Money sont masqués : l’utilisateur envoie une demande d’inscription.',
+        description: 'Si true, l’app iOS affiche l’achat Apple (StoreKit). Android et le web ignorent ce flag et gardent PayDunya.',
     }),
     __metadata("design:type", Boolean)
 ], PaymentConfigResponseDto.prototype, "hideInAppPayments", void 0);

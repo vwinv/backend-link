@@ -22,6 +22,7 @@ const payment_config_response_dto_1 = require("./dto/payment-config-response.dto
 const premium_offer_response_dto_1 = require("./dto/premium-offer-response.dto");
 const softpay_subscription_dto_1 = require("./dto/softpay-subscription.dto");
 const subscribe_dto_1 = require("./dto/subscribe.dto");
+const apple_iap_verify_dto_1 = require("./dto/apple-iap-verify.dto");
 const subscription_response_dto_1 = require("./dto/subscription-response.dto");
 const subscriptions_service_1 = require("./subscriptions.service");
 let SubscriptionsController = class SubscriptionsController {
@@ -55,6 +56,9 @@ let SubscriptionsController = class SubscriptionsController {
     }
     createSignupRequest(user, dto) {
         return this.subscriptionsService.createSignupRequest(user.userId, dto);
+    }
+    confirmAppleIap(user, dto) {
+        return this.subscriptionsService.confirmAppleIap(user.userId, dto);
     }
     subscribe(user, dto) {
         return this.subscriptionsService.subscribe(user.userId, dto);
@@ -168,6 +172,20 @@ __decorate([
     __metadata("design:paramtypes", [Object, subscribe_dto_1.SubscribeDto]),
     __metadata("design:returntype", void 0)
 ], SubscriptionsController.prototype, "createSignupRequest", null);
+__decorate([
+    (0, common_1.Post)('apple/verify'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Vérifier un achat StoreKit 2 et activer l’abonnement (HIDE_IN_APP_PAYMENTS=true)',
+    }),
+    (0, swagger_1.ApiResponse)({ status: 201, type: subscription_response_dto_1.SubscriptionResponseDto }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, apple_iap_verify_dto_1.AppleIapVerifyDto]),
+    __metadata("design:returntype", void 0)
+], SubscriptionsController.prototype, "confirmAppleIap", null);
 __decorate([
     (0, common_1.Post)('subscribe'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),

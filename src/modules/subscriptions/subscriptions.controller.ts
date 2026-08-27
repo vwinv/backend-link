@@ -27,6 +27,7 @@ import {
 import { PremiumOfferResponseDto } from './dto/premium-offer-response.dto';
 import { SoftPaySubscriptionDto } from './dto/softpay-subscription.dto';
 import { SubscribeDto } from './dto/subscribe.dto';
+import { AppleIapVerifyDto } from './dto/apple-iap-verify.dto';
 import { SubscriptionResponseDto } from './dto/subscription-response.dto';
 import { SubscriptionsService } from './subscriptions.service';
 
@@ -128,6 +129,21 @@ export class SubscriptionsController {
     @Body() dto: SubscribeDto,
   ) {
     return this.subscriptionsService.createSignupRequest(user.userId, dto);
+  }
+
+  @Post('apple/verify')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      'Vérifier un achat StoreKit 2 et activer l’abonnement (HIDE_IN_APP_PAYMENTS=true)',
+  })
+  @ApiResponse({ status: 201, type: SubscriptionResponseDto })
+  confirmAppleIap(
+    @CurrentUser() user: { userId: string },
+    @Body() dto: AppleIapVerifyDto,
+  ) {
+    return this.subscriptionsService.confirmAppleIap(user.userId, dto);
   }
 
   @Post('subscribe')

@@ -23,6 +23,7 @@ class PremiumOfferPriceResponseDto {
     badgeLabel;
     isPopular;
     sortOrder;
+    appleProductId;
 }
 exports.PremiumOfferPriceResponseDto = PremiumOfferPriceResponseDto;
 __decorate([
@@ -68,4 +69,11 @@ __decorate([
     (0, swagger_1.ApiProperty)({ example: 1 }),
     __metadata("design:type", Number)
 ], PremiumOfferPriceResponseDto.prototype, "sortOrder", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        example: 'com.mega.dropone.premium.yearly',
+        description: 'Identifiant produit App Store (IAP iOS)',
+    }),
+    __metadata("design:type", Object)
+], PremiumOfferPriceResponseDto.prototype, "appleProductId", void 0);
 //# sourceMappingURL=premium-offer-price-response.dto.js.map

@@ -6,8 +6,8 @@ export declare class AdminRolesService {
     constructor(prisma: PrismaService);
     listPermissions(): {
         modules: {
-            key: "subscriptions" | "notifications" | "roles" | "dashboard" | "backoffice_users" | "clients" | "support";
-            label: "Notifications" | "Tableau de bord" | "Utilisateurs backoffice" | "Rôles & permissions" | "Clients" | "Abonnements & offres" | "Support";
+            key: "subscriptions" | "notifications" | "dashboard" | "backoffice_users" | "roles" | "clients" | "support";
+            label: "Tableau de bord" | "Utilisateurs backoffice" | "Rôles & permissions" | "Clients" | "Abonnements & offres" | "Notifications" | "Support";
             permissions: ({
                 readonly key: "dashboard.view";
                 readonly module: "dashboard";

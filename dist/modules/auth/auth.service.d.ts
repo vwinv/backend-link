@@ -63,9 +63,9 @@ export declare class AuthService {
         id: string;
         createdAt: Date;
         userId: string;
-        usedAt: Date | null;
-        tokenHash: string;
         expiresAt: Date;
+        tokenHash: string;
+        usedAt: Date | null;
     } | null>;
     resetPassword(dto: ResetPasswordDto): Promise<{
         message: string;

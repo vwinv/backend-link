@@ -10,4 +10,5 @@ export declare class PremiumOfferPriceResponseDto {
     badgeLabel?: string | null;
     isPopular: boolean;
     sortOrder: number;
+    appleProductId?: string | null;
 }
