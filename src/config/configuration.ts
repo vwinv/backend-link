@@ -83,7 +83,12 @@ export default () => ({
       process.env.APPLE_CLIENT_ID ||
       'com.mega.dropone',
     environment: process.env.APPLE_IAP_ENVIRONMENT ?? 'auto',
-    appAppleId: process.env.APPLE_IAP_APP_APPLE_ID ?? '',
+    appAppleId:
+      process.env.APPLE_IAP_APP_APPLE_ID ||
+      (/^\d{6,12}$/.test(process.env.APPLE_IAP_SHARED_SECRET ?? '')
+        ? process.env.APPLE_IAP_SHARED_SECRET
+        : '') ||
+      '',
     rootCaPath: process.env.APPLE_IAP_ROOT_CA_PATH ?? './certs/AppleRootCA-G3.cer',
   },
   subscriptionRequestsNotifyEmail:

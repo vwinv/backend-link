@@ -1058,9 +1058,22 @@ export class SubscriptionsService {
       dto.signedTransaction,
     );
     if (
-      (dto.offerSlug && dto.offerSlug !== verified.offerSlug) ||
-      (dto.billingType && dto.billingType !== verified.billingType)
+      dto.offerSlug &&
+      verified.offerSlugs.length > 0 &&
+      !verified.offerSlugs.includes(dto.offerSlug)
     ) {
+      throw new BadRequestException(
+        'Le produit Apple ne correspond pas à l’offre sélectionnée.',
+      );
+    }
+    const uniqueSlugs = [
+      ...new Set(
+        [dto.offerSlug, ...verified.offerSlugs, verified.offerSlug].filter(
+          (slug): slug is string => Boolean(slug?.trim()),
+        ),
+      ),
+    ];
+    if (dto.billingType && dto.billingType !== verified.billingType) {
       throw new BadRequestException(
         'Le produit Apple ne correspond pas à l’offre sélectionnée.',
       );
@@ -1077,8 +1090,8 @@ export class SubscriptionsService {
         );
       }
       const { offer, price, effectiveBillingType } =
-        await this.resolveOfferPrice(
-          verified.offerSlug,
+        await this.resolveOfferPriceFromSlugs(
+          uniqueSlugs,
           verified.billingType,
         );
       const plan = await this.ensurePremiumPlan(offer);
@@ -1104,22 +1117,19 @@ export class SubscriptionsService {
       return this.toSubscriptionResponse(updated);
     }
 
-    const { seats } = await this.resolveOfferPrice(
-      verified.offerSlug,
-      verified.billingType,
-    ).then(async ({ offer, price, billingMultiplier }) =>
-      this.resolveCheckoutPricing(
-        offer,
-        price,
-        dto.seats,
-        billingMultiplier,
-      ),
+    const { offer, price, billingMultiplier, effectiveBillingType } =
+      await this.resolveOfferPriceFromSlugs(uniqueSlugs, verified.billingType);
+    const { seats } = this.resolveCheckoutPricing(
+      offer,
+      price,
+      dto.seats,
+      billingMultiplier,
     );
 
     const subscription = await this.activateSubscription({
       userId,
-      offerSlug: verified.offerSlug,
-      billingType: verified.billingType,
+      offerSlug: offer.slug,
+      billingType: effectiveBillingType,
       teamId: dto.teamId ?? null,
       purchasedSeats: seats,
       appleOriginalTransactionId: verified.originalTransactionId,
@@ -1173,6 +1183,22 @@ export class SubscriptionsService {
 
   cancel() {
     return { message: 'cancel subscription' };
+  }
+
+  private async resolveOfferPriceFromSlugs(
+    offerSlugs: string[],
+    billingType: OfferBillingType,
+  ) {
+    let lastError: unknown;
+    for (const slug of offerSlugs) {
+      try {
+        return await this.resolveOfferPrice(slug, billingType);
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (lastError instanceof Error) throw lastError;
+    throw new NotFoundException('Offre Premium introuvable');
   }
 
   private async resolveOfferPrice(offerSlug: string, billingType: OfferBillingType) {

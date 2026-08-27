@@ -16,6 +16,7 @@ import {
 import {
   appleProductIdFor,
   appleProductRefFromId,
+  appleProductRefsFromId,
   loadAppleIapProductMap,
   type AppleIapProductRef,
 } from './apple-iap-products';
@@ -29,6 +30,7 @@ export type VerifiedAppleTransaction = {
   expiresAt: Date | null;
   environment: string;
   offerSlug: string;
+  offerSlugs: string[];
   billingType: OfferBillingType;
 };
 
@@ -77,6 +79,10 @@ export class AppleIapService implements OnModuleInit {
     return appleProductRefFromId(this.productMap, productId);
   }
 
+  refsFromProductId(productId: string): AppleIapProductRef[] {
+    return appleProductRefsFromId(this.productMap, productId);
+  }
+
   async verifyTransaction(
     signedTransaction: string,
   ): Promise<VerifiedAppleTransaction> {
@@ -93,24 +99,28 @@ export class AppleIapService implements OnModuleInit {
     const appAppleId = this.parseAppAppleId();
     let lastError: unknown;
     for (const environment of this.environmentsToTry()) {
-      try {
-        const verifier = new SignedDataVerifier(
-          this.rootCAs,
-          true,
-          environment,
-          this.bundleId,
-          appAppleId,
-        );
-        const payload = await verifier.verifyAndDecodeTransaction(jws);
-        return this.toVerified(payload);
-      } catch (error) {
-        lastError = error;
+      for (const onlineChecks of [true, false]) {
+        try {
+          const verifier = new SignedDataVerifier(
+            this.rootCAs,
+            onlineChecks,
+            environment,
+            this.bundleId,
+            appAppleId,
+          );
+          const payload = await verifier.verifyAndDecodeTransaction(jws);
+          return this.toVerified(payload);
+        } catch (error) {
+          lastError = error;
+        }
       }
     }
 
     const message =
       lastError instanceof Error ? lastError.message : 'signature invalide';
-    this.logger.warn(`Apple IAP: vérification JWS échouée (${message})`);
+    this.logger.warn(
+      `Apple IAP: vérification JWS échouée (${message}) env=${this.environmentsToTry().join(',')}`,
+    );
     throw new BadRequestException(
       'Achat Apple refusé. Vérifiez le produit App Store Connect et réessayez.',
     );
@@ -133,8 +143,8 @@ export class AppleIapService implements OnModuleInit {
       throw new BadRequestException('Cet achat n’appartient pas à DropOne.');
     }
 
-    const ref = this.refFromProductId(productId);
-    if (!ref) {
+    const refs = this.refsFromProductId(productId);
+    if (refs.length === 0) {
       throw new BadRequestException(
         `Produit Apple inconnu (${productId}). Vérifiez APPLE_IAP_PRODUCTS.`,
       );
@@ -145,13 +155,14 @@ export class AppleIapService implements OnModuleInit {
         ? new Date(payload.expiresDate)
         : null;
     if (
-      ref.billingType !== OfferBillingType.LIFETIME &&
+      refs[0].billingType !== OfferBillingType.LIFETIME &&
       expiresAt &&
       expiresAt.getTime() <= Date.now()
     ) {
       throw new BadRequestException('Cet abonnement Apple a déjà expiré.');
     }
 
+    const offerSlugs = [...new Set(refs.map((item) => item.offerSlug))];
     return {
       productId,
       bundleId: bundleId || this.bundleId,
@@ -159,8 +170,9 @@ export class AppleIapService implements OnModuleInit {
       transactionId,
       expiresAt,
       environment: String(payload.environment ?? ''),
-      offerSlug: ref.offerSlug,
-      billingType: ref.billingType,
+      offerSlug: offerSlugs[0],
+      offerSlugs,
+      billingType: refs[0].billingType,
     };
   }
 
@@ -179,9 +191,8 @@ export class AppleIapService implements OnModuleInit {
     }
     if (raw === 'sandbox') return [Environment.SANDBOX, Environment.XCODE];
     if (raw === 'xcode') return [Environment.XCODE];
-    const list: Environment[] = [];
+    const list: Environment[] = [Environment.SANDBOX, Environment.XCODE];
     if (this.parseAppAppleId()) list.push(Environment.PRODUCTION);
-    list.push(Environment.SANDBOX, Environment.XCODE);
     return list;
   }
 
@@ -191,9 +202,17 @@ export class AppleIapService implements OnModuleInit {
       this.config.get<string>('APPLE_IAP_APP_APPLE_ID') ||
       ''
     ).trim();
-    if (!raw) return undefined;
-    const id = Number(raw);
-    return Number.isFinite(id) && id > 0 ? id : undefined;
+    if (raw) {
+      const id = Number(raw);
+      if (Number.isFinite(id) && id > 0) return id;
+    }
+    const maybeNumericSecret = (
+      this.config.get<string>('APPLE_IAP_SHARED_SECRET') || ''
+    ).trim();
+    if (/^\d{6,12}$/.test(maybeNumericSecret)) {
+      return Number(maybeNumericSecret);
+    }
+    return undefined;
   }
 
   private loadRootCertificates(): Buffer[] {
