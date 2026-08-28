@@ -15,6 +15,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import {
   AiScanQuota,
   DEFAULT_ENTITLEMENTS,
+  FULL_ACCESS_ENTITLEMENTS,
   ShareQuota,
   TeamSeatsQuota,
   UserEntitlements,
@@ -33,7 +34,16 @@ export class EntitlementsService {
     return this.configService.get<number>('freeMaxShares', 10);
   }
 
+  /** Review Apple : débloquer toutes les features quand l’IAP remplace PayDunya. */
+  private isAppleReviewFullAccessEnabled(): boolean {
+    return this.configService.get<boolean>('hideInAppPayments') === true;
+  }
+
   async getUserEntitlements(userId: string): Promise<UserEntitlements> {
+    if (this.isAppleReviewFullAccessEnabled()) {
+      return FULL_ACCESS_ENTITLEMENTS;
+    }
+
     const subscription = await this.findActiveSubscription(userId);
     if (!subscription?.offer) {
       return this.getFreeEntitlements();
@@ -70,6 +80,10 @@ export class EntitlementsService {
     userId: string,
     cardId: string,
   ): Promise<UserEntitlements> {
+    if (this.isAppleReviewFullAccessEnabled()) {
+      return FULL_ACCESS_ENTITLEMENTS;
+    }
+
     const card = await this.prisma.businessCard.findFirst({
       where: { id: cardId, ownerId: userId, isActive: true },
       select: { kind: true, teamId: true },
@@ -233,6 +247,15 @@ export class EntitlementsService {
   }
 
   async getAiScanQuota(userId: string): Promise<AiScanQuota> {
+    if (this.isAppleReviewFullAccessEnabled()) {
+      return {
+        used: 0,
+        max: -1,
+        canScan: true,
+        isUnlimited: true,
+      };
+    }
+
     const subscription = await this.findActiveSubscription(userId);
     const entitlements = subscription?.offer
       ? this.mapOfferToEntitlements(
@@ -299,6 +322,15 @@ export class EntitlementsService {
   }
 
   async getShareQuota(userId: string): Promise<ShareQuota> {
+    if (this.isAppleReviewFullAccessEnabled()) {
+      return {
+        used: 0,
+        max: -1,
+        canShare: true,
+        isUnlimited: true,
+      };
+    }
+
     const entitlements = await this.getUserEntitlements(userId);
     const max = entitlements.maxShares;
     const isUnlimited = max < 0;
@@ -365,6 +397,10 @@ export class EntitlementsService {
     kind: CardKind;
     teamId: string | null;
   }): Promise<boolean> {
+    if (this.isAppleReviewFullAccessEnabled()) {
+      return true;
+    }
+
     if (
       card.kind !== CardKind.PROFESSIONAL &&
       card.kind !== CardKind.MEMBER

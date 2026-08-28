@@ -78,10 +78,39 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
     }
     async getMySubscription(userId) {
         const subscription = await this.findActiveSubscription(userId);
-        if (!subscription) {
-            throw new common_1.NotFoundException('Aucun abonnement actif');
+        if (subscription) {
+            return this.toSubscriptionResponse(subscription);
         }
-        return this.toSubscriptionResponse(subscription);
+        if (this.isInAppPaymentsHidden()) {
+            return this.buildAppleReviewBypassSubscription();
+        }
+        throw new common_1.NotFoundException('Aucun abonnement actif');
+    }
+    buildAppleReviewBypassSubscription() {
+        return {
+            id: 'apple-review-full-access',
+            status: client_1.SubscriptionStatus.ACTIVE,
+            billingPeriod: client_1.BillingPeriod.MONTHLY,
+            planName: 'DropOne Review',
+            planSlug: 'apple-review',
+            offerTitle: 'DropOne Review',
+            offerSlug: 'apple-review',
+            billingType: client_1.OfferBillingType.MONTHLY,
+            entitlements: {
+                audience: client_1.OfferAudience.TEAM,
+                canCustomize: true,
+                maxTeamMembers: -1,
+                hasPortfolio: true,
+                hasWallet: true,
+                hasAnalytics: true,
+                hasVisitorInsights: true,
+                hasSocialLinks: true,
+                maxAiScans: -1,
+                maxShares: -1,
+            },
+            purchasedSeats: null,
+            currentPeriodEnd: null,
+        };
     }
     async createCheckout(userId, dto) {
         if (!this.paydunyaService.isConfigured()) {
@@ -795,8 +824,15 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
             throw new common_1.BadRequestException('Les achats Apple ne sont disponibles que lorsque HIDE_IN_APP_PAYMENTS=true.');
         }
         const verified = await this.appleIapService.verifyTransaction(dto.signedTransaction);
-        if ((dto.offerSlug && dto.offerSlug !== verified.offerSlug) ||
-            (dto.billingType && dto.billingType !== verified.billingType)) {
+        if (dto.offerSlug &&
+            verified.offerSlugs.length > 0 &&
+            !verified.offerSlugs.includes(dto.offerSlug)) {
+            throw new common_1.BadRequestException('Le produit Apple ne correspond pas à l’offre sélectionnée.');
+        }
+        const uniqueSlugs = [
+            ...new Set([dto.offerSlug, ...verified.offerSlugs, verified.offerSlug].filter((slug) => Boolean(slug?.trim()))),
+        ];
+        if (dto.billingType && dto.billingType !== verified.billingType) {
             throw new common_1.BadRequestException('Le produit Apple ne correspond pas à l’offre sélectionnée.');
         }
         const existing = await this.prisma.subscription.findUnique({
@@ -807,7 +843,7 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
             if (existing.userId && existing.userId !== userId) {
                 throw new common_1.BadRequestException('Cet achat Apple est déjà lié à un autre compte.');
             }
-            const { offer, price, effectiveBillingType } = await this.resolveOfferPrice(verified.offerSlug, verified.billingType);
+            const { offer, price, effectiveBillingType } = await this.resolveOfferPriceFromSlugs(uniqueSlugs, verified.billingType);
             const plan = await this.ensurePremiumPlan(offer);
             const periodEnd = verified.expiresAt ??
                 (verified.billingType === client_1.OfferBillingType.LIFETIME
@@ -829,11 +865,12 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
             });
             return this.toSubscriptionResponse(updated);
         }
-        const { seats } = await this.resolveOfferPrice(verified.offerSlug, verified.billingType).then(async ({ offer, price, billingMultiplier }) => this.resolveCheckoutPricing(offer, price, dto.seats, billingMultiplier));
+        const { offer, price, billingMultiplier, effectiveBillingType } = await this.resolveOfferPriceFromSlugs(uniqueSlugs, verified.billingType);
+        const { seats } = this.resolveCheckoutPricing(offer, price, dto.seats, billingMultiplier);
         const subscription = await this.activateSubscription({
             userId,
-            offerSlug: verified.offerSlug,
-            billingType: verified.billingType,
+            offerSlug: offer.slug,
+            billingType: effectiveBillingType,
             teamId: dto.teamId ?? null,
             purchasedSeats: seats,
             appleOriginalTransactionId: verified.originalTransactionId,
@@ -871,6 +908,20 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
     }
     cancel() {
         return { message: 'cancel subscription' };
+    }
+    async resolveOfferPriceFromSlugs(offerSlugs, billingType) {
+        let lastError;
+        for (const slug of offerSlugs) {
+            try {
+                return await this.resolveOfferPrice(slug, billingType);
+            }
+            catch (error) {
+                lastError = error;
+            }
+        }
+        if (lastError instanceof Error)
+            throw lastError;
+        throw new common_1.NotFoundException('Offre Premium introuvable');
     }
     async resolveOfferPrice(offerSlug, billingType) {
         const offer = await this.prisma.premiumOffer.findFirst({

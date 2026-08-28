@@ -18,12 +18,12 @@ export declare class EspaceService {
         team: {
             createdAt: string;
             id: string;
-            slug: string;
             name: string;
+            slug: string;
             description: string | null;
+            ownerId: string;
             logoUrl: string | null;
             brandColor: string | null;
-            ownerId: string;
         };
         myRole: "ADMIN" | "OWNER";
         seats: import("../subscriptions/entitlements.types").TeamSeatsQuota;
@@ -34,8 +34,8 @@ export declare class EspaceService {
             purchasedSeats: number | null;
             currentPeriodEnd: string | null;
             offer: {
-                title: string;
                 slug: string;
+                title: string;
                 audience: import("@prisma/client").$Enums.OfferAudience;
             } | null;
             offerPrice: {
@@ -59,9 +59,9 @@ export declare class EspaceService {
             joinedAt: string;
             user: {
                 id: string;
-                email: string;
                 firstName: string;
                 lastName: string;
+                email: string;
                 avatarUrl: string | null;
             };
             stats: {
@@ -94,34 +94,34 @@ export declare class EspaceService {
         members: ({
             user: {
                 id: string;
-                email: string;
                 firstName: string;
                 lastName: string;
+                email: string;
                 avatarUrl: string | null;
             };
         } & {
             id: string;
-            updatedAt: Date;
             userId: string;
             teamId: string;
+            updatedAt: Date;
             role: import("@prisma/client").$Enums.TeamMemberRole;
             joinedAt: Date;
         })[];
         pendingInvites: {
             id: string;
+            expiresAt: Date | null;
             createdAt: Date;
-            updatedAt: Date;
             teamId: string;
-            status: import("@prisma/client").$Enums.TeamInviteStatus;
-            email: string;
             firstName: string | null;
             lastName: string | null;
-            avatarUrl: string | null;
-            role: import("@prisma/client").$Enums.TeamMemberRole;
             jobTitle: string | null;
+            email: string;
+            avatarUrl: string | null;
+            updatedAt: Date;
+            role: import("@prisma/client").$Enums.TeamMemberRole;
+            status: import("@prisma/client").$Enums.TeamInviteStatus;
             invitedById: string;
             inviteeUserId: string | null;
-            expiresAt: Date | null;
             respondedAt: Date | null;
         }[];
         seats: import("../subscriptions/entitlements.types").TeamSeatsQuota;
@@ -309,43 +309,43 @@ export declare class EspaceService {
         };
     } & {
         id: string;
+        expiresAt: Date | null;
         createdAt: Date;
-        updatedAt: Date;
         teamId: string;
-        status: import("@prisma/client").$Enums.TeamInviteStatus;
-        email: string;
         firstName: string | null;
         lastName: string | null;
-        avatarUrl: string | null;
-        role: import("@prisma/client").$Enums.TeamMemberRole;
         jobTitle: string | null;
+        email: string;
+        avatarUrl: string | null;
+        updatedAt: Date;
+        role: import("@prisma/client").$Enums.TeamMemberRole;
+        status: import("@prisma/client").$Enums.TeamInviteStatus;
         invitedById: string;
         inviteeUserId: string | null;
-        expiresAt: Date | null;
         respondedAt: Date | null;
     }>;
     cancelInvitation(userId: string, slug: string, inviteId: string): Promise<{
         id: string;
+        expiresAt: Date | null;
         createdAt: Date;
-        updatedAt: Date;
         teamId: string;
-        status: import("@prisma/client").$Enums.TeamInviteStatus;
-        email: string;
         firstName: string | null;
         lastName: string | null;
-        avatarUrl: string | null;
-        role: import("@prisma/client").$Enums.TeamMemberRole;
         jobTitle: string | null;
+        email: string;
+        avatarUrl: string | null;
+        updatedAt: Date;
+        role: import("@prisma/client").$Enums.TeamMemberRole;
+        status: import("@prisma/client").$Enums.TeamInviteStatus;
         invitedById: string;
         inviteeUserId: string | null;
-        expiresAt: Date | null;
         respondedAt: Date | null;
     }>;
     removeMember(userId: string, slug: string, memberId: string): Promise<{
         id: string;
-        updatedAt: Date;
         userId: string;
         teamId: string;
+        updatedAt: Date;
         role: import("@prisma/client").$Enums.TeamMemberRole;
         joinedAt: Date;
     }>;
@@ -356,9 +356,9 @@ export declare class EspaceService {
             joinedAt: string;
             user: {
                 id: string;
-                email: string;
                 firstName: string;
                 lastName: string;
+                email: string;
                 avatarUrl: string | null;
             };
         };
@@ -459,8 +459,8 @@ export declare class EspaceService {
     listMyEspaces(userId: string): Promise<{
         espacePath: string;
         id: string;
-        slug: string;
         name: string;
+        slug: string;
         logoUrl: string | null;
         brandColor: string | null;
     }[]>;

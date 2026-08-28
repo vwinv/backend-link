@@ -53,6 +53,9 @@ let AppleIapService = AppleIapService_1 = class AppleIapService {
     refFromProductId(productId) {
         return (0, apple_iap_products_1.appleProductRefFromId)(this.productMap, productId);
     }
+    refsFromProductId(productId) {
+        return (0, apple_iap_products_1.appleProductRefsFromId)(this.productMap, productId);
+    }
     async verifyTransaction(signedTransaction) {
         const jws = signedTransaction.trim();
         if (!jws || jws.split('.').length !== 3) {
@@ -64,17 +67,19 @@ let AppleIapService = AppleIapService_1 = class AppleIapService {
         const appAppleId = this.parseAppAppleId();
         let lastError;
         for (const environment of this.environmentsToTry()) {
-            try {
-                const verifier = new app_store_server_library_1.SignedDataVerifier(this.rootCAs, true, environment, this.bundleId, appAppleId);
-                const payload = await verifier.verifyAndDecodeTransaction(jws);
-                return this.toVerified(payload);
-            }
-            catch (error) {
-                lastError = error;
+            for (const onlineChecks of [true, false]) {
+                try {
+                    const verifier = new app_store_server_library_1.SignedDataVerifier(this.rootCAs, onlineChecks, environment, this.bundleId, appAppleId);
+                    const payload = await verifier.verifyAndDecodeTransaction(jws);
+                    return this.toVerified(payload);
+                }
+                catch (error) {
+                    lastError = error;
+                }
             }
         }
         const message = lastError instanceof Error ? lastError.message : 'signature invalide';
-        this.logger.warn(`Apple IAP: vérification JWS échouée (${message})`);
+        this.logger.warn(`Apple IAP: vérification JWS échouée (${message}) env=${this.environmentsToTry().join(',')}`);
         throw new common_1.BadRequestException('Achat Apple refusé. Vérifiez le produit App Store Connect et réessayez.');
     }
     toVerified(payload) {
@@ -91,18 +96,19 @@ let AppleIapService = AppleIapService_1 = class AppleIapService {
         if (bundleId && bundleId !== this.bundleId) {
             throw new common_1.BadRequestException('Cet achat n’appartient pas à DropOne.');
         }
-        const ref = this.refFromProductId(productId);
-        if (!ref) {
+        const refs = this.refsFromProductId(productId);
+        if (refs.length === 0) {
             throw new common_1.BadRequestException(`Produit Apple inconnu (${productId}). Vérifiez APPLE_IAP_PRODUCTS.`);
         }
         const expiresAt = typeof payload.expiresDate === 'number' && payload.expiresDate > 0
             ? new Date(payload.expiresDate)
             : null;
-        if (ref.billingType !== client_1.OfferBillingType.LIFETIME &&
+        if (refs[0].billingType !== client_1.OfferBillingType.LIFETIME &&
             expiresAt &&
             expiresAt.getTime() <= Date.now()) {
             throw new common_1.BadRequestException('Cet abonnement Apple a déjà expiré.');
         }
+        const offerSlugs = [...new Set(refs.map((item) => item.offerSlug))];
         return {
             productId,
             bundleId: bundleId || this.bundleId,
@@ -110,8 +116,9 @@ let AppleIapService = AppleIapService_1 = class AppleIapService {
             transactionId,
             expiresAt,
             environment: String(payload.environment ?? ''),
-            offerSlug: ref.offerSlug,
-            billingType: ref.billingType,
+            offerSlug: offerSlugs[0],
+            offerSlugs,
+            billingType: refs[0].billingType,
         };
     }
     environmentsToTry() {
@@ -129,20 +136,25 @@ let AppleIapService = AppleIapService_1 = class AppleIapService {
             return [app_store_server_library_1.Environment.SANDBOX, app_store_server_library_1.Environment.XCODE];
         if (raw === 'xcode')
             return [app_store_server_library_1.Environment.XCODE];
-        const list = [];
+        const list = [app_store_server_library_1.Environment.SANDBOX, app_store_server_library_1.Environment.XCODE];
         if (this.parseAppAppleId())
             list.push(app_store_server_library_1.Environment.PRODUCTION);
-        list.push(app_store_server_library_1.Environment.SANDBOX, app_store_server_library_1.Environment.XCODE);
         return list;
     }
     parseAppAppleId() {
         const raw = (this.config.get('appleIap.appAppleId') ||
             this.config.get('APPLE_IAP_APP_APPLE_ID') ||
             '').trim();
-        if (!raw)
-            return undefined;
-        const id = Number(raw);
-        return Number.isFinite(id) && id > 0 ? id : undefined;
+        if (raw) {
+            const id = Number(raw);
+            if (Number.isFinite(id) && id > 0)
+                return id;
+        }
+        const maybeNumericSecret = (this.config.get('APPLE_IAP_SHARED_SECRET') || '').trim();
+        if (/^\d{6,12}$/.test(maybeNumericSecret)) {
+            return Number(maybeNumericSecret);
+        }
+        return undefined;
     }
     loadRootCertificates() {
         const configured = (this.config.get('appleIap.rootCaPath') ||

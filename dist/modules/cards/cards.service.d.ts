@@ -16,27 +16,27 @@ export declare class CardsService {
     create(userId: string, dto: CreateCardDto): Promise<BusinessCard>;
     findAll(userId: string): Promise<{
         id: string;
-        slug: string;
-        isActive: boolean;
         createdAt: Date;
-        updatedAt: Date;
-        teamId: string | null;
-        logoUrl: string | null;
+        slug: string;
         ownerId: string;
+        teamId: string | null;
         kind: import("@prisma/client").$Enums.CardKind;
-        email: string | null;
         firstName: string;
         lastName: string;
-        phone: string | null;
-        avatarUrl: string | null;
         jobTitle: string | null;
         company: string | null;
         bio: string | null;
+        email: string | null;
+        phone: string | null;
         address: string | null;
         website: string | null;
+        avatarUrl: string | null;
         coverImageUrl: string | null;
+        logoUrl: string | null;
         theme: import("@prisma/client/runtime/client").JsonValue;
         isPublic: boolean;
+        isActive: boolean;
+        updatedAt: Date;
     }[]>;
     findOne(userId: string, id: string): Promise<BusinessCard>;
     update(userId: string, id: string, dto: UpdateCardDto): Promise<BusinessCard>;
@@ -48,19 +48,19 @@ export declare class CardsService {
         id: string;
     };
     syncSocialLinks(userId: string, cardId: string, links: SocialLinkItemDto[]): Promise<{
+        url: string;
         id: string;
         createdAt: Date;
         cardId: string;
-        url: string;
         platform: import("@prisma/client").$Enums.SocialPlatform;
         label: string | null;
         order: number;
     }[]>;
     getSocialLinks(userId: string, cardId: string): Promise<{
+        url: string;
         id: string;
         createdAt: Date;
         cardId: string;
-        url: string;
         platform: import("@prisma/client").$Enums.SocialPlatform;
         label: string | null;
         order: number;

@@ -7,6 +7,7 @@ export declare class EntitlementsService {
     private readonly configService;
     constructor(prisma: PrismaService, configService: ConfigService);
     private get freeMaxSharesFallback();
+    private isAppleReviewFullAccessEnabled;
     getUserEntitlements(userId: string): Promise<UserEntitlements>;
     private getFreeEntitlements;
     getEntitlementsForCard(userId: string, cardId: string): Promise<UserEntitlements>;

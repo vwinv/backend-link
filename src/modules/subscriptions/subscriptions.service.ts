@@ -122,11 +122,42 @@ export class SubscriptionsService {
 
   async getMySubscription(userId: string) {
     const subscription = await this.findActiveSubscription(userId);
-    if (!subscription) {
-      throw new NotFoundException('Aucun abonnement actif');
+    if (subscription) {
+      return this.toSubscriptionResponse(subscription);
     }
 
-    return this.toSubscriptionResponse(subscription);
+    if (this.isInAppPaymentsHidden()) {
+      return this.buildAppleReviewBypassSubscription();
+    }
+
+    throw new NotFoundException('Aucun abonnement actif');
+  }
+
+  private buildAppleReviewBypassSubscription() {
+    return {
+      id: 'apple-review-full-access',
+      status: SubscriptionStatus.ACTIVE,
+      billingPeriod: BillingPeriod.MONTHLY,
+      planName: 'DropOne Review',
+      planSlug: 'apple-review',
+      offerTitle: 'DropOne Review',
+      offerSlug: 'apple-review',
+      billingType: OfferBillingType.MONTHLY,
+      entitlements: {
+        audience: OfferAudience.TEAM,
+        canCustomize: true,
+        maxTeamMembers: -1,
+        hasPortfolio: true,
+        hasWallet: true,
+        hasAnalytics: true,
+        hasVisitorInsights: true,
+        hasSocialLinks: true,
+        maxAiScans: -1,
+        maxShares: -1,
+      },
+      purchasedSeats: null,
+      currentPeriodEnd: null,
+    };
   }
 
   async createCheckout(userId: string, dto: CheckoutDto) {

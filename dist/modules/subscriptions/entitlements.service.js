@@ -27,7 +27,13 @@ let EntitlementsService = class EntitlementsService {
     get freeMaxSharesFallback() {
         return this.configService.get('freeMaxShares', 10);
     }
+    isAppleReviewFullAccessEnabled() {
+        return this.configService.get('hideInAppPayments') === true;
+    }
     async getUserEntitlements(userId) {
+        if (this.isAppleReviewFullAccessEnabled()) {
+            return entitlements_types_1.FULL_ACCESS_ENTITLEMENTS;
+        }
         const subscription = await this.findActiveSubscription(userId);
         if (!subscription?.offer) {
             return this.getFreeEntitlements();
@@ -47,6 +53,9 @@ let EntitlementsService = class EntitlementsService {
         };
     }
     async getEntitlementsForCard(userId, cardId) {
+        if (this.isAppleReviewFullAccessEnabled()) {
+            return entitlements_types_1.FULL_ACCESS_ENTITLEMENTS;
+        }
         const card = await this.prisma.businessCard.findFirst({
             where: { id: cardId, ownerId: userId, isActive: true },
             select: { kind: true, teamId: true },
@@ -160,6 +169,14 @@ let EntitlementsService = class EntitlementsService {
         }
     }
     async getAiScanQuota(userId) {
+        if (this.isAppleReviewFullAccessEnabled()) {
+            return {
+                used: 0,
+                max: -1,
+                canScan: true,
+                isUnlimited: true,
+            };
+        }
         const subscription = await this.findActiveSubscription(userId);
         const entitlements = subscription?.offer
             ? this.mapOfferToEntitlements(subscription.offer, subscription.purchasedSeats)
@@ -208,6 +225,14 @@ let EntitlementsService = class EntitlementsService {
         };
     }
     async getShareQuota(userId) {
+        if (this.isAppleReviewFullAccessEnabled()) {
+            return {
+                used: 0,
+                max: -1,
+                canShare: true,
+                isUnlimited: true,
+            };
+        }
         const entitlements = await this.getUserEntitlements(userId);
         const max = entitlements.maxShares;
         const isUnlimited = max < 0;
@@ -251,6 +276,9 @@ let EntitlementsService = class EntitlementsService {
             entitlements.maxTeamMembers !== 0);
     }
     async isTeamCardCoveredByValidOffer(card) {
+        if (this.isAppleReviewFullAccessEnabled()) {
+            return true;
+        }
         if (card.kind !== client_1.CardKind.PROFESSIONAL &&
             card.kind !== client_1.CardKind.MEMBER) {
             return true;

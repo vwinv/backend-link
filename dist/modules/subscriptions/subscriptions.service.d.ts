@@ -116,6 +116,7 @@ export declare class SubscriptionsService {
         purchasedSeats: number | null;
         currentPeriodEnd: string | null;
     }>;
+    private buildAppleReviewBypassSubscription;
     createCheckout(userId: string, dto: CheckoutDto): Promise<{
         checkoutUrl: string;
         invoiceToken: string;
@@ -611,6 +612,7 @@ export declare class SubscriptionsService {
     cancel(): {
         message: string;
     };
+    private resolveOfferPriceFromSlugs;
     private resolveOfferPrice;
     private ensureStripeCustomer;
     private normalizePaydunyaIpnPayload;

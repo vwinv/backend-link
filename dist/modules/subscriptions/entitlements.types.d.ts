@@ -29,3 +29,4 @@ export interface ShareQuota {
     isUnlimited: boolean;
 }
 export declare const DEFAULT_ENTITLEMENTS: UserEntitlements;
+export declare const FULL_ACCESS_ENTITLEMENTS: UserEntitlements;

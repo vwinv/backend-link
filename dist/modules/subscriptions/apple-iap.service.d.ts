@@ -10,6 +10,7 @@ export type VerifiedAppleTransaction = {
     expiresAt: Date | null;
     environment: string;
     offerSlug: string;
+    offerSlugs: string[];
     billingType: OfferBillingType;
 };
 export declare class AppleIapService implements OnModuleInit {
@@ -22,6 +23,7 @@ export declare class AppleIapService implements OnModuleInit {
     onModuleInit(): void;
     productIdFor(offerSlug: string, billingType: OfferBillingType): string | null;
     refFromProductId(productId: string): AppleIapProductRef | null;
+    refsFromProductId(productId: string): AppleIapProductRef[];
     verifyTransaction(signedTransaction: string): Promise<VerifiedAppleTransaction>;
     private toVerified;
     private environmentsToTry;

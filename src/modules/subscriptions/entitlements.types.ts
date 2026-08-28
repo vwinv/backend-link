@@ -46,3 +46,17 @@ export const DEFAULT_ENTITLEMENTS: UserEntitlements = {
   maxAiScans: 0,
   maxShares: 10,
 };
+
+/** Accès complet pour la review Apple (HIDE_IN_APP_PAYMENTS=true). */
+export const FULL_ACCESS_ENTITLEMENTS: UserEntitlements = {
+  audience: OfferAudience.TEAM,
+  canCustomize: true,
+  maxTeamMembers: -1,
+  hasPortfolio: true,
+  hasWallet: true,
+  hasAnalytics: true,
+  hasVisitorInsights: true,
+  hasSocialLinks: true,
+  maxAiScans: -1,
+  maxShares: -1,
+};
