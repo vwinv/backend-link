@@ -109,7 +109,7 @@ export default () => ({
       ? 'https://dropone.pro'
       : 'http://localhost:3001'),
   mobile: {
-    appleTeamId: process.env.APPLE_TEAM_ID ?? '3G878MZ2JV',
+    appleTeamId: process.env.APPLE_TEAM_ID ?? 'CMU6AB64K7',
     appleBundleId: process.env.APPLE_CLIENT_ID ?? 'com.mega.dropone',
     androidPackageName: process.env.ANDROID_APP_PACKAGE ?? 'com.mega.dropone',
     androidSha256Fingerprints: (process.env.ANDROID_APP_SHA256_CERT ?? '')
