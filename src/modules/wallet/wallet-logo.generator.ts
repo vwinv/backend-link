@@ -111,9 +111,9 @@ async function leftLogoImage(
 
 export function resolveDropOneIconPath(): string | null {
   const candidates = [
-    path.join(process.cwd(), 'wallet-assets', 'logo.png'),
+    path.join(process.cwd(), 'public', 'brand', 'icone.png'),
     path.join(process.cwd(), '..', 'link', 'assets', 'icone.png'),
-    path.join(process.cwd(), '..', 'link', 'assets', 'logo.png'),
+    path.join(process.cwd(), 'wallet-assets', 'logo.png'),
   ];
   return candidates.find((filePath) => fs.existsSync(filePath)) ?? null;
 }
