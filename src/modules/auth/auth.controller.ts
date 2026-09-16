@@ -1,10 +1,19 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { AuthResponseDto, AuthUserDto } from './dto/auth-response.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
@@ -23,6 +32,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiOperation({ summary: 'Créer un compte utilisateur' })
   @ApiResponse({ status: 201, type: AuthResponseDto })
   register(@Body() dto: RegisterDto) {
@@ -30,6 +40,7 @@ export class AuthController {
   }
 
   @Post('login')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiOperation({ summary: 'Connexion utilisateur (email / mot de passe)' })
   @ApiResponse({ status: 200, type: AuthResponseDto })
   login(@Body() dto: LoginDto) {
@@ -37,6 +48,7 @@ export class AuthController {
   }
 
   @Post('admin/login')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiOperation({
     summary: 'Connexion backoffice (rôle backoffice requis)',
   })
@@ -46,6 +58,7 @@ export class AuthController {
   }
 
   @Post('admin/oauth/google')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiOperation({
     summary: 'Connexion backoffice via Google (compte admin existant)',
   })
@@ -75,6 +88,7 @@ export class AuthController {
   }
 
   @Post('oauth/google')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiOperation({
     summary: 'Connexion / inscription via OAuth 2.0 Google (OpenID Connect)',
   })
@@ -84,6 +98,7 @@ export class AuthController {
   }
 
   @Post('oauth/apple')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiOperation({
     summary: 'Connexion / inscription via OAuth 2.0 Apple (Sign in with Apple)',
   })
@@ -103,19 +118,23 @@ export class AuthController {
   }
 
   @Post('logout')
-  @ApiOperation({ summary: 'Déconnexion utilisateur' })
-  logout() {
-    return this.authService.logout();
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Déconnexion utilisateur (invalide la session)' })
+  logout(@CurrentUser() user: { userId: string }) {
+    return this.authService.logout(user.userId);
   }
 
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @ApiOperation({ summary: 'Demande de réinitialisation du mot de passe' })
   forgotPassword(@Body() dto: ForgotPasswordDto) {
     return this.authService.forgotPassword(dto);
   }
 
   @Post('reset-password')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @ApiOperation({ summary: 'Réinitialiser le mot de passe' })
   resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto);

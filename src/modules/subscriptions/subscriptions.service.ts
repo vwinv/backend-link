@@ -936,8 +936,8 @@ export class SubscriptionsService {
       return { ok: false as const, error: 'invalid_payload' };
     }
 
-    if (parsed?.hash && !this.paydunyaService.verifyIpnHash(parsed.hash)) {
-      this.logger.warn('IPN PayDunya: hash refusé');
+    if (!parsed?.hash || !this.paydunyaService.verifyIpnHash(parsed.hash)) {
+      this.logger.warn('IPN PayDunya: hash manquant ou refusé');
       throw new ForbiddenException('Notification PayDunya non authentifiée');
     }
 

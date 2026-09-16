@@ -18,6 +18,7 @@ import {
   buildTeamInviteLandingPage,
   buildTeamInviteNotFoundPage,
 } from './team-invite-page';
+import { maskEmail } from '../../common/safe-url';
 import { AddMemberDto } from './dto/add-member.dto';
 import { CreateTeamDto } from './dto/create-team.dto';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
@@ -428,7 +429,7 @@ export class TeamsService {
       return buildTeamInviteLandingPage({
         teamName: invite.team.name,
         inviterName: this.formatUserName(invite.invitedBy),
-        inviteeEmail: invite.email,
+        inviteeEmail: maskEmail(invite.email),
         inviteeFirstName: invite.firstName,
         isExpired: false,
         isUnavailable: true,
@@ -442,7 +443,7 @@ export class TeamsService {
     return buildTeamInviteLandingPage({
       teamName: invite.team.name,
       inviterName: this.formatUserName(invite.invitedBy),
-      inviteeEmail: invite.email,
+      inviteeEmail: maskEmail(invite.email),
       inviteeFirstName: invite.firstName,
       isExpired,
       isUnavailable: false,

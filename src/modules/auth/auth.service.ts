@@ -5,7 +5,6 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -182,23 +181,27 @@ export class AuthService {
     return { message: 'refresh' };
   }
 
-  logout() {
-    // TODO: implémenter la révocation de token
+  async logout(userId?: string) {
+    if (userId) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { sessionVersion: { increment: 1 } },
+      });
+    }
     return { message: 'logout' };
   }
 
   async forgotPassword(dto: ForgotPasswordDto) {
     const email = dto.email.trim().toLowerCase();
+    const genericResponse = {
+      message:
+        'Si un compte existe pour cet e-mail, un lien de réinitialisation a été envoyé',
+    };
+
     const user = await this.prisma.user.findUnique({ where: { email } });
 
-    if (!user || !user.isActive) {
-      throw new NotFoundException(
-        'Aucun compte DropOne n’est associé à cet e-mail',
-      );
-    }
-
-    if (!user.passwordHash) {
-      throw new BadRequestException(this.oauthOnlyMessage(user.authProvider));
+    if (!user || !user.isActive || !user.passwordHash) {
+      return genericResponse;
     }
 
     try {
@@ -223,14 +226,11 @@ export class AuthService {
       });
     } catch (error) {
       this.logger.error('forgotPassword failed', error);
-      throw new ServiceUnavailableException(
-        'Impossible d’envoyer l’e-mail pour le moment. Réessayez plus tard.',
-      );
+      // Réponse identique pour éviter l’énumération / fuite d’état SMTP.
+      return genericResponse;
     }
 
-    return {
-      message: 'Un e-mail de réinitialisation a été envoyé',
-    };
+    return genericResponse;
   }
 
   async getValidResetToken(rawToken: string) {
@@ -272,7 +272,10 @@ export class AuthService {
     await this.prisma.$transaction([
       this.prisma.user.update({
         where: { id: record.userId },
-        data: { passwordHash },
+        data: {
+          passwordHash,
+          sessionVersion: { increment: 1 },
+        },
       }),
       this.prisma.passwordResetToken.update({
         where: { id: record.id },
@@ -424,11 +427,19 @@ export class AuthService {
   private buildAuthResponse(
     user: NonNullable<Awaited<ReturnType<AuthService['loadAdminUser']>>>,
   ): AuthResponseDto {
+    const secret = this.configService.get<string>('jwt.secret', 'change-me');
+    const expiresIn =
+      this.configService.get<string>('jwt.expiresIn', '24h') ?? '24h';
     const accessToken = this.jwtService.sign(
-      { sub: user.id, email: user.email, role: user.role },
       {
-        secret: this.configService.get<string>('jwt.secret', 'change-me'),
-        expiresIn: this.configService.get('jwt.expiresIn', '7d'),
+        sub: user.id,
+        email: user.email,
+        role: user.role,
+        sv: user.sessionVersion ?? 0,
+      },
+      {
+        secret,
+        expiresIn: expiresIn as `${number}${'s' | 'm' | 'h' | 'd'}`,
       },
     );
 

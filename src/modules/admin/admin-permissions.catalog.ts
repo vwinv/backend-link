@@ -93,6 +93,12 @@ export const ADMIN_PERMISSION_CATALOG = [
     label: 'Modifier un client app',
   },
   {
+    key: 'clients.delete',
+    module: 'clients',
+    action: 'delete',
+    label: 'Supprimer un client app',
+  },
+  {
     key: 'subscriptions.view',
     module: 'subscriptions',
     action: 'view',

@@ -42,6 +42,10 @@ export class OAuthService {
       throw new UnauthorizedException('Token Google incomplet');
     }
 
+    if (payload.email_verified === false) {
+      throw new UnauthorizedException('E-mail Google non vérifié');
+    }
+
     return {
       provider: AuthProvider.GOOGLE,
       providerId: payload.sub,

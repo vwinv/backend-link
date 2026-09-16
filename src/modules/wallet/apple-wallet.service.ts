@@ -10,6 +10,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { ZipFile } from 'yazl';
+import { assertSafeRemoteImageUrl } from '../../common/safe-url';
 import { WalletConfig } from './wallet.config';
 import { resolveWalletCardPalette } from './wallet-card-style.util';
 import {
@@ -197,12 +198,15 @@ export class AppleWalletService {
     if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
       try {
         const url = new URL(trimmed);
+        if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+          return null;
+        }
         if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
           const publicOrigin = new URL(this.walletConfig.appPublicUrl);
           return `${publicOrigin.origin}${url.pathname}${url.search}`;
         }
       } catch {
-        return trimmed;
+        return null;
       }
       return trimmed;
     }
@@ -219,7 +223,11 @@ export class AppleWalletService {
 
   private async fetchImageBuffer(url: string): Promise<Buffer | null> {
     try {
-      const response = await fetch(url, {
+      const safeUrl = await assertSafeRemoteImageUrl(url, [
+        this.walletConfig.appPublicUrl,
+      ]);
+      const response = await fetch(safeUrl, {
+        redirect: 'error',
         signal: AbortSignal.timeout(8_000),
       });
       if (!response.ok) return null;
@@ -231,8 +239,13 @@ export class AppleWalletService {
       ) {
         return null;
       }
+      if (contentType.toLowerCase().includes('svg')) {
+        return null;
+      }
       const arrayBuffer = await response.arrayBuffer();
-      if (arrayBuffer.byteLength === 0) return null;
+      if (arrayBuffer.byteLength === 0 || arrayBuffer.byteLength > 5_000_000) {
+        return null;
+      }
       return Buffer.from(arrayBuffer);
     } catch {
       return null;

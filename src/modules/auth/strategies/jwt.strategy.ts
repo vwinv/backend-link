@@ -9,6 +9,7 @@ export type JwtPayload = {
   sub: string;
   email: string;
   role?: UserRole;
+  sv?: number;
 };
 
 @Injectable()
@@ -17,10 +18,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     configService: ConfigService,
     private readonly prisma: PrismaService,
   ) {
+    const secret = configService.get<string>('jwt.secret', 'change-me');
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('jwt.secret', 'change-me'),
+      secretOrKey: secret,
     });
   }
 
@@ -42,6 +44,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Session invalide');
     }
 
+    const tokenSessionVersion = payload.sv ?? 0;
+    if (tokenSessionVersion !== user.sessionVersion) {
+      throw new UnauthorizedException('Session expirée, reconnectez-vous');
+    }
+
     const permissions =
       user.adminRole?.permissions.map((item) => item.permission.key) ?? [];
 
@@ -57,6 +64,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       adminRoleId: user.adminRoleId,
       adminRoleName: user.adminRole?.name ?? null,
       permissions,
+      sessionVersion: user.sessionVersion,
     };
   }
 }

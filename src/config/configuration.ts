@@ -7,7 +7,24 @@ export default () => ({
   },
   jwt: {
     secret: process.env.JWT_SECRET ?? 'change-me',
-    expiresIn: process.env.JWT_EXPIRES_IN ?? '7d',
+    expiresIn: process.env.JWT_EXPIRES_IN ?? '24h',
+  },
+  cors: {
+    origins: (process.env.CORS_ORIGINS ?? '')
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean),
+  },
+  swagger: {
+    enabled:
+      process.env.SWAGGER_ENABLED === 'true' ||
+      (process.env.NODE_ENV !== 'production' &&
+        process.env.SWAGGER_ENABLED !== 'false'),
+  },
+  throttle: {
+    ttlMs: parseInt(process.env.THROTTLE_TTL_MS ?? '60000', 10),
+    limit: parseInt(process.env.THROTTLE_LIMIT ?? '120', 10),
+    authLimit: parseInt(process.env.THROTTLE_AUTH_LIMIT ?? '10', 10),
   },
   oauth: {
     google: {

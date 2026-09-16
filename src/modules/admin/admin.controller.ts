@@ -50,6 +50,8 @@ import {
 } from './dto/update-admin-offer.dto';
 import { UpdateAdminRoleDto } from './dto/update-admin-role.dto';
 import { UpdateBackofficeUserDto } from './dto/update-backoffice-user.dto';
+import { ResetBackofficePasswordDto } from './dto/reset-backoffice-password.dto';
+import { assertSuperAdmin } from './admin-super-admin';
 
 @ApiTags('Admin')
 @ApiBearerAuth()
@@ -98,15 +100,22 @@ export class AdminController {
   @Post('roles')
   @RequirePermissions('roles.create')
   @ApiOperation({ summary: 'Créer un rôle backoffice' })
-  createRole(@Body() dto: CreateAdminRoleDto) {
-    return this.rolesService.create(dto);
+  createRole(
+    @Body() dto: CreateAdminRoleDto,
+    @CurrentUser() actor: AuthUserPayload,
+  ) {
+    return this.rolesService.create(dto, actor);
   }
 
   @Patch('roles/:id')
   @RequirePermissions('roles.update')
   @ApiOperation({ summary: 'Modifier un rôle backoffice' })
-  updateRole(@Param('id') id: string, @Body() dto: UpdateAdminRoleDto) {
-    return this.rolesService.update(id, dto);
+  updateRole(
+    @Param('id') id: string,
+    @Body() dto: UpdateAdminRoleDto,
+    @CurrentUser() actor: AuthUserPayload,
+  ) {
+    return this.rolesService.update(id, dto, actor);
   }
 
   @Delete('roles/:id')
@@ -138,6 +147,17 @@ export class AdminController {
     @Body() dto: UpdateAdminClientDto,
   ) {
     return this.clientsService.update(id, dto);
+  }
+
+  @Delete('clients/:id')
+  @RequirePermissions('clients.delete')
+  @ApiOperation({ summary: 'Supprimer un client app (Super Admin)' })
+  deleteClient(
+    @Param('id') id: string,
+    @CurrentUser() actor: AuthUserPayload,
+  ) {
+    assertSuperAdmin(actor);
+    return this.clientsService.remove(id);
   }
 
   @Get('subscriptions/stats')
@@ -337,9 +357,12 @@ export class AdminController {
 
   @Post('users')
   @RequirePermissions('backoffice_users.create')
-  @ApiOperation({ summary: 'Créer un utilisateur backoffice' })
-  createUser(@Body() dto: CreateBackofficeUserDto) {
-    return this.usersService.create(dto);
+  @ApiOperation({ summary: 'Créer un utilisateur backoffice (Super Admin)' })
+  createUser(
+    @Body() dto: CreateBackofficeUserDto,
+    @CurrentUser() actor: AuthUserPayload,
+  ) {
+    return this.usersService.create(dto, actor);
   }
 
   @Patch('users/:id')
@@ -350,6 +373,19 @@ export class AdminController {
     @Body() dto: UpdateBackofficeUserDto,
     @CurrentUser() actor: AuthUserPayload,
   ) {
-    return this.usersService.update(id, dto, actor.userId);
+    return this.usersService.update(id, dto, actor);
+  }
+
+  @Post('users/:id/reset-password')
+  @RequirePermissions('backoffice_users.update')
+  @ApiOperation({
+    summary: 'Réinitialiser le mot de passe d’un utilisateur (Super Admin)',
+  })
+  resetUserPassword(
+    @Param('id') id: string,
+    @Body() dto: ResetBackofficePasswordDto,
+    @CurrentUser() actor: AuthUserPayload,
+  ) {
+    return this.usersService.resetPassword(id, dto, actor);
   }
 }

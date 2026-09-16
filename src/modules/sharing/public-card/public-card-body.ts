@@ -10,6 +10,15 @@ function escapeHtml(value: string): string {
     .replaceAll("'", '&#39;');
 }
 
+function isSafeHref(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
+
 function escapeAttr(value: string): string {
   return escapeHtml(value);
 }
@@ -222,6 +231,7 @@ function renderSocials(params: PublicCardPageParams): string {
   }
 
   const links = params.socialLinks
+    .filter((link) => isSafeHref(link.url))
     .map((link) => {
       const label = escapeHtml(
         socialLabel(link.platform, link.label ?? undefined),

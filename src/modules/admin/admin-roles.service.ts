@@ -3,7 +3,9 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
+  OnModuleInit,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -12,12 +14,60 @@ import {
   ADMIN_PERMISSION_CATALOG,
   SUPER_ADMIN_ROLE_NAME,
 } from './admin-permissions.catalog';
+import { isSuperAdmin } from './admin-super-admin';
+import type { AuthUserPayload } from '../auth/decorators/current-user.decorator';
 import { CreateAdminRoleDto } from './dto/create-admin-role.dto';
 import { UpdateAdminRoleDto } from './dto/update-admin-role.dto';
 
 @Injectable()
-export class AdminRolesService {
+export class AdminRolesService implements OnModuleInit {
+  private readonly logger = new Logger(AdminRolesService.name);
+
   constructor(private readonly prisma: PrismaService) {}
+
+  async onModuleInit() {
+    await this.syncPermissionsCatalog();
+  }
+
+  /** Upsert le catalogue + rattache les nouvelles permissions au Super Admin. */
+  async syncPermissionsCatalog() {
+    for (const permission of ADMIN_PERMISSION_CATALOG) {
+      await this.prisma.adminPermission.upsert({
+        where: { key: permission.key },
+        update: {
+          module: permission.module,
+          action: permission.action,
+          label: permission.label,
+        },
+        create: {
+          key: permission.key,
+          module: permission.module,
+          action: permission.action,
+          label: permission.label,
+        },
+      });
+    }
+
+    const superAdmin = await this.prisma.adminRole.findUnique({
+      where: { name: SUPER_ADMIN_ROLE_NAME },
+    });
+    if (!superAdmin) return;
+
+    const allPermissions = await this.prisma.adminPermission.findMany({
+      select: { id: true },
+    });
+    await this.prisma.adminRolePermission.createMany({
+      data: allPermissions.map((permission) => ({
+        roleId: superAdmin.id,
+        permissionId: permission.id,
+      })),
+      skipDuplicates: true,
+    });
+
+    this.logger.log(
+      `Catalogue permissions admin synchronisé (${ADMIN_PERMISSION_CATALOG.length})`,
+    );
+  }
 
   listPermissions() {
     const byModule = ADMIN_MODULES.map((module) => ({
@@ -54,13 +104,20 @@ export class AdminRolesService {
     return this.toRoleDto(role);
   }
 
-  async create(dto: CreateAdminRoleDto) {
+  async create(dto: CreateAdminRoleDto, actor: AuthUserPayload) {
     const name = dto.name.trim();
+    if (name === SUPER_ADMIN_ROLE_NAME) {
+      throw new ForbiddenException(
+        'Le rôle Super Admin ne peut pas être créé manuellement',
+      );
+    }
+
     const existing = await this.prisma.adminRole.findUnique({ where: { name } });
     if (existing) {
       throw new ConflictException('Un rôle avec ce nom existe déjà');
     }
 
+    this.assertCanAssignPermissions(actor, dto.permissionKeys);
     const permissionIds = await this.resolvePermissionIds(dto.permissionKeys);
 
     const role = await this.prisma.adminRole.create({
@@ -80,9 +137,17 @@ export class AdminRolesService {
     return this.toRoleDto(role);
   }
 
-  async update(id: string, dto: UpdateAdminRoleDto) {
+  async update(id: string, dto: UpdateAdminRoleDto, actor: AuthUserPayload) {
     const role = await this.prisma.adminRole.findUnique({ where: { id } });
     if (!role) throw new NotFoundException('Rôle introuvable');
+
+    if (role.isSystem && role.name === SUPER_ADMIN_ROLE_NAME) {
+      if (!isSuperAdmin(actor)) {
+        throw new ForbiddenException(
+          'Seul le Super Admin peut modifier ce rôle système',
+        );
+      }
+    }
 
     if (role.isSystem && dto.name && dto.name.trim() !== role.name) {
       throw new ForbiddenException(
@@ -92,6 +157,11 @@ export class AdminRolesService {
 
     if (dto.name) {
       const name = dto.name.trim();
+      if (name === SUPER_ADMIN_ROLE_NAME && role.name !== SUPER_ADMIN_ROLE_NAME) {
+        throw new ForbiddenException(
+          'Impossible de renommer un rôle en Super Admin',
+        );
+      }
       const existing = await this.prisma.adminRole.findFirst({
         where: { name, NOT: { id } },
       });
@@ -119,6 +189,7 @@ export class AdminRolesService {
           skipDuplicates: true,
         });
       } else {
+        this.assertCanAssignPermissions(actor, dto.permissionKeys);
         const permissionIds = await this.resolvePermissionIds(dto.permissionKeys);
         await this.prisma.adminRolePermission.deleteMany({ where: { roleId: id } });
         await this.prisma.adminRolePermission.createMany({
@@ -157,6 +228,23 @@ export class AdminRolesService {
 
     await this.prisma.adminRole.delete({ where: { id } });
     return { message: 'Rôle supprimé' };
+  }
+
+  private assertCanAssignPermissions(
+    actor: AuthUserPayload,
+    permissionKeys: string[],
+  ) {
+    if (isSuperAdmin(actor)) return;
+
+    const allowed = new Set(actor.permissions);
+    if (allowed.has('*')) return;
+
+    const denied = permissionKeys.filter((key) => !allowed.has(key));
+    if (denied.length > 0) {
+      throw new ForbiddenException(
+        'Vous ne pouvez pas attribuer des permissions que vous n’avez pas',
+      );
+    }
   }
 
   private async resolvePermissionIds(keys: string[]) {

@@ -13,6 +13,7 @@ import {
   TeamMemberRole,
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { sanitizePublicHttpUrl } from '../../common/safe-url';
 import { CreateCardDto } from './dto/create-card.dto';
 import { SocialLinkItemDto } from './dto/social-link-item.dto';
 import { UpdateCardDto } from './dto/update-card.dto';
@@ -349,10 +350,7 @@ export class CardsService {
       .map((link, index) => ({
         cardId,
         platform: link.platform,
-        url:
-          link.platform === SocialPlatform.WEBSITE
-            ? this.normalizeWebsiteUrl(link.url) ?? ''
-            : link.url.trim(),
+        url: this.normalizeSocialUrl(link.url) ?? '',
         label: link.label?.trim() || null,
         order: link.order ?? index,
       }))
@@ -893,10 +891,11 @@ export class CardsService {
   }
 
   private normalizeWebsiteUrl(value?: string | null): string | null {
-    const trimmed = this.optionalString(value);
-    if (!trimmed) return null;
-    if (/^https?:\/\//i.test(trimmed)) return trimmed;
-    return `https://${trimmed}`;
+    return this.normalizeSocialUrl(value);
+  }
+
+  private normalizeSocialUrl(value?: string | null): string | null {
+    return sanitizePublicHttpUrl(value, { allowHttp: false });
   }
 
   private async generateUniqueSlug(

@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { CardKind, type BusinessCard } from '@prisma/client';
+import { sanitizePublicHttpUrl } from '../../common/safe-url';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EntitlementsService } from '../subscriptions/entitlements.service';
 import { resolveProDesign } from './pro-design/pro-design-resolver';
@@ -254,11 +255,13 @@ export class SharingService {
   }): Array<{ platform: string; url: string; label?: string | null }> {
     const isTeamCard =
       card.kind === CardKind.PROFESSIONAL || card.kind === CardKind.MEMBER;
-    const links = card.socialLinks.map((link) => ({
-      platform: link.platform,
-      url: link.url,
-      label: link.label,
-    }));
+    const links = card.socialLinks
+      .map((link) => ({
+        platform: link.platform,
+        url: this.normalizeWebsiteUrl(link.url) ?? '',
+        label: link.label,
+      }))
+      .filter((link) => link.url.length > 0);
 
     if (!isTeamCard) {
       return links.filter((link) => link.platform !== 'WEBSITE');
@@ -280,10 +283,7 @@ export class SharingService {
   }
 
   private normalizeWebsiteUrl(value?: string | null): string | null {
-    const trimmed = value?.trim() ?? '';
-    if (!trimmed) return null;
-    if (/^https?:\/\//i.test(trimmed)) return trimmed;
-    return `https://${trimmed}`;
+    return sanitizePublicHttpUrl(value, { allowHttp: false });
   }
 
   private buildSubtitle(card: BusinessCard): string {

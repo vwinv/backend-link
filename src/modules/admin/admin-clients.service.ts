@@ -229,6 +229,24 @@ export class AdminClientsService {
     return this.toListItem(updated);
   }
 
+  async remove(id: string) {
+    const existing = await this.prisma.user.findFirst({
+      where: { id, role: UserRole.USER, adminRoleId: null },
+      select: { id: true, email: true },
+    });
+    if (!existing) {
+      throw new NotFoundException('Client introuvable');
+    }
+
+    await this.prisma.user.delete({ where: { id } });
+
+    return {
+      message: 'Client supprimé',
+      id: existing.id,
+      email: existing.email,
+    };
+  }
+
   private listSelect() {
     return {
       id: true,

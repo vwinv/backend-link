@@ -152,6 +152,8 @@ model User {
   stripeCustomerId String?      @unique
   role         UserRole     @default(USER)
   isActive     Boolean      @default(true)
+  /// Incrémente à la déconnexion / reset MDP pour invalider les JWT existants.
+  sessionVersion Int        @default(0)
   adminRoleId  String?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt

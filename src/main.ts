@@ -238,17 +238,47 @@ async function bootstrap() {
     }),
   );
 
-  app.enableCors();
+  const nodeEnv = configService.get<string>('nodeEnv', 'development');
+  const configuredCorsOrigins = configService.get<string[]>('cors.origins', []);
+  const defaultProdOrigins = [
+    'https://dropone.pro',
+    'https://www.dropone.pro',
+    'https://admin.dropone.pro',
+    'https://api.dropone.pro',
+  ];
+  const corsOrigins =
+    configuredCorsOrigins.length > 0
+      ? configuredCorsOrigins
+      : nodeEnv === 'production'
+        ? defaultProdOrigins
+        : true;
 
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('DropOne API')
-    .setDescription('API backend pour les cartes de visite digitales DropOne')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
+  app.enableCors({
+    origin: corsOrigins,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  });
 
-  const document = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup('docs', app, document);
+  const swaggerEnabled = configService.get<boolean>('swagger.enabled', true);
+  if (swaggerEnabled) {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('DropOne API')
+      .setDescription('API backend pour les cartes de visite digitales DropOne')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .build();
+
+    const document = SwaggerModule.createDocument(app, swaggerConfig);
+    SwaggerModule.setup('docs', app, document);
+  }
+
+  const jwtSecret = configService.get<string>('jwt.secret', 'change-me');
+  if (nodeEnv === 'production' && (!jwtSecret || jwtSecret === 'change-me')) {
+    throw new Error(
+      'JWT_SECRET doit être défini avec une valeur forte en production',
+    );
+  }
 
   const port = configService.get<number>('port', 3000);
   await app.listen(port);
@@ -257,7 +287,11 @@ async function bootstrap() {
   console.log(`🃏 Public cards: http://localhost:${port}/cards/{slug}`);
   console.log(`🔒 Privacy policy: http://localhost:${port}/privacy`);
   console.log(`✉️ Team invites: http://localhost:${port}/team-invites/{inviteId}`);
-  console.log(`📚 Swagger docs: http://localhost:${port}/docs`);
+  if (swaggerEnabled) {
+    console.log(`📚 Swagger docs: http://localhost:${port}/docs`);
+  } else {
+    console.log('📚 Swagger docs: disabled');
+  }
 }
 
 bootstrap();
