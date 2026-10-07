@@ -5,6 +5,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import configuration from './config/configuration';
 import { HealthController } from './health/health.controller';
 import { AdminModule } from './modules/admin/admin.module';
+import { AppUpdateModule } from './modules/app-update/app-update.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CardsModule } from './modules/cards/cards.module';
 import { PortfoliosModule } from './modules/portfolios/portfolios.module';
@@ -54,6 +55,7 @@ import { PrismaModule } from './prisma/prisma.module';
     UploadsModule,
     NotificationsModule,
     SupportModule,
+    AppUpdateModule,
   ],
   controllers: [HealthController],
   providers: [

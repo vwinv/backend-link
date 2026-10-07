@@ -216,27 +216,79 @@ function renderActions(params: PublicCardPageParams): string {
   `;
 }
 
+function socialLogoSrc(platform: string): string | null {
+  const map: Record<string, string> = {
+    LINKEDIN: '/brand/social/linkedin.png',
+    INSTAGRAM: '/brand/social/instagram.png',
+    WHATSAPP: '/brand/social/whatsapp.png',
+    TWITTER: '/brand/social/twitter.png',
+    X: '/brand/social/twitter.png',
+  };
+  return map[platform.toUpperCase()] ?? null;
+}
+
+function socialAccessibleName(platform: string, label?: string | null): string {
+  if (label?.trim()) return label.trim();
+  const map: Record<string, string> = {
+    LINKEDIN: 'LinkedIn',
+    INSTAGRAM: 'Instagram',
+    WHATSAPP: 'WhatsApp',
+    TWITTER: 'X',
+    X: 'X',
+    FACEBOOK: 'Facebook',
+    WEBSITE: 'Site web',
+    GITHUB: 'GitHub',
+    YOUTUBE: 'YouTube',
+    TIKTOK: 'TikTok',
+    CUSTOM: 'Lien',
+  };
+  return map[platform.toUpperCase()] ?? platform;
+}
+
+function renderSocialLogoMarkup(platform: string, label?: string | null): string {
+  const name = escapeAttr(socialAccessibleName(platform, label));
+  const src = socialLogoSrc(platform);
+  if (src) {
+    return `<img class="social-logo" src="${escapeAttr(src)}" alt="${name}" width="28" height="28" loading="lazy" />`;
+  }
+
+  // Fallbacks SVG pour les plateformes sans asset PNG.
+  if (platform.toUpperCase() === 'FACEBOOK') {
+    return `<svg class="social-logo" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M14 8h3V4.5h-3C11.6 4.5 10 6.1 10 8.5V10H8v3.5h2V20h3.5v-6.5H16L16.5 10H13.5V8.5c0-.3.2-.5.5-.5z"/></svg>`;
+  }
+  if (platform.toUpperCase() === 'WEBSITE') {
+    return `<svg class="social-logo" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm7.4 9h-3.1a15 15 0 0 0-1.3-5.1A8 8 0 0 1 19.4 11zM12 4c.9 1.3 1.6 3 2 5H10c.4-2 1.1-3.7 2-5zM4.6 13h3.1c.2 1.8.7 3.5 1.3 5.1A8 8 0 0 1 4.6 13zm3.1-2H4.6a8 8 0 0 1 4.4-5.1A15 15 0 0 0 7.7 11zm2.3 0h4c-.3 1.9-.9 3.7-1.8 5.2-.2.3-.4.6-.6.8-.2-.2-.4-.5-.6-.8C10.6 14.7 10 12.9 9.7 11zm0 7.1c.4 1.1.9 2 1.4 2.6.2.2.5.3.9.3s.7-.1.9-.3c.5-.6 1-1.5 1.4-2.6-.9-.3-1.9-.5-3.2-.5-1 0-2 .2-2.8.5zM16.3 18.1c.6-1.6 1.1-3.3 1.3-5.1h3.1a8 8 0 0 1-4.4 5.1z"/></svg>`;
+  }
+
+  const fallback = escapeHtml(
+    socialAccessibleName(platform, label).slice(0, 2).toUpperCase(),
+  );
+  return `<span class="social-fallback" aria-hidden="true">${fallback}</span>`;
+}
+
 function renderSocials(params: PublicCardPageParams): string {
   const socialClass = `social-link ${resolveSocialSkin(params.design.layout)}`;
 
   if (params.socialLinks.length === 0) {
+    const placeholders = ['LINKEDIN', 'INSTAGRAM', 'WHATSAPP']
+      .map(
+        (platform) =>
+          `<span class="${socialClass}" aria-hidden="true">${renderSocialLogoMarkup(platform)}</span>`,
+      )
+      .join('');
     return `
       <div class="section-label">RÉSEAUX</div>
-      <div class="socials">
-        <span class="${socialClass}">in</span>
-        <span class="${socialClass}">ig</span>
-        <span class="${socialClass}">wa</span>
-      </div>
+      <div class="socials">${placeholders}</div>
     `;
   }
 
   const links = params.socialLinks
     .filter((link) => isSafeHref(link.url))
     .map((link) => {
-      const label = escapeHtml(
-        socialLabel(link.platform, link.label ?? undefined),
+      const name = escapeAttr(
+        socialAccessibleName(link.platform, link.label),
       );
-      return `<a class="${socialClass}" href="${escapeAttr(link.url)}" target="_blank" rel="noopener noreferrer">${label}</a>`;
+      return `<a class="${socialClass}" href="${escapeAttr(link.url)}" target="_blank" rel="noopener noreferrer" aria-label="${name}">${renderSocialLogoMarkup(link.platform, link.label)}</a>`;
     })
     .join('');
 
@@ -244,27 +296,6 @@ function renderSocials(params: PublicCardPageParams): string {
     <div class="section-label">RÉSEAUX</div>
     <div class="socials">${links}</div>
   `;
-}
-
-function socialLabel(platform: string, label?: string): string {
-  if (label?.trim()) {
-    return label.trim().slice(0, 3).toUpperCase();
-  }
-
-  const map: Record<string, string> = {
-    LINKEDIN: 'in',
-    INSTAGRAM: 'ig',
-    WHATSAPP: 'wa',
-    TWITTER: 'x',
-    FACEBOOK: 'fb',
-    GITHUB: 'gh',
-    WEBSITE: 'www',
-    YOUTUBE: 'yt',
-    TIKTOK: 'tt',
-    CUSTOM: 'lnk',
-  };
-
-  return map[platform] ?? platform.slice(0, 3).toLowerCase();
 }
 
 function buildVCardDataUri(params: PublicCardPageParams): string {

@@ -131,7 +131,7 @@ export function buildPrivacyPolicyPage(): string {
       <ul>
         <li>créer et gérer votre compte ;</li>
         <li>générer votre carte de visite numérique ;</li>
-        <li>partager votre profil via QR Code, NFC ou lien ;</li>
+        <li>partager votre profil via QR Code ou lien ;</li>
         <li>gérer les équipes et entreprises ;</li>
         <li>permettre l'authentification sécurisée ;</li>
         <li>envoyer des notifications importantes ;</li>

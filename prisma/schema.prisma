@@ -753,3 +753,19 @@ model SupportTicketReply {
   @@map("support_ticket_replies")
 }
 
+// ─── App update (singleton) ──────────────────────────────────────────────────
+
+/// Config unique pour le prompt de mise à jour in-app (backoffice).
+model AppUpdateConfig {
+  id              String   @id @default("default")
+  latestVersion   String   @default("")
+  minVersion      String   @default("")
+  iosStoreUrl     String   @default("")
+  androidStoreUrl String   @default("")
+  message         String   @default("")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("app_update_config")
+}
+

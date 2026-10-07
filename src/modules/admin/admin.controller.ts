@@ -20,6 +20,8 @@ import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { AdminAccessGuard } from '../auth/guards/admin-access.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { AppUpdateService } from '../app-update/app-update.service';
+import { UpdateAppUpdateConfigDto } from '../app-update/dto/update-app-update-config.dto';
 import { AdminClientsService } from './admin-clients.service';
 import { AdminDashboardService } from './admin-dashboard.service';
 import { AdminNotificationsService } from './admin-notifications.service';
@@ -67,6 +69,7 @@ export class AdminController {
     private readonly notificationsService: AdminNotificationsService,
     private readonly supportService: AdminSupportService,
     private readonly rolesService: AdminRolesService,
+    private readonly appUpdateService: AppUpdateService,
   ) {}
 
   @Get('dashboard')
@@ -74,6 +77,20 @@ export class AdminController {
   @ApiOperation({ summary: 'Statistiques plateforme (backoffice)' })
   getDashboard() {
     return this.dashboardService.getStats();
+  }
+
+  @Get('app-update')
+  @RequirePermissions('app_update.view')
+  @ApiOperation({ summary: 'Config mise à jour app mobile' })
+  getAppUpdateConfig() {
+    return this.appUpdateService.getAdminConfig();
+  }
+
+  @Patch('app-update')
+  @RequirePermissions('app_update.update')
+  @ApiOperation({ summary: 'Mettre à jour la config de mise à jour app' })
+  updateAppUpdateConfig(@Body() dto: UpdateAppUpdateConfigDto) {
+    return this.appUpdateService.updateConfig(dto);
   }
 
   @Get('permissions')

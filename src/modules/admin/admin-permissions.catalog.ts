@@ -27,6 +27,10 @@ export const ADMIN_MODULES = [
     key: 'support',
     label: 'Support',
   },
+  {
+    key: 'app_update',
+    label: 'Mise à jour app',
+  },
 ] as const;
 
 export type AdminModuleKey = (typeof ADMIN_MODULES)[number]['key'];
@@ -145,6 +149,18 @@ export const ADMIN_PERMISSION_CATALOG = [
     module: 'support',
     action: 'reply',
     label: 'Répondre aux tickets support',
+  },
+  {
+    key: 'app_update.view',
+    module: 'app_update',
+    action: 'view',
+    label: 'Voir la config de mise à jour app',
+  },
+  {
+    key: 'app_update.update',
+    module: 'app_update',
+    action: 'update',
+    label: 'Modifier la config de mise à jour app',
   },
 ] as const;
 
