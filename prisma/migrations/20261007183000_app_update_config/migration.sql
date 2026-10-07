@@ -14,4 +14,13 @@ CREATE TABLE "app_update_config" (
 
 -- Seed singleton row
 INSERT INTO "app_update_config" ("id", "latestVersion", "minVersion", "iosStoreUrl", "androidStoreUrl", "message", "createdAt", "updatedAt")
-VALUES ('default', '', '', '', '', '', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+VALUES (
+  'default',
+  '',
+  '',
+  'https://apps.apple.com/us/app/drop-one/id6807993018',
+  'https://play.google.com/store/apps/details?id=com.mega.dropone',
+  '',
+  CURRENT_TIMESTAMP,
+  CURRENT_TIMESTAMP
+);

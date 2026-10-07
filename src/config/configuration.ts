@@ -138,7 +138,10 @@ export default () => ({
   appUpdate: {
     latestVersion: (process.env.APP_LATEST_VERSION ?? '').trim(),
     minVersion: (process.env.APP_MIN_VERSION ?? '').trim(),
-    iosStoreUrl: (process.env.APP_IOS_STORE_URL ?? '').trim(),
+    iosStoreUrl: (
+      process.env.APP_IOS_STORE_URL ??
+      'https://apps.apple.com/us/app/drop-one/id6807993018'
+    ).trim(),
     androidStoreUrl: (process.env.APP_ANDROID_STORE_URL ?? '').trim(),
     message: (process.env.APP_UPDATE_MESSAGE ?? '').trim(),
   },
