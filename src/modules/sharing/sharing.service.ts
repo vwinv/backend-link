@@ -5,7 +5,7 @@ import { sanitizePublicHttpUrl } from '../../common/safe-url';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EntitlementsService } from '../subscriptions/entitlements.service';
 import { resolveProDesign } from './pro-design/pro-design-resolver';
-import { buildCardInitials } from './public-card/public-card-body';
+import { buildCardInitials, buildVCard } from './public-card/public-card-body';
 import { buildPublicCardHtml } from './public-card/public-card-page';
 import { ShareCardDto } from './dto/share-card.dto';
 
@@ -93,6 +93,8 @@ export class SharingService {
     const pageUrl = `${this.appPublicUrl}/cards/${card.slug}`;
     const design = resolveProDesign(card.theme);
     const teamLogoSource = card.logoUrl?.trim() || card.team?.logoUrl?.trim();
+    const socialLinks = this.toPublicSocialLinks(card);
+    const embed = options?.embed === true;
 
     return buildPublicCardHtml({
       fullName,
@@ -110,9 +112,64 @@ export class SharingService {
       ogImageUrl: this.getOgImageUrl(card, fullName),
       logoUrl: this.getBrandLogoUrl(),
       design,
-      socialLinks: this.toPublicSocialLinks(card),
-      embed: options?.embed === true,
+      socialLinks,
+      embed,
+      vcardUrl: this.vcardUrl(card.slug),
+      downloadUrl: embed ? null : this.resolveDownloadUrl(options?.userAgent),
+      appleAppId: embed ? null : this.appleAppStoreId(),
     });
+  }
+
+  async renderPublicVCard(slug: string): Promise<string | null> {
+    const card = await this.findPublicCard(slug);
+    if (!card) return null;
+
+    const fullName = `${card.firstName} ${card.lastName}`.trim();
+    const isTeamCard =
+      card.kind === CardKind.PROFESSIONAL || card.kind === CardKind.MEMBER;
+    const subtitle = isTeamCard
+      ? card.jobTitle?.trim() || ''
+      : this.buildSubtitle(card);
+    const website = this.toPublicSocialLinks(card).find(
+      (link) => link.platform === 'WEBSITE',
+    )?.url;
+
+    return buildVCard({
+      fullName,
+      email: card.email,
+      phone: card.phone,
+      address: isTeamCard ? card.address : null,
+      subtitle,
+      pageUrl: `${this.appPublicUrl}/cards/${card.slug}`,
+      website,
+    });
+  }
+
+  private vcardUrl(slug: string): string {
+    const prefix = this.configService
+      .get<string>('apiPrefix', 'api/v1')
+      .replace(/^\/+|\/+$/g, '');
+    return `${this.appPublicUrl}/${prefix}/sharing/public/${encodeURIComponent(slug)}/contact.vcf`;
+  }
+
+  private resolveDownloadUrl(userAgent?: string): string {
+    const ios = this.configService.get<string>(
+      'appUpdate.iosStoreUrl',
+      'https://apps.apple.com/us/app/drop-one/id6807993018',
+    );
+    const android =
+      this.configService.get<string>('appUpdate.androidStoreUrl', '').trim() ||
+      'https://play.google.com/store/apps/details?id=com.mega.dropone';
+    const ua = userAgent?.toLowerCase() ?? '';
+    return ua.includes('android') ? android : ios;
+  }
+
+  private appleAppStoreId(): string {
+    const ios = this.configService.get<string>(
+      'appUpdate.iosStoreUrl',
+      'https://apps.apple.com/us/app/drop-one/id6807993018',
+    );
+    return ios.match(/id(\d{6,})/)?.[1] ?? '6807993018';
   }
 
   async shareCard(userId: string, id: string, dto: ShareCardDto) {

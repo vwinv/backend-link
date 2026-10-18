@@ -53,7 +53,6 @@ import {
 import { UpdateAdminRoleDto } from './dto/update-admin-role.dto';
 import { UpdateBackofficeUserDto } from './dto/update-backoffice-user.dto';
 import { ResetBackofficePasswordDto } from './dto/reset-backoffice-password.dto';
-import { assertSuperAdmin } from './admin-super-admin';
 
 @ApiTags('Admin')
 @ApiBearerAuth()
@@ -168,12 +167,8 @@ export class AdminController {
 
   @Delete('clients/:id')
   @RequirePermissions('clients.delete')
-  @ApiOperation({ summary: 'Supprimer un client app (Super Admin)' })
-  deleteClient(
-    @Param('id') id: string,
-    @CurrentUser() actor: AuthUserPayload,
-  ) {
-    assertSuperAdmin(actor);
+  @ApiOperation({ summary: 'Supprimer un client app' })
+  deleteClient(@Param('id') id: string) {
     return this.clientsService.remove(id);
   }
 

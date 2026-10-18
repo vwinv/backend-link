@@ -22,4 +22,10 @@ export type PublicCardPageParams = {
   design: ResolvedProDesign;
   socialLinks: PublicSocialLink[];
   embed?: boolean;
+  /** Fichier .vcf réel, ouvert par le téléphone. */
+  vcardUrl: string;
+  /** Store (App Store ou Play Store). Absent dans la WebView de l’app. */
+  downloadUrl?: string | null;
+  /** Identifiant numérique App Store, pour la bannière Safari. */
+  appleAppId?: string | null;
 };

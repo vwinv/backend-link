@@ -531,7 +531,8 @@ export const PUBLIC_CARD_STYLES = `
     height: 100%;
   }
 
-  html.embed [data-save-contact] {
+  html.embed [data-save-contact],
+  html.embed [data-download-app] {
     display: none !important;
   }
 `;

@@ -73,7 +73,14 @@ type ButtonSkin =
   | 'accent-dark'
   | 'outline-white-soft';
 
-type ActionIcon = 'share' | 'add' | 'phone' | 'mail' | 'message' | 'portfolio';
+type ActionIcon =
+  | 'share'
+  | 'add'
+  | 'phone'
+  | 'mail'
+  | 'message'
+  | 'portfolio'
+  | 'download';
 
 function resolveButtonSkins(layout: ProDesignLayout): {
   primary: ButtonSkin;
@@ -123,6 +130,7 @@ function renderActionIcon(icon: ActionIcon): string {
     mail: `${svgOpen}<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>`,
     message: `${svgOpen}<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`,
     portfolio: `${svgOpen}<path d="m12 2.5 1.35 4.15h4.4l-3.55 2.58 1.35 4.15L12 10.8l-3.55 2.58 1.35-4.15-3.55-2.58h4.4L12 2.5z"/><path d="M5 19h14"/></svg>`,
+    download: `${svgOpen}<path d="M12 3v12"/><path d="m7 11 5 5 5-5"/><path d="M5 21h14"/></svg>`,
   };
 
   return paths[icon];
@@ -160,7 +168,8 @@ function renderActions(params: PublicCardPageParams): string {
   const phoneHref = phone ? `href="tel:${escapeAttr(phone)}"` : '';
   const smsHref = phone ? `href="sms:${escapeAttr(phone)}"` : '';
   const emailHref = email ? `href="mailto:${escapeAttr(email)}"` : '';
-  const vcardHref = `href="${escapeAttr(buildVCardDataUri(params))}" download="${escapeAttr(params.fullName.replace(/\s+/g, '_'))}.vcf"`;
+  const vcardHref = `href="${escapeAttr(params.vcardUrl)}"`;
+  const downloadUrl = params.downloadUrl?.trim() ?? '';
 
   const skins = resolveButtonSkins(params.design.layout);
 
@@ -212,6 +221,15 @@ function renderActions(params: PublicCardPageParams): string {
         label: 'Consulter mon portfolio',
         disabled: true,
       })}
+      ${downloadUrl
+        ? renderActionButton({
+            skin: skins.secondary,
+            icon: 'download',
+            label: 'Télécharger l’application',
+            tag: 'a',
+            attrs: `href="${escapeAttr(downloadUrl)}" data-download-app target="_blank" rel="noopener noreferrer"`,
+          })
+        : ''}
     </div>
   `;
 }
@@ -223,6 +241,8 @@ function socialLogoSrc(platform: string): string | null {
     WHATSAPP: '/brand/social/whatsapp.png',
     TWITTER: '/brand/social/twitter.png',
     X: '/brand/social/twitter.png',
+    TIKTOK: '/brand/social/tiktok.png',
+    YOUTUBE: '/brand/social/youtube.png',
   };
   return map[platform.toUpperCase()] ?? null;
 }
@@ -298,30 +318,48 @@ function renderSocials(params: PublicCardPageParams): string {
   `;
 }
 
-function buildVCardDataUri(params: PublicCardPageParams): string {
-  const lines = [
-    'BEGIN:VCARD',
-    'VERSION:3.0',
-    `FN:${params.fullName}`,
-  ];
+function escapeVCard(value: string): string {
+  return value
+    .replaceAll('\\', '\\\\')
+    .replaceAll('\r\n', '\n')
+    .replaceAll('\r', '\n')
+    .replaceAll('\n', '\\n')
+    .replaceAll(';', '\\;')
+    .replaceAll(',', '\\,');
+}
 
-  const [firstName, ...rest] = params.fullName.split(/\s+/);
+export function buildVCard(params: {
+  fullName: string;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  subtitle?: string | null;
+  pageUrl: string;
+  website?: string | null;
+}): string {
+  const fullName = params.fullName.trim() || 'Contact';
+  const lines = ['BEGIN:VCARD', 'VERSION:3.0', `FN:${escapeVCard(fullName)}`];
+
+  const [firstName, ...rest] = fullName.split(/\s+/);
   const lastName = rest.join(' ');
-  if (firstName) lines.push(`N:${lastName};${firstName};;;`);
-  if (params.email?.trim()) lines.push(`EMAIL:${params.email.trim()}`);
-  if (params.phone?.trim()) lines.push(`TEL:${params.phone.trim()}`);
-  if (params.address?.trim()) {
-    lines.push(`ADR:;;${params.address.trim()};;;;`);
+  if (firstName) {
+    lines.push(
+      `N:${escapeVCard(lastName)};${escapeVCard(firstName)};;;`,
+    );
   }
-  if (params.subtitle.trim()) lines.push(`TITLE:${params.subtitle.trim()}`);
-  const website = params.socialLinks.find(
-    (link) => link.platform === 'WEBSITE' && link.url.trim(),
-  )?.url.trim();
-  if (website) lines.push(`URL:${website}`);
-  lines.push(`URL:${params.pageUrl}`);
+  if (params.email?.trim()) lines.push(`EMAIL:${escapeVCard(params.email.trim())}`);
+  if (params.phone?.trim()) lines.push(`TEL:${escapeVCard(params.phone.trim())}`);
+  if (params.address?.trim()) {
+    lines.push(`ADR:;;${escapeVCard(params.address.trim())};;;;`);
+  }
+  if (params.subtitle?.trim()) {
+    lines.push(`TITLE:${escapeVCard(params.subtitle.trim())}`);
+  }
+  if (params.website?.trim()) lines.push(`URL:${escapeVCard(params.website.trim())}`);
+  if (params.pageUrl.trim()) lines.push(`URL:${escapeVCard(params.pageUrl.trim())}`);
   lines.push('END:VCARD');
 
-  return `data:text/vcard;charset=utf-8,${encodeURIComponent(lines.join('\n'))}`;
+  return `${lines.join('\r\n')}\r\n`;
 }
 
 function renderIdentity(params: PublicCardPageParams): string {

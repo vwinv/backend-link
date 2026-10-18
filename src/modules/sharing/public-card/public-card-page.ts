@@ -51,6 +51,11 @@ export function buildPublicCardHtml(params: PublicCardPageParams): string {
   <meta name="twitter:title" content="${safeTitle}" />
   <meta name="twitter:description" content="${safeDescription}" />
   <meta name="twitter:image" content="${safeImageUrl}" />
+  ${
+    params.appleAppId && !params.embed
+      ? `<meta name="apple-itunes-app" content="app-id=${escapeHtml(params.appleAppId)}, app-argument=${safePageUrl}" />`
+      : ''
+  }
   <style>
     ${PUBLIC_CARD_STYLES}
     :root,

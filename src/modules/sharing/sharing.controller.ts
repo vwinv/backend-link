@@ -86,6 +86,29 @@ export class SharingController {
     return res.status(200).type('text/html; charset=utf-8').send(html);
   }
 
+  @Get('public/:slug/contact.vcf')
+  @ApiOperation({
+    summary: 'Fichier vCard de la carte publique (enregistrement dans le téléphone)',
+  })
+  async downloadPublicContact(
+    @Param('slug') slug: string,
+    @Res() res: Response,
+  ) {
+    const vcard = await this.sharingService.renderPublicVCard(slug);
+    if (!vcard) {
+      return res.status(404).type('text/plain; charset=utf-8').send('Carte introuvable');
+    }
+
+    const filename = `${slug.replace(/[^a-zA-Z0-9_-]/g, '') || 'contact'}.vcf`;
+    res.setHeader('Content-Type', 'text/vcard; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="${filename}"`,
+    );
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(200).send(vcard);
+  }
+
   @Post('public/:slug/save')
   @ApiOperation({
     summary: 'Enregistrer qu’un visiteur a sauvegardé la carte (page publique)',
