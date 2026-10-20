@@ -1,13 +1,18 @@
+import { OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import type { AuthUserPayload } from '../auth/decorators/current-user.decorator';
 import { CreateAdminRoleDto } from './dto/create-admin-role.dto';
 import { UpdateAdminRoleDto } from './dto/update-admin-role.dto';
-export declare class AdminRolesService {
+export declare class AdminRolesService implements OnModuleInit {
     private readonly prisma;
+    private readonly logger;
     constructor(prisma: PrismaService);
+    onModuleInit(): Promise<void>;
+    syncPermissionsCatalog(): Promise<void>;
     listPermissions(): {
         modules: {
-            key: "subscriptions" | "notifications" | "dashboard" | "backoffice_users" | "roles" | "clients" | "support";
-            label: "Tableau de bord" | "Utilisateurs backoffice" | "Rôles & permissions" | "Clients" | "Abonnements & offres" | "Notifications" | "Support";
+            key: "subscriptions" | "notifications" | "dashboard" | "backoffice_users" | "roles" | "clients" | "support" | "app_update";
+            label: "Tableau de bord" | "Utilisateurs backoffice" | "Rôles & permissions" | "Clients" | "Abonnements & offres" | "Notifications" | "Support" | "Mise à jour app";
             permissions: ({
                 readonly key: "dashboard.view";
                 readonly module: "dashboard";
@@ -59,6 +64,11 @@ export declare class AdminRolesService {
                 readonly action: "update";
                 readonly label: "Modifier un client app";
             } | {
+                readonly key: "clients.delete";
+                readonly module: "clients";
+                readonly action: "delete";
+                readonly label: "Supprimer un client app";
+            } | {
                 readonly key: "subscriptions.view";
                 readonly module: "subscriptions";
                 readonly action: "view";
@@ -98,6 +108,16 @@ export declare class AdminRolesService {
                 readonly module: "support";
                 readonly action: "reply";
                 readonly label: "Répondre aux tickets support";
+            } | {
+                readonly key: "app_update.view";
+                readonly module: "app_update";
+                readonly action: "view";
+                readonly label: "Voir la config de mise à jour app";
+            } | {
+                readonly key: "app_update.update";
+                readonly module: "app_update";
+                readonly action: "update";
+                readonly label: "Modifier la config de mise à jour app";
             })[];
         }[];
     };
@@ -133,7 +153,7 @@ export declare class AdminRolesService {
         createdAt: Date;
         updatedAt: Date;
     }>;
-    create(dto: CreateAdminRoleDto): Promise<{
+    create(dto: CreateAdminRoleDto, actor: AuthUserPayload): Promise<{
         id: string;
         name: string;
         description: string | null;
@@ -149,7 +169,7 @@ export declare class AdminRolesService {
         createdAt: Date;
         updatedAt: Date;
     }>;
-    update(id: string, dto: UpdateAdminRoleDto): Promise<{
+    update(id: string, dto: UpdateAdminRoleDto, actor: AuthUserPayload): Promise<{
         id: string;
         name: string;
         description: string | null;
@@ -168,6 +188,7 @@ export declare class AdminRolesService {
     remove(id: string): Promise<{
         message: string;
     }>;
+    private assertCanAssignPermissions;
     private resolvePermissionIds;
     private toRoleDto;
 }

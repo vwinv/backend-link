@@ -13,6 +13,7 @@ exports.SharingService = void 0;
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const client_1 = require("@prisma/client");
+const safe_url_1 = require("../../common/safe-url");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const entitlements_service_1 = require("../subscriptions/entitlements.service");
 const pro_design_resolver_1 = require("./pro-design/pro-design-resolver");
@@ -79,6 +80,8 @@ let SharingService = class SharingService {
         const pageUrl = `${this.appPublicUrl}/cards/${card.slug}`;
         const design = (0, pro_design_resolver_1.resolveProDesign)(card.theme);
         const teamLogoSource = card.logoUrl?.trim() || card.team?.logoUrl?.trim();
+        const socialLinks = this.toPublicSocialLinks(card);
+        const embed = options?.embed === true;
         return (0, public_card_page_1.buildPublicCardHtml)({
             fullName,
             initials: (0, public_card_body_1.buildCardInitials)({ fullName }),
@@ -95,9 +98,49 @@ let SharingService = class SharingService {
             ogImageUrl: this.getOgImageUrl(card, fullName),
             logoUrl: this.getBrandLogoUrl(),
             design,
-            socialLinks: this.toPublicSocialLinks(card),
-            embed: options?.embed === true,
+            socialLinks,
+            embed,
+            vcardUrl: this.vcardUrl(card.slug),
+            downloadUrl: embed ? null : this.resolveDownloadUrl(options?.userAgent),
+            appleAppId: embed ? null : this.appleAppStoreId(),
         });
+    }
+    async renderPublicVCard(slug) {
+        const card = await this.findPublicCard(slug);
+        if (!card)
+            return null;
+        const fullName = `${card.firstName} ${card.lastName}`.trim();
+        const isTeamCard = card.kind === client_1.CardKind.PROFESSIONAL || card.kind === client_1.CardKind.MEMBER;
+        const subtitle = isTeamCard
+            ? card.jobTitle?.trim() || ''
+            : this.buildSubtitle(card);
+        const website = this.toPublicSocialLinks(card).find((link) => link.platform === 'WEBSITE')?.url;
+        return (0, public_card_body_1.buildVCard)({
+            fullName,
+            email: card.email,
+            phone: card.phone,
+            address: isTeamCard ? card.address : null,
+            subtitle,
+            pageUrl: `${this.appPublicUrl}/cards/${card.slug}`,
+            website,
+        });
+    }
+    vcardUrl(slug) {
+        const prefix = this.configService
+            .get('apiPrefix', 'api/v1')
+            .replace(/^\/+|\/+$/g, '');
+        return `${this.appPublicUrl}/${prefix}/sharing/public/${encodeURIComponent(slug)}/contact.vcf`;
+    }
+    resolveDownloadUrl(userAgent) {
+        const ios = this.configService.get('appUpdate.iosStoreUrl', 'https://apps.apple.com/us/app/drop-one/id6807993018');
+        const android = this.configService.get('appUpdate.androidStoreUrl', '').trim() ||
+            'https://play.google.com/store/apps/details?id=com.mega.dropone';
+        const ua = userAgent?.toLowerCase() ?? '';
+        return ua.includes('android') ? android : ios;
+    }
+    appleAppStoreId() {
+        const ios = this.configService.get('appUpdate.iosStoreUrl', 'https://apps.apple.com/us/app/drop-one/id6807993018');
+        return ios.match(/id(\d{6,})/)?.[1] ?? '6807993018';
     }
     async shareCard(userId, id, dto) {
         const card = await this.prisma.businessCard.findFirst({
@@ -210,11 +253,13 @@ let SharingService = class SharingService {
     }
     toPublicSocialLinks(card) {
         const isTeamCard = card.kind === client_1.CardKind.PROFESSIONAL || card.kind === client_1.CardKind.MEMBER;
-        const links = card.socialLinks.map((link) => ({
+        const links = card.socialLinks
+            .map((link) => ({
             platform: link.platform,
-            url: link.url,
+            url: this.normalizeWebsiteUrl(link.url) ?? '',
             label: link.label,
-        }));
+        }))
+            .filter((link) => link.url.length > 0);
         if (!isTeamCard) {
             return links.filter((link) => link.platform !== 'WEBSITE');
         }
@@ -232,12 +277,7 @@ let SharingService = class SharingService {
         ];
     }
     normalizeWebsiteUrl(value) {
-        const trimmed = value?.trim() ?? '';
-        if (!trimmed)
-            return null;
-        if (/^https?:\/\//i.test(trimmed))
-            return trimmed;
-        return `https://${trimmed}`;
+        return (0, safe_url_1.sanitizePublicHttpUrl)(value, { allowHttp: false });
     }
     buildSubtitle(card) {
         const job = card.jobTitle?.trim() ?? '';

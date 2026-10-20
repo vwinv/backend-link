@@ -20,4 +20,7 @@ export type PublicCardPageParams = {
     design: ResolvedProDesign;
     socialLinks: PublicSocialLink[];
     embed?: boolean;
+    vcardUrl: string;
+    downloadUrl?: string | null;
+    appleAppId?: string | null;
 };

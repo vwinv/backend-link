@@ -30,6 +30,10 @@ exports.ADMIN_MODULES = [
         key: 'support',
         label: 'Support',
     },
+    {
+        key: 'app_update',
+        label: 'Mise à jour app',
+    },
 ];
 exports.ADMIN_PERMISSION_CATALOG = [
     {
@@ -93,6 +97,12 @@ exports.ADMIN_PERMISSION_CATALOG = [
         label: 'Modifier un client app',
     },
     {
+        key: 'clients.delete',
+        module: 'clients',
+        action: 'delete',
+        label: 'Supprimer un client app',
+    },
+    {
         key: 'subscriptions.view',
         module: 'subscriptions',
         action: 'view',
@@ -139,6 +149,18 @@ exports.ADMIN_PERMISSION_CATALOG = [
         module: 'support',
         action: 'reply',
         label: 'Répondre aux tickets support',
+    },
+    {
+        key: 'app_update.view',
+        module: 'app_update',
+        action: 'view',
+        label: 'Voir la config de mise à jour app',
+    },
+    {
+        key: 'app_update.update',
+        module: 'app_update',
+        action: 'update',
+        label: 'Modifier la config de mise à jour app',
     },
 ];
 exports.SUPER_ADMIN_ROLE_NAME = 'Super Admin';

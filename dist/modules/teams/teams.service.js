@@ -54,6 +54,7 @@ const mail_service_1 = require("../mail/mail.service");
 const entitlements_service_1 = require("../subscriptions/entitlements.service");
 const uploads_service_1 = require("../uploads/uploads.service");
 const team_invite_page_1 = require("./team-invite-page");
+const safe_url_1 = require("../../common/safe-url");
 let TeamsService = class TeamsService {
     prisma;
     entitlementsService;
@@ -399,7 +400,7 @@ let TeamsService = class TeamsService {
             return (0, team_invite_page_1.buildTeamInviteLandingPage)({
                 teamName: invite.team.name,
                 inviterName: this.formatUserName(invite.invitedBy),
-                inviteeEmail: invite.email,
+                inviteeEmail: (0, safe_url_1.maskEmail)(invite.email),
                 inviteeFirstName: invite.firstName,
                 isExpired: false,
                 isUnavailable: true,
@@ -409,7 +410,7 @@ let TeamsService = class TeamsService {
         return (0, team_invite_page_1.buildTeamInviteLandingPage)({
             teamName: invite.team.name,
             inviterName: this.formatUserName(invite.invitedBy),
-            inviteeEmail: invite.email,
+            inviteeEmail: (0, safe_url_1.maskEmail)(invite.email),
             inviteeFirstName: invite.firstName,
             isExpired,
             isUnavailable: false,

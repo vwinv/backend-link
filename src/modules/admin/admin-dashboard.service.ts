@@ -198,7 +198,8 @@ export class AdminDashboardService {
          FROM subscriptions s
          INNER JOIN premium_offer_prices p ON p.id = s."offerPriceId"
          WHERE s.status <> 'TRIAL'
-           AND s."offerPriceId" IS NOT NULL`,
+           AND s."offerPriceId" IS NOT NULL
+           AND s."countsInRevenue" = true`,
       ),
       this.prisma.$queryRawUnsafe<OfferRevenueRow[]>(
         `SELECT
@@ -221,6 +222,7 @@ export class AdminDashboardService {
          INNER JOIN premium_offers o ON o.id = s."offerId"
          WHERE s.status <> 'TRIAL'
            AND s."offerPriceId" IS NOT NULL
+           AND s."countsInRevenue" = true
          GROUP BY o.id, o.title, o.slug
          ORDER BY revenue DESC, subscriptions_count DESC`,
       ),

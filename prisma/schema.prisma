@@ -429,6 +429,8 @@ model Subscription {
   purchasedSeats   Int?
   status           SubscriptionStatus @default(TRIAL)
   billingPeriod    BillingPeriod      @default(MONTHLY)
+  /** false = abonnement de test, exclu du chiffre d’affaires. */
+  countsInRevenue  Boolean            @default(true)
   currentPeriodEnd DateTime?
   cancelledAt      DateTime?
   stripeSubscriptionId   String? @unique

@@ -51,6 +51,7 @@ const fs = __importStar(require("node:fs"));
 const os = __importStar(require("node:os"));
 const path = __importStar(require("node:path"));
 const yazl_1 = require("yazl");
+const safe_url_1 = require("../../common/safe-url");
 const wallet_config_1 = require("./wallet.config");
 const wallet_card_style_util_1 = require("./wallet-card-style.util");
 const wallet_logo_generator_1 = require("./wallet-logo.generator");
@@ -200,13 +201,16 @@ let AppleWalletService = class AppleWalletService {
         if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
             try {
                 const url = new URL(trimmed);
+                if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+                    return null;
+                }
                 if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
                     const publicOrigin = new URL(this.walletConfig.appPublicUrl);
                     return `${publicOrigin.origin}${url.pathname}${url.search}`;
                 }
             }
             catch {
-                return trimmed;
+                return null;
             }
             return trimmed;
         }
@@ -219,7 +223,11 @@ let AppleWalletService = class AppleWalletService {
     }
     async fetchImageBuffer(url) {
         try {
-            const response = await fetch(url, {
+            const safeUrl = await (0, safe_url_1.assertSafeRemoteImageUrl)(url, [
+                this.walletConfig.appPublicUrl,
+            ]);
+            const response = await fetch(safeUrl, {
+                redirect: 'error',
                 signal: AbortSignal.timeout(8_000),
             });
             if (!response.ok)
@@ -230,9 +238,13 @@ let AppleWalletService = class AppleWalletService {
                 !contentType.includes('octet-stream')) {
                 return null;
             }
-            const arrayBuffer = await response.arrayBuffer();
-            if (arrayBuffer.byteLength === 0)
+            if (contentType.toLowerCase().includes('svg')) {
                 return null;
+            }
+            const arrayBuffer = await response.arrayBuffer();
+            if (arrayBuffer.byteLength === 0 || arrayBuffer.byteLength > 5_000_000) {
+                return null;
+            }
             return Buffer.from(arrayBuffer);
         }
         catch {

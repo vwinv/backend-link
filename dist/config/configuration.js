@@ -9,7 +9,23 @@ exports.default = () => ({
     },
     jwt: {
         secret: process.env.JWT_SECRET ?? 'change-me',
-        expiresIn: process.env.JWT_EXPIRES_IN ?? '7d',
+        expiresIn: process.env.JWT_EXPIRES_IN ?? '24h',
+    },
+    cors: {
+        origins: (process.env.CORS_ORIGINS ?? '')
+            .split(',')
+            .map((origin) => origin.trim())
+            .filter(Boolean),
+    },
+    swagger: {
+        enabled: process.env.SWAGGER_ENABLED === 'true' ||
+            (process.env.NODE_ENV !== 'production' &&
+                process.env.SWAGGER_ENABLED !== 'false'),
+    },
+    throttle: {
+        ttlMs: parseInt(process.env.THROTTLE_TTL_MS ?? '60000', 10),
+        limit: parseInt(process.env.THROTTLE_LIMIT ?? '120', 10),
+        authLimit: parseInt(process.env.THROTTLE_AUTH_LIMIT ?? '10', 10),
     },
     oauth: {
         google: {
@@ -100,13 +116,21 @@ exports.default = () => ({
             ? 'https://dropone.pro'
             : 'http://localhost:3001'),
     mobile: {
-        appleTeamId: process.env.APPLE_TEAM_ID ?? '3G878MZ2JV',
+        appleTeamId: process.env.APPLE_TEAM_ID ?? 'CMU6AB64K7',
         appleBundleId: process.env.APPLE_CLIENT_ID ?? 'com.mega.dropone',
         androidPackageName: process.env.ANDROID_APP_PACKAGE ?? 'com.mega.dropone',
         androidSha256Fingerprints: (process.env.ANDROID_APP_SHA256_CERT ?? '')
             .split(',')
             .map((value) => value.trim())
             .filter(Boolean),
+    },
+    appUpdate: {
+        latestVersion: (process.env.APP_LATEST_VERSION ?? '').trim(),
+        minVersion: (process.env.APP_MIN_VERSION ?? '').trim(),
+        iosStoreUrl: (process.env.APP_IOS_STORE_URL ??
+            'https://apps.apple.com/us/app/drop-one/id6807993018').trim(),
+        androidStoreUrl: (process.env.APP_ANDROID_STORE_URL ?? '').trim(),
+        message: (process.env.APP_UPDATE_MESSAGE ?? '').trim(),
     },
 });
 //# sourceMappingURL=configuration.js.map

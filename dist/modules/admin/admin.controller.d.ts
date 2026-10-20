@@ -1,4 +1,6 @@
 import type { AuthUserPayload } from '../auth/decorators/current-user.decorator';
+import { AppUpdateService } from '../app-update/app-update.service';
+import { UpdateAppUpdateConfigDto } from '../app-update/dto/update-app-update-config.dto';
 import { AdminClientsService } from './admin-clients.service';
 import { AdminDashboardService } from './admin-dashboard.service';
 import { AdminNotificationsService } from './admin-notifications.service';
@@ -23,6 +25,7 @@ import { UpdateAdminClientDto } from './dto/update-admin-client.dto';
 import { UpdateAdminOfferDto, UpdateAdminOfferPriceDto } from './dto/update-admin-offer.dto';
 import { UpdateAdminRoleDto } from './dto/update-admin-role.dto';
 import { UpdateBackofficeUserDto } from './dto/update-backoffice-user.dto';
+import { ResetBackofficePasswordDto } from './dto/reset-backoffice-password.dto';
 export declare class AdminController {
     private readonly dashboardService;
     private readonly usersService;
@@ -32,7 +35,8 @@ export declare class AdminController {
     private readonly notificationsService;
     private readonly supportService;
     private readonly rolesService;
-    constructor(dashboardService: AdminDashboardService, usersService: AdminUsersService, clientsService: AdminClientsService, subscriptionsService: AdminSubscriptionsService, offersService: AdminOffersService, notificationsService: AdminNotificationsService, supportService: AdminSupportService, rolesService: AdminRolesService);
+    private readonly appUpdateService;
+    constructor(dashboardService: AdminDashboardService, usersService: AdminUsersService, clientsService: AdminClientsService, subscriptionsService: AdminSubscriptionsService, offersService: AdminOffersService, notificationsService: AdminNotificationsService, supportService: AdminSupportService, rolesService: AdminRolesService, appUpdateService: AppUpdateService);
     getDashboard(): Promise<{
         generatedAt: string;
         users: {
@@ -107,10 +111,12 @@ export declare class AdminController {
             };
         };
     }>;
+    getAppUpdateConfig(): Promise<import("../app-update/app-update.service").AppUpdateConfigDto>;
+    updateAppUpdateConfig(dto: UpdateAppUpdateConfigDto): Promise<import("../app-update/app-update.service").AppUpdateConfigDto>;
     listPermissions(): {
         modules: {
-            key: "subscriptions" | "notifications" | "dashboard" | "backoffice_users" | "roles" | "clients" | "support";
-            label: "Tableau de bord" | "Utilisateurs backoffice" | "Rôles & permissions" | "Clients" | "Abonnements & offres" | "Notifications" | "Support";
+            key: "subscriptions" | "notifications" | "dashboard" | "backoffice_users" | "roles" | "clients" | "support" | "app_update";
+            label: "Tableau de bord" | "Utilisateurs backoffice" | "Rôles & permissions" | "Clients" | "Abonnements & offres" | "Notifications" | "Support" | "Mise à jour app";
             permissions: ({
                 readonly key: "dashboard.view";
                 readonly module: "dashboard";
@@ -162,6 +168,11 @@ export declare class AdminController {
                 readonly action: "update";
                 readonly label: "Modifier un client app";
             } | {
+                readonly key: "clients.delete";
+                readonly module: "clients";
+                readonly action: "delete";
+                readonly label: "Supprimer un client app";
+            } | {
                 readonly key: "subscriptions.view";
                 readonly module: "subscriptions";
                 readonly action: "view";
@@ -201,6 +212,16 @@ export declare class AdminController {
                 readonly module: "support";
                 readonly action: "reply";
                 readonly label: "Répondre aux tickets support";
+            } | {
+                readonly key: "app_update.view";
+                readonly module: "app_update";
+                readonly action: "view";
+                readonly label: "Voir la config de mise à jour app";
+            } | {
+                readonly key: "app_update.update";
+                readonly module: "app_update";
+                readonly action: "update";
+                readonly label: "Modifier la config de mise à jour app";
             })[];
         }[];
     };
@@ -236,7 +257,7 @@ export declare class AdminController {
         createdAt: Date;
         updatedAt: Date;
     }>;
-    createRole(dto: CreateAdminRoleDto): Promise<{
+    createRole(dto: CreateAdminRoleDto, actor: AuthUserPayload): Promise<{
         id: string;
         name: string;
         description: string | null;
@@ -252,7 +273,7 @@ export declare class AdminController {
         createdAt: Date;
         updatedAt: Date;
     }>;
-    updateRole(id: string, dto: UpdateAdminRoleDto): Promise<{
+    updateRole(id: string, dto: UpdateAdminRoleDto, actor: AuthUserPayload): Promise<{
         id: string;
         name: string;
         description: string | null;
@@ -308,12 +329,12 @@ export declare class AdminController {
         stripeCustomerId: string | null;
         cards: {
             id: string;
-            slug: string;
-            isActive: boolean;
             createdAt: Date;
-            kind: import("@prisma/client").$Enums.CardKind;
-            firstName: string;
+            slug: string;
             lastName: string;
+            firstName: string;
+            isActive: boolean;
+            kind: import("@prisma/client").$Enums.CardKind;
             jobTitle: string | null;
             company: string | null;
             isPublic: boolean;
@@ -326,21 +347,21 @@ export declare class AdminController {
             createdAt: Date;
             offer: {
                 id: string;
-                title: string;
                 slug: string;
+                title: string;
                 audience: import("@prisma/client").$Enums.OfferAudience;
             } | null;
             plan: {
+                name: string;
                 id: string;
                 slug: string;
-                name: string;
             };
         }[];
         teams: {
+            name: string;
             id: string;
             slug: string;
             isActive: boolean;
-            name: string;
             role: import("@prisma/client").$Enums.TeamMemberRole;
         }[];
         ownedTeams: {
@@ -407,6 +428,11 @@ export declare class AdminController {
         teamsCount: number;
         ownedTeamsCount: number;
     }>;
+    deleteClient(id: string): Promise<{
+        message: string;
+        id: string;
+        email: string;
+    }>;
     getSubscriptionsStats(): Promise<{
         generatedAt: string;
         totals: {
@@ -453,8 +479,8 @@ export declare class AdminController {
             isActive: boolean;
         }[];
         id: string;
-        title: string;
         slug: string;
+        title: string;
         audience: import("@prisma/client").$Enums.OfferAudience;
         minSeats: number;
         listedInApp: boolean;
@@ -1009,7 +1035,7 @@ export declare class AdminController {
             isSystem: boolean;
         } | null;
     }>;
-    createUser(dto: CreateBackofficeUserDto): Promise<{
+    createUser(dto: CreateBackofficeUserDto, actor: AuthUserPayload): Promise<{
         id: string;
         email: string;
         firstName: string;
@@ -1028,6 +1054,24 @@ export declare class AdminController {
         } | null;
     }>;
     updateUser(id: string, dto: UpdateBackofficeUserDto, actor: AuthUserPayload): Promise<{
+        id: string;
+        email: string;
+        firstName: string;
+        lastName: string;
+        phone: string | null;
+        avatarUrl: string | null;
+        role: import("@prisma/client").$Enums.UserRole;
+        isActive: boolean;
+        authProvider: string;
+        createdAt: Date;
+        updatedAt: Date;
+        adminRole: {
+            id: string;
+            name: string;
+            isSystem: boolean;
+        } | null;
+    }>;
+    resetUserPassword(id: string, dto: ResetBackofficePasswordDto, actor: AuthUserPayload): Promise<{
         id: string;
         email: string;
         firstName: string;

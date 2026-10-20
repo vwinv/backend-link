@@ -9,8 +9,8 @@ export declare class NotificationsService {
     listMine(userId: string, page?: number, limit?: number): Promise<{
         data: {
             id: string;
-            title: string;
             createdAt: Date;
+            title: string;
             isRead: boolean;
             body: string;
             campaignId: string | null;
@@ -29,9 +29,9 @@ export declare class NotificationsService {
     }>;
     markRead(userId: string, id: string): Promise<{
         id: string;
-        title: string;
-        createdAt: Date;
         userId: string;
+        createdAt: Date;
+        title: string;
         isRead: boolean;
         body: string;
         campaignId: string | null;
@@ -41,9 +41,9 @@ export declare class NotificationsService {
         updated: number;
     }>;
     registerPushToken(userId: string, token: string, platform: PushPlatform): Promise<{
+        token: string;
         id: string;
         updatedAt: Date;
-        token: string;
         platform: import("@prisma/client").$Enums.PushPlatform;
     }>;
     unregisterPushToken(userId: string, token: string): Promise<{

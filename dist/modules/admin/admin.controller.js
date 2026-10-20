@@ -20,6 +20,8 @@ const permissions_decorator_1 = require("../auth/decorators/permissions.decorato
 const admin_access_guard_1 = require("../auth/guards/admin-access.guard");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const permissions_guard_1 = require("../auth/guards/permissions.guard");
+const app_update_service_1 = require("../app-update/app-update.service");
+const update_app_update_config_dto_1 = require("../app-update/dto/update-app-update-config.dto");
 const admin_clients_service_1 = require("./admin-clients.service");
 const admin_dashboard_service_1 = require("./admin-dashboard.service");
 const admin_notifications_service_1 = require("./admin-notifications.service");
@@ -44,6 +46,7 @@ const update_admin_client_dto_1 = require("./dto/update-admin-client.dto");
 const update_admin_offer_dto_1 = require("./dto/update-admin-offer.dto");
 const update_admin_role_dto_1 = require("./dto/update-admin-role.dto");
 const update_backoffice_user_dto_1 = require("./dto/update-backoffice-user.dto");
+const reset_backoffice_password_dto_1 = require("./dto/reset-backoffice-password.dto");
 let AdminController = class AdminController {
     dashboardService;
     usersService;
@@ -53,7 +56,8 @@ let AdminController = class AdminController {
     notificationsService;
     supportService;
     rolesService;
-    constructor(dashboardService, usersService, clientsService, subscriptionsService, offersService, notificationsService, supportService, rolesService) {
+    appUpdateService;
+    constructor(dashboardService, usersService, clientsService, subscriptionsService, offersService, notificationsService, supportService, rolesService, appUpdateService) {
         this.dashboardService = dashboardService;
         this.usersService = usersService;
         this.clientsService = clientsService;
@@ -62,9 +66,16 @@ let AdminController = class AdminController {
         this.notificationsService = notificationsService;
         this.supportService = supportService;
         this.rolesService = rolesService;
+        this.appUpdateService = appUpdateService;
     }
     getDashboard() {
         return this.dashboardService.getStats();
+    }
+    getAppUpdateConfig() {
+        return this.appUpdateService.getAdminConfig();
+    }
+    updateAppUpdateConfig(dto) {
+        return this.appUpdateService.updateConfig(dto);
     }
     listPermissions() {
         return this.rolesService.listPermissions();
@@ -75,11 +86,11 @@ let AdminController = class AdminController {
     getRole(id) {
         return this.rolesService.findOne(id);
     }
-    createRole(dto) {
-        return this.rolesService.create(dto);
+    createRole(dto, actor) {
+        return this.rolesService.create(dto, actor);
     }
-    updateRole(id, dto) {
-        return this.rolesService.update(id, dto);
+    updateRole(id, dto, actor) {
+        return this.rolesService.update(id, dto, actor);
     }
     deleteRole(id) {
         return this.rolesService.remove(id);
@@ -92,6 +103,9 @@ let AdminController = class AdminController {
     }
     updateClient(id, dto) {
         return this.clientsService.update(id, dto);
+    }
+    deleteClient(id) {
+        return this.clientsService.remove(id);
     }
     getSubscriptionsStats() {
         return this.subscriptionsService.getStats();
@@ -168,11 +182,14 @@ let AdminController = class AdminController {
     getUser(id) {
         return this.usersService.findOne(id);
     }
-    createUser(dto) {
-        return this.usersService.create(dto);
+    createUser(dto, actor) {
+        return this.usersService.create(dto, actor);
     }
     updateUser(id, dto, actor) {
-        return this.usersService.update(id, dto, actor.userId);
+        return this.usersService.update(id, dto, actor);
+    }
+    resetUserPassword(id, dto, actor) {
+        return this.usersService.resetPassword(id, dto, actor);
     }
 };
 exports.AdminController = AdminController;
@@ -184,6 +201,23 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "getDashboard", null);
+__decorate([
+    (0, common_1.Get)('app-update'),
+    (0, permissions_decorator_1.RequirePermissions)('app_update.view'),
+    (0, swagger_1.ApiOperation)({ summary: 'Config mise à jour app mobile' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "getAppUpdateConfig", null);
+__decorate([
+    (0, common_1.Patch)('app-update'),
+    (0, permissions_decorator_1.RequirePermissions)('app_update.update'),
+    (0, swagger_1.ApiOperation)({ summary: 'Mettre à jour la config de mise à jour app' }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [update_app_update_config_dto_1.UpdateAppUpdateConfigDto]),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "updateAppUpdateConfig", null);
 __decorate([
     (0, common_1.Get)('permissions'),
     (0, permissions_decorator_1.RequirePermissions)('roles.view'),
@@ -214,8 +248,9 @@ __decorate([
     (0, permissions_decorator_1.RequirePermissions)('roles.create'),
     (0, swagger_1.ApiOperation)({ summary: 'Créer un rôle backoffice' }),
     __param(0, (0, common_1.Body)()),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [create_admin_role_dto_1.CreateAdminRoleDto]),
+    __metadata("design:paramtypes", [create_admin_role_dto_1.CreateAdminRoleDto, Object]),
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "createRole", null);
 __decorate([
@@ -224,8 +259,9 @@ __decorate([
     (0, swagger_1.ApiOperation)({ summary: 'Modifier un rôle backoffice' }),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, update_admin_role_dto_1.UpdateAdminRoleDto]),
+    __metadata("design:paramtypes", [String, update_admin_role_dto_1.UpdateAdminRoleDto, Object]),
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "updateRole", null);
 __decorate([
@@ -265,6 +301,15 @@ __decorate([
     __metadata("design:paramtypes", [String, update_admin_client_dto_1.UpdateAdminClientDto]),
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "updateClient", null);
+__decorate([
+    (0, common_1.Delete)('clients/:id'),
+    (0, permissions_decorator_1.RequirePermissions)('clients.delete'),
+    (0, swagger_1.ApiOperation)({ summary: 'Supprimer un client app' }),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "deleteClient", null);
 __decorate([
     (0, common_1.Get)('subscriptions/stats'),
     (0, permissions_decorator_1.RequirePermissions)('subscriptions.view'),
@@ -497,10 +542,11 @@ __decorate([
 __decorate([
     (0, common_1.Post)('users'),
     (0, permissions_decorator_1.RequirePermissions)('backoffice_users.create'),
-    (0, swagger_1.ApiOperation)({ summary: 'Créer un utilisateur backoffice' }),
+    (0, swagger_1.ApiOperation)({ summary: 'Créer un utilisateur backoffice (Super Admin)' }),
     __param(0, (0, common_1.Body)()),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [create_backoffice_user_dto_1.CreateBackofficeUserDto]),
+    __metadata("design:paramtypes", [create_backoffice_user_dto_1.CreateBackofficeUserDto, Object]),
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "createUser", null);
 __decorate([
@@ -514,6 +560,19 @@ __decorate([
     __metadata("design:paramtypes", [String, update_backoffice_user_dto_1.UpdateBackofficeUserDto, Object]),
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "updateUser", null);
+__decorate([
+    (0, common_1.Post)('users/:id/reset-password'),
+    (0, permissions_decorator_1.RequirePermissions)('backoffice_users.update'),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Réinitialiser le mot de passe d’un utilisateur (Super Admin)',
+    }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, reset_backoffice_password_dto_1.ResetBackofficePasswordDto, Object]),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "resetUserPassword", null);
 exports.AdminController = AdminController = __decorate([
     (0, swagger_1.ApiTags)('Admin'),
     (0, swagger_1.ApiBearerAuth)(),
@@ -526,6 +585,7 @@ exports.AdminController = AdminController = __decorate([
         admin_offers_service_1.AdminOffersService,
         admin_notifications_service_1.AdminNotificationsService,
         admin_support_service_1.AdminSupportService,
-        admin_roles_service_1.AdminRolesService])
+        admin_roles_service_1.AdminRolesService,
+        app_update_service_1.AppUpdateService])
 ], AdminController);
 //# sourceMappingURL=admin.controller.js.map

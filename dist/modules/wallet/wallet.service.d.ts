@@ -26,8 +26,8 @@ export declare class WalletService {
         card: {
             id: string;
             slug: string;
-            firstName: string;
             lastName: string;
+            firstName: string;
             jobTitle: string | null;
             company: string | null;
         };

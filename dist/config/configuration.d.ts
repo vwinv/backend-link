@@ -9,6 +9,17 @@ declare const _default: () => {
         secret: string;
         expiresIn: string;
     };
+    cors: {
+        origins: string[];
+    };
+    swagger: {
+        enabled: boolean;
+    };
+    throttle: {
+        ttlMs: number;
+        limit: number;
+        authLimit: number;
+    };
     oauth: {
         google: {
             clientIds: string[];
@@ -81,6 +92,13 @@ declare const _default: () => {
         appleBundleId: string;
         androidPackageName: string;
         androidSha256Fingerprints: string[];
+    };
+    appUpdate: {
+        latestVersion: string;
+        minVersion: string;
+        iosStoreUrl: string;
+        androidStoreUrl: string;
+        message: string;
     };
 };
 export default _default;

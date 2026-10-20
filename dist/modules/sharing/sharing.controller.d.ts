@@ -26,6 +26,7 @@ export declare class SharingController {
         ogImageUrl: string;
     }>;
     renderPublicCardPage(slug: string, req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    downloadPublicContact(slug: string, res: Response): Promise<Response<any, Record<string, any>>>;
     recordPublicCardSave(slug: string, req: Request): Promise<{
         ok: boolean;
     }>;

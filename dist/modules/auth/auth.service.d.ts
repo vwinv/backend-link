@@ -53,19 +53,19 @@ export declare class AuthService {
     refresh(): {
         message: string;
     };
-    logout(): {
+    logout(userId?: string): Promise<{
         message: string;
-    };
+    }>;
     forgotPassword(dto: ForgotPasswordDto): Promise<{
         message: string;
     }>;
     getValidResetToken(rawToken: string): Promise<{
         id: string;
-        createdAt: Date;
+        tokenHash: string;
         userId: string;
         expiresAt: Date;
-        tokenHash: string;
         usedAt: Date | null;
+        createdAt: Date;
     } | null>;
     resetPassword(dto: ResetPasswordDto): Promise<{
         message: string;

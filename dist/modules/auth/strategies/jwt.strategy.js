@@ -19,10 +19,11 @@ const prisma_service_1 = require("../../../prisma/prisma.service");
 let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(passport_jwt_1.Strategy) {
     prisma;
     constructor(configService, prisma) {
+        const secret = configService.get('jwt.secret', 'change-me');
         super({
             jwtFromRequest: passport_jwt_1.ExtractJwt.fromAuthHeaderAsBearerToken(),
             ignoreExpiration: false,
-            secretOrKey: configService.get('jwt.secret', 'change-me'),
+            secretOrKey: secret,
         });
         this.prisma = prisma;
     }
@@ -42,6 +43,10 @@ let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(pas
         if (!user || !user.isActive) {
             throw new common_1.UnauthorizedException('Session invalide');
         }
+        const tokenSessionVersion = payload.sv ?? 0;
+        if (tokenSessionVersion !== user.sessionVersion) {
+            throw new common_1.UnauthorizedException('Session expirée, reconnectez-vous');
+        }
         const permissions = user.adminRole?.permissions.map((item) => item.permission.key) ?? [];
         if (user.role === client_1.UserRole.ADMIN && !user.adminRoleId) {
             permissions.push('*');
@@ -53,6 +58,7 @@ let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(pas
             adminRoleId: user.adminRoleId,
             adminRoleName: user.adminRole?.name ?? null,
             permissions,
+            sessionVersion: user.sessionVersion,
         };
     }
 };

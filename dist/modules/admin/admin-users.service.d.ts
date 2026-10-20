@@ -1,6 +1,8 @@
 import { PrismaService } from '../../prisma/prisma.service';
+import type { AuthUserPayload } from '../auth/decorators/current-user.decorator';
 import { AdminUsersQueryDto } from './dto/admin-users-query.dto';
 import { CreateBackofficeUserDto } from './dto/create-backoffice-user.dto';
+import { ResetBackofficePasswordDto } from './dto/reset-backoffice-password.dto';
 import { UpdateBackofficeUserDto } from './dto/update-backoffice-user.dto';
 export declare class AdminUsersService {
     private readonly prisma;
@@ -50,7 +52,7 @@ export declare class AdminUsersService {
             isSystem: boolean;
         } | null;
     }>;
-    create(dto: CreateBackofficeUserDto): Promise<{
+    create(dto: CreateBackofficeUserDto, actor: AuthUserPayload): Promise<{
         id: string;
         email: string;
         firstName: string;
@@ -68,7 +70,25 @@ export declare class AdminUsersService {
             isSystem: boolean;
         } | null;
     }>;
-    update(id: string, dto: UpdateBackofficeUserDto, actorUserId: string): Promise<{
+    update(id: string, dto: UpdateBackofficeUserDto, actor: AuthUserPayload): Promise<{
+        id: string;
+        email: string;
+        firstName: string;
+        lastName: string;
+        phone: string | null;
+        avatarUrl: string | null;
+        role: import("@prisma/client").$Enums.UserRole;
+        isActive: boolean;
+        authProvider: string;
+        createdAt: Date;
+        updatedAt: Date;
+        adminRole: {
+            id: string;
+            name: string;
+            isSystem: boolean;
+        } | null;
+    }>;
+    resetPassword(id: string, dto: ResetBackofficePasswordDto, actor: AuthUserPayload): Promise<{
         id: string;
         email: string;
         firstName: string;

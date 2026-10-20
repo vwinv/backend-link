@@ -18,25 +18,25 @@ export declare class CardsService {
         id: string;
         createdAt: Date;
         slug: string;
-        ownerId: string;
-        teamId: string | null;
-        kind: import("@prisma/client").$Enums.CardKind;
-        firstName: string;
+        phone: string | null;
         lastName: string;
+        firstName: string;
+        email: string | null;
+        avatarUrl: string | null;
+        isActive: boolean;
+        updatedAt: Date;
+        teamId: string | null;
+        ownerId: string;
+        kind: import("@prisma/client").$Enums.CardKind;
         jobTitle: string | null;
         company: string | null;
         bio: string | null;
-        email: string | null;
-        phone: string | null;
         address: string | null;
         website: string | null;
-        avatarUrl: string | null;
         coverImageUrl: string | null;
         logoUrl: string | null;
         theme: import("@prisma/client/runtime/client").JsonValue;
         isPublic: boolean;
-        isActive: boolean;
-        updatedAt: Date;
     }[]>;
     findOne(userId: string, id: string): Promise<BusinessCard>;
     update(userId: string, id: string, dto: UpdateCardDto): Promise<BusinessCard>;
@@ -51,18 +51,18 @@ export declare class CardsService {
         url: string;
         id: string;
         createdAt: Date;
-        cardId: string;
         platform: import("@prisma/client").$Enums.SocialPlatform;
         label: string | null;
+        cardId: string;
         order: number;
     }[]>;
     getSocialLinks(userId: string, cardId: string): Promise<{
         url: string;
         id: string;
         createdAt: Date;
-        cardId: string;
         platform: import("@prisma/client").$Enums.SocialPlatform;
         label: string | null;
+        cardId: string;
         order: number;
     }[]>;
     addSocialLink(id: string): {
@@ -93,7 +93,7 @@ export declare class CardsService {
             count: number;
         }[];
         sources: {
-            key: "link" | "qr" | "share" | "nfc" | "app" | "other";
+            key: "link" | "app" | "qr" | "share" | "other";
             count: number;
             percent: number;
         }[];
@@ -159,5 +159,6 @@ export declare class CardsService {
     private assertCanEditTeamLogo;
     private optionalString;
     private normalizeWebsiteUrl;
+    private normalizeSocialUrl;
     private generateUniqueSlug;
 }

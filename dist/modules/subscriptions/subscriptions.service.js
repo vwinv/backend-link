@@ -723,8 +723,8 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
             this.logger.warn('IPN PayDunya: payload sans token facture');
             return { ok: false, error: 'invalid_payload' };
         }
-        if (parsed?.hash && !this.paydunyaService.verifyIpnHash(parsed.hash)) {
-            this.logger.warn('IPN PayDunya: hash refusé');
+        if (!parsed?.hash || !this.paydunyaService.verifyIpnHash(parsed.hash)) {
+            this.logger.warn('IPN PayDunya: hash manquant ou refusé');
             throw new common_1.ForbiddenException('Notification PayDunya non authentifiée');
         }
         const pending = await this.prisma.paymentInvoice.findUnique({

@@ -11,6 +11,7 @@ const common_1 = require("@nestjs/common");
 const auth_module_1 = require("../auth/auth.module");
 const admin_access_guard_1 = require("../auth/guards/admin-access.guard");
 const permissions_guard_1 = require("../auth/guards/permissions.guard");
+const app_update_module_1 = require("../app-update/app-update.module");
 const notifications_module_1 = require("../notifications/notifications.module");
 const admin_clients_service_1 = require("./admin-clients.service");
 const admin_dashboard_service_1 = require("./admin-dashboard.service");
@@ -27,7 +28,7 @@ let AdminModule = class AdminModule {
 exports.AdminModule = AdminModule;
 exports.AdminModule = AdminModule = __decorate([
     (0, common_1.Module)({
-        imports: [auth_module_1.AuthModule, support_module_1.SupportModule, notifications_module_1.NotificationsModule],
+        imports: [auth_module_1.AuthModule, support_module_1.SupportModule, notifications_module_1.NotificationsModule, app_update_module_1.AppUpdateModule],
         controllers: [admin_controller_1.AdminController],
         providers: [
             admin_dashboard_service_1.AdminDashboardService,

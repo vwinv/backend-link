@@ -475,7 +475,9 @@ let EspaceService = class EspaceService {
         const sourceTotals = new Map();
         let sourcesCounted = 0;
         for (const row of sourcesRaw) {
-            const key = this.normalizeAnalyticsSource(row.source);
+            let key = this.normalizeAnalyticsSource(row.source);
+            if (key === 'nfc')
+                key = 'other';
             const count = row._count._all;
             sourceTotals.set(key, (sourceTotals.get(key) ?? 0) + count);
             sourcesCounted += count;
@@ -484,7 +486,7 @@ let EspaceService = class EspaceService {
             sourceTotals.set('link', views);
             sourcesCounted = views;
         }
-        const sourceOrder = ['qr', 'share', 'link', 'nfc', 'app', 'other'];
+        const sourceOrder = ['qr', 'share', 'link', 'app', 'other'];
         const sources = sourceOrder
             .map((key) => {
             const count = sourceTotals.get(key) ?? 0;

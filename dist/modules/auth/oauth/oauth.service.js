@@ -42,6 +42,9 @@ let OAuthService = class OAuthService {
         if (!payload?.sub || !payload.email) {
             throw new common_1.UnauthorizedException('Token Google incomplet');
         }
+        if (payload.email_verified === false) {
+            throw new common_1.UnauthorizedException('E-mail Google non vérifié');
+        }
         return {
             provider: client_1.AuthProvider.GOOGLE,
             providerId: payload.sub,

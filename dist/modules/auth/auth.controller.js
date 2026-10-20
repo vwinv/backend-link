@@ -15,6 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuthController = void 0;
 const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
+const throttler_1 = require("@nestjs/throttler");
 const current_user_decorator_1 = require("./decorators/current-user.decorator");
 const auth_response_dto_1 = require("./dto/auth-response.dto");
 const forgot_password_dto_1 = require("./dto/forgot-password.dto");
@@ -58,8 +59,8 @@ let AuthController = class AuthController {
     refresh() {
         return this.authService.refresh();
     }
-    logout() {
-        return this.authService.logout();
+    logout(user) {
+        return this.authService.logout(user.userId);
     }
     forgotPassword(dto) {
         return this.authService.forgotPassword(dto);
@@ -71,6 +72,7 @@ let AuthController = class AuthController {
 exports.AuthController = AuthController;
 __decorate([
     (0, common_1.Post)('register'),
+    (0, throttler_1.Throttle)({ default: { limit: 10, ttl: 60_000 } }),
     (0, swagger_1.ApiOperation)({ summary: 'Créer un compte utilisateur' }),
     (0, swagger_1.ApiResponse)({ status: 201, type: auth_response_dto_1.AuthResponseDto }),
     __param(0, (0, common_1.Body)()),
@@ -80,6 +82,7 @@ __decorate([
 ], AuthController.prototype, "register", null);
 __decorate([
     (0, common_1.Post)('login'),
+    (0, throttler_1.Throttle)({ default: { limit: 10, ttl: 60_000 } }),
     (0, swagger_1.ApiOperation)({ summary: 'Connexion utilisateur (email / mot de passe)' }),
     (0, swagger_1.ApiResponse)({ status: 200, type: auth_response_dto_1.AuthResponseDto }),
     __param(0, (0, common_1.Body)()),
@@ -89,6 +92,7 @@ __decorate([
 ], AuthController.prototype, "login", null);
 __decorate([
     (0, common_1.Post)('admin/login'),
+    (0, throttler_1.Throttle)({ default: { limit: 10, ttl: 60_000 } }),
     (0, swagger_1.ApiOperation)({
         summary: 'Connexion backoffice (rôle backoffice requis)',
     }),
@@ -100,6 +104,7 @@ __decorate([
 ], AuthController.prototype, "loginAdmin", null);
 __decorate([
     (0, common_1.Post)('admin/oauth/google'),
+    (0, throttler_1.Throttle)({ default: { limit: 10, ttl: 60_000 } }),
     (0, swagger_1.ApiOperation)({
         summary: 'Connexion backoffice via Google (compte admin existant)',
     }),
@@ -135,6 +140,7 @@ __decorate([
 ], AuthController.prototype, "getAdminMe", null);
 __decorate([
     (0, common_1.Post)('oauth/google'),
+    (0, throttler_1.Throttle)({ default: { limit: 10, ttl: 60_000 } }),
     (0, swagger_1.ApiOperation)({
         summary: 'Connexion / inscription via OAuth 2.0 Google (OpenID Connect)',
     }),
@@ -146,6 +152,7 @@ __decorate([
 ], AuthController.prototype, "loginWithGoogle", null);
 __decorate([
     (0, common_1.Post)('oauth/apple'),
+    (0, throttler_1.Throttle)({ default: { limit: 10, ttl: 60_000 } }),
     (0, swagger_1.ApiOperation)({
         summary: 'Connexion / inscription via OAuth 2.0 Apple (Sign in with Apple)',
     }),
@@ -164,14 +171,18 @@ __decorate([
 ], AuthController.prototype, "refresh", null);
 __decorate([
     (0, common_1.Post)('logout'),
-    (0, swagger_1.ApiOperation)({ summary: 'Déconnexion utilisateur' }),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({ summary: 'Déconnexion utilisateur (invalide la session)' }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], AuthController.prototype, "logout", null);
 __decorate([
     (0, common_1.Post)('forgot-password'),
     (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    (0, throttler_1.Throttle)({ default: { limit: 5, ttl: 60_000 } }),
     (0, swagger_1.ApiOperation)({ summary: 'Demande de réinitialisation du mot de passe' }),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -180,6 +191,7 @@ __decorate([
 ], AuthController.prototype, "forgotPassword", null);
 __decorate([
     (0, common_1.Post)('reset-password'),
+    (0, throttler_1.Throttle)({ default: { limit: 5, ttl: 60_000 } }),
     (0, swagger_1.ApiOperation)({ summary: 'Réinitialiser le mot de passe' }),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),

@@ -41,12 +41,12 @@ export declare class AdminClientsService {
         stripeCustomerId: string | null;
         cards: {
             id: string;
-            slug: string;
-            isActive: boolean;
             createdAt: Date;
-            kind: import("@prisma/client").$Enums.CardKind;
-            firstName: string;
+            slug: string;
             lastName: string;
+            firstName: string;
+            isActive: boolean;
+            kind: import("@prisma/client").$Enums.CardKind;
             jobTitle: string | null;
             company: string | null;
             isPublic: boolean;
@@ -59,21 +59,21 @@ export declare class AdminClientsService {
             createdAt: Date;
             offer: {
                 id: string;
-                title: string;
                 slug: string;
+                title: string;
                 audience: import("@prisma/client").$Enums.OfferAudience;
             } | null;
             plan: {
+                name: string;
                 id: string;
                 slug: string;
-                name: string;
             };
         }[];
         teams: {
+            name: string;
             id: string;
             slug: string;
             isActive: boolean;
-            name: string;
             role: import("@prisma/client").$Enums.TeamMemberRole;
         }[];
         ownedTeams: {
@@ -139,6 +139,11 @@ export declare class AdminClientsService {
         cardsCount: number;
         teamsCount: number;
         ownedTeamsCount: number;
+    }>;
+    remove(id: string): Promise<{
+        message: string;
+        id: string;
+        email: string;
     }>;
     private listSelect;
     private toListItem;

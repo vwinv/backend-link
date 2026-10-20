@@ -24,8 +24,8 @@ export declare class WalletController {
         card: {
             id: string;
             slug: string;
-            firstName: string;
             lastName: string;
+            firstName: string;
             jobTitle: string | null;
             company: string | null;
         };

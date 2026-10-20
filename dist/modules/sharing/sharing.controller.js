@@ -64,6 +64,17 @@ let SharingController = class SharingController {
         }
         return res.status(200).type('text/html; charset=utf-8').send(html);
     }
+    async downloadPublicContact(slug, res) {
+        const vcard = await this.sharingService.renderPublicVCard(slug);
+        if (!vcard) {
+            return res.status(404).type('text/plain; charset=utf-8').send('Carte introuvable');
+        }
+        const filename = `${slug.replace(/[^a-zA-Z0-9_-]/g, '') || 'contact'}.vcf`;
+        res.setHeader('Content-Type', 'text/vcard; charset=utf-8');
+        res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+        res.setHeader('Cache-Control', 'no-store');
+        return res.status(200).send(vcard);
+    }
     recordPublicCardSave(slug, req) {
         return this.sharingService.recordCardSave(slug, this.resolveViewerUserId(req));
     }
@@ -101,6 +112,17 @@ __decorate([
     __metadata("design:paramtypes", [String, Object, Object]),
     __metadata("design:returntype", Promise)
 ], SharingController.prototype, "renderPublicCardPage", null);
+__decorate([
+    (0, common_1.Get)('public/:slug/contact.vcf'),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Fichier vCard de la carte publique (enregistrement dans le téléphone)',
+    }),
+    __param(0, (0, common_1.Param)('slug')),
+    __param(1, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], SharingController.prototype, "downloadPublicContact", null);
 __decorate([
     (0, common_1.Post)('public/:slug/save'),
     (0, swagger_1.ApiOperation)({

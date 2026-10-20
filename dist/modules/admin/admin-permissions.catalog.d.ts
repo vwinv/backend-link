@@ -19,6 +19,9 @@ export declare const ADMIN_MODULES: readonly [{
 }, {
     readonly key: "support";
     readonly label: "Support";
+}, {
+    readonly key: "app_update";
+    readonly label: "Mise à jour app";
 }];
 export type AdminModuleKey = (typeof ADMIN_MODULES)[number]['key'];
 export declare const ADMIN_PERMISSION_CATALOG: readonly [{
@@ -72,6 +75,11 @@ export declare const ADMIN_PERMISSION_CATALOG: readonly [{
     readonly action: "update";
     readonly label: "Modifier un client app";
 }, {
+    readonly key: "clients.delete";
+    readonly module: "clients";
+    readonly action: "delete";
+    readonly label: "Supprimer un client app";
+}, {
     readonly key: "subscriptions.view";
     readonly module: "subscriptions";
     readonly action: "view";
@@ -111,6 +119,16 @@ export declare const ADMIN_PERMISSION_CATALOG: readonly [{
     readonly module: "support";
     readonly action: "reply";
     readonly label: "Répondre aux tickets support";
+}, {
+    readonly key: "app_update.view";
+    readonly module: "app_update";
+    readonly action: "view";
+    readonly label: "Voir la config de mise à jour app";
+}, {
+    readonly key: "app_update.update";
+    readonly module: "app_update";
+    readonly action: "update";
+    readonly label: "Modifier la config de mise à jour app";
 }];
 export type AdminPermissionKey = (typeof ADMIN_PERMISSION_CATALOG)[number]['key'];
 export declare const SUPER_ADMIN_ROLE_NAME = "Super Admin";

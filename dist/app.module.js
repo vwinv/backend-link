@@ -12,9 +12,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AppModule = void 0;
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
+const core_1 = require("@nestjs/core");
+const throttler_1 = require("@nestjs/throttler");
 const configuration_1 = __importDefault(require("./config/configuration"));
 const health_controller_1 = require("./health/health.controller");
 const admin_module_1 = require("./modules/admin/admin.module");
+const app_update_module_1 = require("./modules/app-update/app-update.module");
 const auth_module_1 = require("./modules/auth/auth.module");
 const cards_module_1 = require("./modules/cards/cards.module");
 const portfolios_module_1 = require("./modules/portfolios/portfolios.module");
@@ -41,6 +44,15 @@ exports.AppModule = AppModule = __decorate([
                 isGlobal: true,
                 load: [configuration_1.default],
             }),
+            throttler_1.ThrottlerModule.forRootAsync({
+                inject: [config_1.ConfigService],
+                useFactory: (config) => [
+                    {
+                        ttl: config.get('throttle.ttlMs', 60_000),
+                        limit: config.get('throttle.limit', 120),
+                    },
+                ],
+            }),
             prisma_module_1.PrismaModule,
             mail_module_1.MailModule,
             auth_module_1.AuthModule,
@@ -58,8 +70,15 @@ exports.AppModule = AppModule = __decorate([
             uploads_module_1.UploadsModule,
             notifications_module_1.NotificationsModule,
             support_module_1.SupportModule,
+            app_update_module_1.AppUpdateModule,
         ],
         controllers: [health_controller_1.HealthController],
+        providers: [
+            {
+                provide: core_1.APP_GUARD,
+                useClass: throttler_1.ThrottlerGuard,
+            },
+        ],
     })
 ], AppModule);
 //# sourceMappingURL=app.module.js.map

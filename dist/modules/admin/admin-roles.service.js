@@ -8,15 +8,55 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var AdminRolesService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AdminRolesService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const admin_permissions_catalog_1 = require("./admin-permissions.catalog");
-let AdminRolesService = class AdminRolesService {
+const admin_super_admin_1 = require("./admin-super-admin");
+let AdminRolesService = AdminRolesService_1 = class AdminRolesService {
     prisma;
+    logger = new common_1.Logger(AdminRolesService_1.name);
     constructor(prisma) {
         this.prisma = prisma;
+    }
+    async onModuleInit() {
+        await this.syncPermissionsCatalog();
+    }
+    async syncPermissionsCatalog() {
+        for (const permission of admin_permissions_catalog_1.ADMIN_PERMISSION_CATALOG) {
+            await this.prisma.adminPermission.upsert({
+                where: { key: permission.key },
+                update: {
+                    module: permission.module,
+                    action: permission.action,
+                    label: permission.label,
+                },
+                create: {
+                    key: permission.key,
+                    module: permission.module,
+                    action: permission.action,
+                    label: permission.label,
+                },
+            });
+        }
+        const superAdmin = await this.prisma.adminRole.findUnique({
+            where: { name: admin_permissions_catalog_1.SUPER_ADMIN_ROLE_NAME },
+        });
+        if (!superAdmin)
+            return;
+        const allPermissions = await this.prisma.adminPermission.findMany({
+            select: { id: true },
+        });
+        await this.prisma.adminRolePermission.createMany({
+            data: allPermissions.map((permission) => ({
+                roleId: superAdmin.id,
+                permissionId: permission.id,
+            })),
+            skipDuplicates: true,
+        });
+        this.logger.log(`Catalogue permissions admin synchronisé (${admin_permissions_catalog_1.ADMIN_PERMISSION_CATALOG.length})`);
     }
     listPermissions() {
         const byModule = admin_permissions_catalog_1.ADMIN_MODULES.map((module) => ({
@@ -48,12 +88,16 @@ let AdminRolesService = class AdminRolesService {
             throw new common_1.NotFoundException('Rôle introuvable');
         return this.toRoleDto(role);
     }
-    async create(dto) {
+    async create(dto, actor) {
         const name = dto.name.trim();
+        if (name === admin_permissions_catalog_1.SUPER_ADMIN_ROLE_NAME) {
+            throw new common_1.ForbiddenException('Le rôle Super Admin ne peut pas être créé manuellement');
+        }
         const existing = await this.prisma.adminRole.findUnique({ where: { name } });
         if (existing) {
             throw new common_1.ConflictException('Un rôle avec ce nom existe déjà');
         }
+        this.assertCanAssignPermissions(actor, dto.permissionKeys);
         const permissionIds = await this.resolvePermissionIds(dto.permissionKeys);
         const role = await this.prisma.adminRole.create({
             data: {
@@ -70,15 +114,23 @@ let AdminRolesService = class AdminRolesService {
         });
         return this.toRoleDto(role);
     }
-    async update(id, dto) {
+    async update(id, dto, actor) {
         const role = await this.prisma.adminRole.findUnique({ where: { id } });
         if (!role)
             throw new common_1.NotFoundException('Rôle introuvable');
+        if (role.isSystem && role.name === admin_permissions_catalog_1.SUPER_ADMIN_ROLE_NAME) {
+            if (!(0, admin_super_admin_1.isSuperAdmin)(actor)) {
+                throw new common_1.ForbiddenException('Seul le Super Admin peut modifier ce rôle système');
+            }
+        }
         if (role.isSystem && dto.name && dto.name.trim() !== role.name) {
             throw new common_1.ForbiddenException('Le nom du rôle système ne peut pas être modifié');
         }
         if (dto.name) {
             const name = dto.name.trim();
+            if (name === admin_permissions_catalog_1.SUPER_ADMIN_ROLE_NAME && role.name !== admin_permissions_catalog_1.SUPER_ADMIN_ROLE_NAME) {
+                throw new common_1.ForbiddenException('Impossible de renommer un rôle en Super Admin');
+            }
             const existing = await this.prisma.adminRole.findFirst({
                 where: { name, NOT: { id } },
             });
@@ -102,6 +154,7 @@ let AdminRolesService = class AdminRolesService {
                 });
             }
             else {
+                this.assertCanAssignPermissions(actor, dto.permissionKeys);
                 const permissionIds = await this.resolvePermissionIds(dto.permissionKeys);
                 await this.prisma.adminRolePermission.deleteMany({ where: { roleId: id } });
                 await this.prisma.adminRolePermission.createMany({
@@ -136,6 +189,17 @@ let AdminRolesService = class AdminRolesService {
         await this.prisma.adminRole.delete({ where: { id } });
         return { message: 'Rôle supprimé' };
     }
+    assertCanAssignPermissions(actor, permissionKeys) {
+        if ((0, admin_super_admin_1.isSuperAdmin)(actor))
+            return;
+        const allowed = new Set(actor.permissions);
+        if (allowed.has('*'))
+            return;
+        const denied = permissionKeys.filter((key) => !allowed.has(key));
+        if (denied.length > 0) {
+            throw new common_1.ForbiddenException('Vous ne pouvez pas attribuer des permissions que vous n’avez pas');
+        }
+    }
     async resolvePermissionIds(keys) {
         const uniqueKeys = [...new Set(keys.map((key) => key.trim()).filter(Boolean))];
         if (uniqueKeys.length === 0) {
@@ -164,7 +228,7 @@ let AdminRolesService = class AdminRolesService {
     }
 };
 exports.AdminRolesService = AdminRolesService;
-exports.AdminRolesService = AdminRolesService = __decorate([
+exports.AdminRolesService = AdminRolesService = AdminRolesService_1 = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService])
 ], AdminRolesService);

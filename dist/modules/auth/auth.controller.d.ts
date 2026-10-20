@@ -50,9 +50,11 @@ export declare class AuthController {
     refresh(): {
         message: string;
     };
-    logout(): {
+    logout(user: {
+        userId: string;
+    }): Promise<{
         message: string;
-    };
+    }>;
     forgotPassword(dto: ForgotPasswordDto): Promise<{
         message: string;
     }>;

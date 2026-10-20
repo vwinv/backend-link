@@ -47,7 +47,7 @@ async function bootstrap() {
             return undefined;
         }
     };
-    const appleTeamId = configService.get('mobile.appleTeamId', '3G878MZ2JV');
+    const appleTeamId = configService.get('mobile.appleTeamId', 'CMU6AB64K7');
     const appleBundleId = configService.get('mobile.appleBundleId', 'com.mega.dropone');
     const appleAppId = `${appleTeamId}.${appleBundleId}`;
     const androidPackageName = configService.get('mobile.androidPackageName', 'com.mega.dropone');
@@ -181,22 +181,52 @@ async function bootstrap() {
         forbidNonWhitelisted: true,
         transform: true,
     }));
-    app.enableCors();
-    const swaggerConfig = new swagger_1.DocumentBuilder()
-        .setTitle('DropOne API')
-        .setDescription('API backend pour les cartes de visite digitales DropOne')
-        .setVersion('1.0')
-        .addBearerAuth()
-        .build();
-    const document = swagger_1.SwaggerModule.createDocument(app, swaggerConfig);
-    swagger_1.SwaggerModule.setup('docs', app, document);
+    const nodeEnv = configService.get('nodeEnv', 'development');
+    const configuredCorsOrigins = configService.get('cors.origins', []);
+    const defaultProdOrigins = [
+        'https://dropone.pro',
+        'https://www.dropone.pro',
+        'https://admin.dropone.pro',
+        'https://api.dropone.pro',
+    ];
+    const corsOrigins = configuredCorsOrigins.length > 0
+        ? configuredCorsOrigins
+        : nodeEnv === 'production'
+            ? defaultProdOrigins
+            : true;
+    app.enableCors({
+        origin: corsOrigins,
+        credentials: true,
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+    });
+    const swaggerEnabled = configService.get('swagger.enabled', true);
+    if (swaggerEnabled) {
+        const swaggerConfig = new swagger_1.DocumentBuilder()
+            .setTitle('DropOne API')
+            .setDescription('API backend pour les cartes de visite digitales DropOne')
+            .setVersion('1.0')
+            .addBearerAuth()
+            .build();
+        const document = swagger_1.SwaggerModule.createDocument(app, swaggerConfig);
+        swagger_1.SwaggerModule.setup('docs', app, document);
+    }
+    const jwtSecret = configService.get('jwt.secret', 'change-me');
+    if (nodeEnv === 'production' && (!jwtSecret || jwtSecret === 'change-me')) {
+        throw new Error('JWT_SECRET doit être défini avec une valeur forte en production');
+    }
     const port = configService.get('port', 3000);
     await app.listen(port);
     console.log(`🚀 DropOne API running on http://localhost:${port}/${apiPrefix}`);
     console.log(`🃏 Public cards: http://localhost:${port}/cards/{slug}`);
     console.log(`🔒 Privacy policy: http://localhost:${port}/privacy`);
     console.log(`✉️ Team invites: http://localhost:${port}/team-invites/{inviteId}`);
-    console.log(`📚 Swagger docs: http://localhost:${port}/docs`);
+    if (swaggerEnabled) {
+        console.log(`📚 Swagger docs: http://localhost:${port}/docs`);
+    }
+    else {
+        console.log('📚 Swagger docs: disabled');
+    }
 }
 bootstrap();
 //# sourceMappingURL=main.js.map

@@ -47,6 +47,7 @@ const common_1 = require("@nestjs/common");
 const client_1 = require("@prisma/client");
 const bcrypt = __importStar(require("bcrypt"));
 const prisma_service_1 = require("../../prisma/prisma.service");
+const admin_super_admin_1 = require("./admin-super-admin");
 let AdminUsersService = class AdminUsersService {
     prisma;
     constructor(prisma) {
@@ -148,7 +149,8 @@ let AdminUsersService = class AdminUsersService {
                 (user.role === client_1.UserRole.ADMIN ? ['*'] : []),
         };
     }
-    async create(dto) {
+    async create(dto, actor) {
+        (0, admin_super_admin_1.assertSuperAdmin)(actor);
         const email = dto.email.trim().toLowerCase();
         const existing = await this.prisma.user.findUnique({ where: { email } });
         if (existing) {
@@ -187,7 +189,7 @@ let AdminUsersService = class AdminUsersService {
         });
         return this.toListItem(user);
     }
-    async update(id, dto, actorUserId) {
+    async update(id, dto, actor) {
         if (dto.adminRoleId === undefined &&
             dto.isActive === undefined &&
             dto.firstName === undefined &&
@@ -196,16 +198,19 @@ let AdminUsersService = class AdminUsersService {
             dto.password === undefined) {
             throw new common_1.BadRequestException('Aucune modification fournie');
         }
+        if (dto.password !== undefined || dto.adminRoleId !== undefined) {
+            (0, admin_super_admin_1.assertSuperAdmin)(actor);
+        }
         const user = await this.prisma.user.findUnique({ where: { id } });
         if (!user || (!user.adminRoleId && user.role !== client_1.UserRole.ADMIN)) {
             throw new common_1.NotFoundException('Utilisateur backoffice introuvable');
         }
-        if (id === actorUserId) {
+        if (id === actor.userId) {
             if (dto.isActive === false) {
                 throw new common_1.ForbiddenException('Vous ne pouvez pas désactiver votre propre compte');
             }
-            if (dto.adminRoleId === null) {
-                throw new common_1.ForbiddenException('Vous ne pouvez pas retirer votre propre rôle');
+            if (dto.adminRoleId !== undefined) {
+                throw new common_1.ForbiddenException('Vous ne pouvez pas modifier votre propre rôle');
             }
         }
         if (dto.adminRoleId) {
@@ -226,7 +231,42 @@ let AdminUsersService = class AdminUsersService {
                 ...(dto.phone !== undefined && {
                     phone: dto.phone?.trim() || null,
                 }),
-                ...(passwordHash && { passwordHash }),
+                ...(passwordHash && {
+                    passwordHash,
+                    sessionVersion: { increment: 1 },
+                }),
+            },
+            select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+                phone: true,
+                avatarUrl: true,
+                role: true,
+                isActive: true,
+                authProvider: true,
+                createdAt: true,
+                updatedAt: true,
+                adminRole: {
+                    select: { id: true, name: true, isSystem: true },
+                },
+            },
+        });
+        return this.toListItem(updated);
+    }
+    async resetPassword(id, dto, actor) {
+        (0, admin_super_admin_1.assertSuperAdmin)(actor);
+        const user = await this.prisma.user.findUnique({ where: { id } });
+        if (!user || (!user.adminRoleId && user.role !== client_1.UserRole.ADMIN)) {
+            throw new common_1.NotFoundException('Utilisateur backoffice introuvable');
+        }
+        const passwordHash = await bcrypt.hash(dto.password, 10);
+        const updated = await this.prisma.user.update({
+            where: { id },
+            data: {
+                passwordHash,
+                sessionVersion: { increment: 1 },
             },
             select: {
                 id: true,

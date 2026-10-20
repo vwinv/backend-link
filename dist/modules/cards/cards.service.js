@@ -13,6 +13,7 @@ exports.CardsService = void 0;
 const common_1 = require("@nestjs/common");
 const client_1 = require("@prisma/client");
 const prisma_service_1 = require("../../prisma/prisma.service");
+const safe_url_1 = require("../../common/safe-url");
 const card_theme_util_1 = require("../sharing/pro-design/card-theme.util");
 const pro_design_catalog_1 = require("../sharing/pro-design/pro-design-catalog");
 const contacts_service_1 = require("../contacts/contacts.service");
@@ -264,9 +265,7 @@ let CardsService = class CardsService {
             .map((link, index) => ({
             cardId,
             platform: link.platform,
-            url: link.platform === client_1.SocialPlatform.WEBSITE
-                ? this.normalizeWebsiteUrl(link.url) ?? ''
-                : link.url.trim(),
+            url: this.normalizeSocialUrl(link.url) ?? '',
             label: link.label?.trim() || null,
             order: link.order ?? index,
         }))
@@ -399,7 +398,9 @@ let CardsService = class CardsService {
         const sourceTotals = new Map();
         let sourcesCounted = 0;
         for (const row of sourcesRaw) {
-            const key = this.normalizeAnalyticsSource(row.source);
+            let key = this.normalizeAnalyticsSource(row.source);
+            if (key === 'nfc')
+                key = 'other';
             const count = row._count._all;
             sourceTotals.set(key, (sourceTotals.get(key) ?? 0) + count);
             sourcesCounted += count;
@@ -408,7 +409,7 @@ let CardsService = class CardsService {
             sourceTotals.set('link', views);
             sourcesCounted = views;
         }
-        const sourceOrder = ['qr', 'share', 'link', 'nfc', 'app', 'other'];
+        const sourceOrder = ['qr', 'share', 'link', 'app', 'other'];
         const sources = sourceOrder
             .map((key) => {
             const count = sourceTotals.get(key) ?? 0;
@@ -702,12 +703,10 @@ let CardsService = class CardsService {
         return trimmed.length > 0 ? trimmed : null;
     }
     normalizeWebsiteUrl(value) {
-        const trimmed = this.optionalString(value);
-        if (!trimmed)
-            return null;
-        if (/^https?:\/\//i.test(trimmed))
-            return trimmed;
-        return `https://${trimmed}`;
+        return this.normalizeSocialUrl(value);
+    }
+    normalizeSocialUrl(value) {
+        return (0, safe_url_1.sanitizePublicHttpUrl)(value, { allowHttp: false });
     }
     async generateUniqueSlug(firstName, lastName, kind = client_1.CardKind.PERSONAL) {
         const base = `${firstName}-${lastName}`

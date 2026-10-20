@@ -323,8 +323,21 @@ exports.PUBLIC_CARD_STYLES = `
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.2px;
-    padding: 8px;
+    padding: 10px;
     box-sizing: border-box;
+  }
+
+  .social-link .social-logo {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+    display: block;
+  }
+
+  .social-link .social-fallback {
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1;
   }
 
   .social-soft {
@@ -521,7 +534,8 @@ exports.PUBLIC_CARD_STYLES = `
     height: 100%;
   }
 
-  html.embed [data-save-contact] {
+  html.embed [data-save-contact],
+  html.embed [data-download-app] {
     display: none !important;
   }
 `;

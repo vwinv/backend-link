@@ -36,6 +36,10 @@ export declare class SharingService {
         source?: string;
         userAgent?: string;
     }): Promise<string | null>;
+    renderPublicVCard(slug: string): Promise<string | null>;
+    private vcardUrl;
+    private resolveDownloadUrl;
+    private appleAppStoreId;
     shareCard(userId: string, id: string, dto: ShareCardDto): Promise<{
         id: string;
         cardId: string;

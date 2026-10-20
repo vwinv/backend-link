@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildCardInitials = buildCardInitials;
+exports.buildVCard = buildVCard;
 exports.renderPublicCardBody = renderPublicCardBody;
 exports.buildInlineScript = buildInlineScript;
 exports.escapeHtml = escapeHtml;
@@ -11,6 +12,15 @@ function escapeHtml(value) {
         .replaceAll('>', '&gt;')
         .replaceAll('"', '&quot;')
         .replaceAll("'", '&#39;');
+}
+function isSafeHref(url) {
+    try {
+        const parsed = new URL(url);
+        return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+    }
+    catch {
+        return false;
+    }
 }
 function escapeAttr(value) {
     return escapeHtml(value);
@@ -85,6 +95,7 @@ function renderActionIcon(icon) {
         mail: `${svgOpen}<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>`,
         message: `${svgOpen}<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`,
         portfolio: `${svgOpen}<path d="m12 2.5 1.35 4.15h4.4l-3.55 2.58 1.35 4.15L12 10.8l-3.55 2.58 1.35-4.15-3.55-2.58h4.4L12 2.5z"/><path d="M5 19h14"/></svg>`,
+        download: `${svgOpen}<path d="M12 3v12"/><path d="m7 11 5 5 5-5"/><path d="M5 21h14"/></svg>`,
     };
     return paths[icon];
 }
@@ -109,7 +120,8 @@ function renderActions(params) {
     const phoneHref = phone ? `href="tel:${escapeAttr(phone)}"` : '';
     const smsHref = phone ? `href="sms:${escapeAttr(phone)}"` : '';
     const emailHref = email ? `href="mailto:${escapeAttr(email)}"` : '';
-    const vcardHref = `href="${escapeAttr(buildVCardDataUri(params))}" download="${escapeAttr(params.fullName.replace(/\s+/g, '_'))}.vcf"`;
+    const vcardHref = `href="${escapeAttr(params.vcardUrl)}"`;
+    const downloadUrl = params.downloadUrl?.trim() ?? '';
     const skins = resolveButtonSkins(params.design.layout);
     return `
     <div class="actions">
@@ -159,25 +171,79 @@ function renderActions(params) {
         label: 'Consulter mon portfolio',
         disabled: true,
     })}
+      ${downloadUrl
+        ? renderActionButton({
+            skin: skins.secondary,
+            icon: 'download',
+            label: 'Télécharger l’application',
+            tag: 'a',
+            attrs: `href="${escapeAttr(downloadUrl)}" data-download-app target="_blank" rel="noopener noreferrer"`,
+        })
+        : ''}
     </div>
   `;
+}
+function socialLogoSrc(platform) {
+    const map = {
+        LINKEDIN: '/brand/social/linkedin.png',
+        INSTAGRAM: '/brand/social/instagram.png',
+        WHATSAPP: '/brand/social/whatsapp.png',
+        TWITTER: '/brand/social/twitter.png',
+        X: '/brand/social/twitter.png',
+        TIKTOK: '/brand/social/tiktok.png',
+        YOUTUBE: '/brand/social/youtube.png',
+    };
+    return map[platform.toUpperCase()] ?? null;
+}
+function socialAccessibleName(platform, label) {
+    if (label?.trim())
+        return label.trim();
+    const map = {
+        LINKEDIN: 'LinkedIn',
+        INSTAGRAM: 'Instagram',
+        WHATSAPP: 'WhatsApp',
+        TWITTER: 'X',
+        X: 'X',
+        FACEBOOK: 'Facebook',
+        WEBSITE: 'Site web',
+        GITHUB: 'GitHub',
+        YOUTUBE: 'YouTube',
+        TIKTOK: 'TikTok',
+        CUSTOM: 'Lien',
+    };
+    return map[platform.toUpperCase()] ?? platform;
+}
+function renderSocialLogoMarkup(platform, label) {
+    const name = escapeAttr(socialAccessibleName(platform, label));
+    const src = socialLogoSrc(platform);
+    if (src) {
+        return `<img class="social-logo" src="${escapeAttr(src)}" alt="${name}" width="28" height="28" loading="lazy" />`;
+    }
+    if (platform.toUpperCase() === 'FACEBOOK') {
+        return `<svg class="social-logo" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M14 8h3V4.5h-3C11.6 4.5 10 6.1 10 8.5V10H8v3.5h2V20h3.5v-6.5H16L16.5 10H13.5V8.5c0-.3.2-.5.5-.5z"/></svg>`;
+    }
+    if (platform.toUpperCase() === 'WEBSITE') {
+        return `<svg class="social-logo" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm7.4 9h-3.1a15 15 0 0 0-1.3-5.1A8 8 0 0 1 19.4 11zM12 4c.9 1.3 1.6 3 2 5H10c.4-2 1.1-3.7 2-5zM4.6 13h3.1c.2 1.8.7 3.5 1.3 5.1A8 8 0 0 1 4.6 13zm3.1-2H4.6a8 8 0 0 1 4.4-5.1A15 15 0 0 0 7.7 11zm2.3 0h4c-.3 1.9-.9 3.7-1.8 5.2-.2.3-.4.6-.6.8-.2-.2-.4-.5-.6-.8C10.6 14.7 10 12.9 9.7 11zm0 7.1c.4 1.1.9 2 1.4 2.6.2.2.5.3.9.3s.7-.1.9-.3c.5-.6 1-1.5 1.4-2.6-.9-.3-1.9-.5-3.2-.5-1 0-2 .2-2.8.5zM16.3 18.1c.6-1.6 1.1-3.3 1.3-5.1h3.1a8 8 0 0 1-4.4 5.1z"/></svg>`;
+    }
+    const fallback = escapeHtml(socialAccessibleName(platform, label).slice(0, 2).toUpperCase());
+    return `<span class="social-fallback" aria-hidden="true">${fallback}</span>`;
 }
 function renderSocials(params) {
     const socialClass = `social-link ${resolveSocialSkin(params.design.layout)}`;
     if (params.socialLinks.length === 0) {
+        const placeholders = ['LINKEDIN', 'INSTAGRAM', 'WHATSAPP']
+            .map((platform) => `<span class="${socialClass}" aria-hidden="true">${renderSocialLogoMarkup(platform)}</span>`)
+            .join('');
         return `
       <div class="section-label">RÉSEAUX</div>
-      <div class="socials">
-        <span class="${socialClass}">in</span>
-        <span class="${socialClass}">ig</span>
-        <span class="${socialClass}">wa</span>
-      </div>
+      <div class="socials">${placeholders}</div>
     `;
     }
     const links = params.socialLinks
+        .filter((link) => isSafeHref(link.url))
         .map((link) => {
-        const label = escapeHtml(socialLabel(link.platform, link.label ?? undefined));
-        return `<a class="${socialClass}" href="${escapeAttr(link.url)}" target="_blank" rel="noopener noreferrer">${label}</a>`;
+        const name = escapeAttr(socialAccessibleName(link.platform, link.label));
+        return `<a class="${socialClass}" href="${escapeAttr(link.url)}" target="_blank" rel="noopener noreferrer" aria-label="${name}">${renderSocialLogoMarkup(link.platform, link.label)}</a>`;
     })
         .join('');
     return `
@@ -185,49 +251,39 @@ function renderSocials(params) {
     <div class="socials">${links}</div>
   `;
 }
-function socialLabel(platform, label) {
-    if (label?.trim()) {
-        return label.trim().slice(0, 3).toUpperCase();
-    }
-    const map = {
-        LINKEDIN: 'in',
-        INSTAGRAM: 'ig',
-        WHATSAPP: 'wa',
-        TWITTER: 'x',
-        FACEBOOK: 'fb',
-        GITHUB: 'gh',
-        WEBSITE: 'www',
-        YOUTUBE: 'yt',
-        TIKTOK: 'tt',
-        CUSTOM: 'lnk',
-    };
-    return map[platform] ?? platform.slice(0, 3).toLowerCase();
+function escapeVCard(value) {
+    return value
+        .replaceAll('\\', '\\\\')
+        .replaceAll('\r\n', '\n')
+        .replaceAll('\r', '\n')
+        .replaceAll('\n', '\\n')
+        .replaceAll(';', '\\;')
+        .replaceAll(',', '\\,');
 }
-function buildVCardDataUri(params) {
-    const lines = [
-        'BEGIN:VCARD',
-        'VERSION:3.0',
-        `FN:${params.fullName}`,
-    ];
-    const [firstName, ...rest] = params.fullName.split(/\s+/);
+function buildVCard(params) {
+    const fullName = params.fullName.trim() || 'Contact';
+    const lines = ['BEGIN:VCARD', 'VERSION:3.0', `FN:${escapeVCard(fullName)}`];
+    const [firstName, ...rest] = fullName.split(/\s+/);
     const lastName = rest.join(' ');
-    if (firstName)
-        lines.push(`N:${lastName};${firstName};;;`);
-    if (params.email?.trim())
-        lines.push(`EMAIL:${params.email.trim()}`);
-    if (params.phone?.trim())
-        lines.push(`TEL:${params.phone.trim()}`);
-    if (params.address?.trim()) {
-        lines.push(`ADR:;;${params.address.trim()};;;;`);
+    if (firstName) {
+        lines.push(`N:${escapeVCard(lastName)};${escapeVCard(firstName)};;;`);
     }
-    if (params.subtitle.trim())
-        lines.push(`TITLE:${params.subtitle.trim()}`);
-    const website = params.socialLinks.find((link) => link.platform === 'WEBSITE' && link.url.trim())?.url.trim();
-    if (website)
-        lines.push(`URL:${website}`);
-    lines.push(`URL:${params.pageUrl}`);
+    if (params.email?.trim())
+        lines.push(`EMAIL:${escapeVCard(params.email.trim())}`);
+    if (params.phone?.trim())
+        lines.push(`TEL:${escapeVCard(params.phone.trim())}`);
+    if (params.address?.trim()) {
+        lines.push(`ADR:;;${escapeVCard(params.address.trim())};;;;`);
+    }
+    if (params.subtitle?.trim()) {
+        lines.push(`TITLE:${escapeVCard(params.subtitle.trim())}`);
+    }
+    if (params.website?.trim())
+        lines.push(`URL:${escapeVCard(params.website.trim())}`);
+    if (params.pageUrl.trim())
+        lines.push(`URL:${escapeVCard(params.pageUrl.trim())}`);
     lines.push('END:VCARD');
-    return `data:text/vcard;charset=utf-8,${encodeURIComponent(lines.join('\n'))}`;
+    return `${lines.join('\r\n')}\r\n`;
 }
 function renderIdentity(params) {
     const safeName = escapeHtml(params.fullName);

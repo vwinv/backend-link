@@ -171,17 +171,23 @@ let AuthService = AuthService_1 = class AuthService {
     refresh() {
         return { message: 'refresh' };
     }
-    logout() {
+    async logout(userId) {
+        if (userId) {
+            await this.prisma.user.update({
+                where: { id: userId },
+                data: { sessionVersion: { increment: 1 } },
+            });
+        }
         return { message: 'logout' };
     }
     async forgotPassword(dto) {
         const email = dto.email.trim().toLowerCase();
+        const genericResponse = {
+            message: 'Si un compte existe pour cet e-mail, un lien de réinitialisation a été envoyé',
+        };
         const user = await this.prisma.user.findUnique({ where: { email } });
-        if (!user || !user.isActive) {
-            throw new common_1.NotFoundException('Aucun compte DropOne n’est associé à cet e-mail');
-        }
-        if (!user.passwordHash) {
-            throw new common_1.BadRequestException(this.oauthOnlyMessage(user.authProvider));
+        if (!user || !user.isActive || !user.passwordHash) {
+            return genericResponse;
         }
         try {
             await this.prisma.passwordResetToken.deleteMany({
@@ -204,11 +210,9 @@ let AuthService = AuthService_1 = class AuthService {
         }
         catch (error) {
             this.logger.error('forgotPassword failed', error);
-            throw new common_1.ServiceUnavailableException('Impossible d’envoyer l’e-mail pour le moment. Réessayez plus tard.');
+            return genericResponse;
         }
-        return {
-            message: 'Un e-mail de réinitialisation a été envoyé',
-        };
+        return genericResponse;
     }
     async getValidResetToken(rawToken) {
         const token = rawToken.trim();
@@ -241,7 +245,10 @@ let AuthService = AuthService_1 = class AuthService {
         await this.prisma.$transaction([
             this.prisma.user.update({
                 where: { id: record.userId },
-                data: { passwordHash },
+                data: {
+                    passwordHash,
+                    sessionVersion: { increment: 1 },
+                },
             }),
             this.prisma.passwordResetToken.update({
                 where: { id: record.id },
@@ -362,9 +369,16 @@ let AuthService = AuthService_1 = class AuthService {
         }
     }
     buildAuthResponse(user) {
-        const accessToken = this.jwtService.sign({ sub: user.id, email: user.email, role: user.role }, {
-            secret: this.configService.get('jwt.secret', 'change-me'),
-            expiresIn: this.configService.get('jwt.expiresIn', '7d'),
+        const secret = this.configService.get('jwt.secret', 'change-me');
+        const expiresIn = this.configService.get('jwt.expiresIn', '24h') ?? '24h';
+        const accessToken = this.jwtService.sign({
+            sub: user.id,
+            email: user.email,
+            role: user.role,
+            sv: user.sessionVersion ?? 0,
+        }, {
+            secret,
+            expiresIn: expiresIn,
         });
         return {
             accessToken,
