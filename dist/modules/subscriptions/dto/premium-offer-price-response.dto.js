@@ -45,7 +45,7 @@ __decorate([
 __decorate([
     (0, swagger_1.ApiPropertyOptional)({
         example: 700,
-        description: 'Prix par utilisateur supplémentaire (au-delà des sièges inclus). Montant = priceAmount + pricePerSeat × (sièges − minSeats).',
+        description: 'Prix par place supplémentaire, au-delà des places incluses (max membres). Montant = priceAmount + pricePerSeat × (places − places incluses).',
     }),
     __metadata("design:type", Object)
 ], PremiumOfferPriceResponseDto.prototype, "pricePerSeat", void 0);

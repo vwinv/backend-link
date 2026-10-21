@@ -19,6 +19,7 @@ const common_1 = require("@nestjs/common");
 const client_1 = require("@prisma/client");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const subscription_validity_1 = require("../subscriptions/subscription-validity");
+const team_seats_1 = require("../subscriptions/team-seats");
 let EspaceService = class EspaceService {
     prisma;
     teamsService;
@@ -217,11 +218,13 @@ let EspaceService = class EspaceService {
         const pricePerSeat = subscription?.offerPrice?.pricePerSeat
             ? Number(subscription.offerPrice.pricePerSeat)
             : null;
-        const minSeats = subscription?.offer?.minSeats ?? 1;
-        const purchasedSeats = subscription?.purchasedSeats ??
-            (membersPayload.seats.max > 0
-                ? membersPayload.seats.max
-                : membersPayload.seats.used);
+        const canPurchaseSeats = Boolean(pricePerSeat && pricePerSeat > 0);
+        const minSeats = subscription?.offer
+            ? (0, team_seats_1.includedTeamSeats)(subscription.offer)
+            : 1;
+        const purchasedSeats = subscription?.offer
+            ? Math.max(minSeats, subscription.purchasedSeats ?? 0)
+            : membersPayload.seats.used;
         return {
             ...membersPayload,
             team: {
@@ -239,8 +242,10 @@ let EspaceService = class EspaceService {
                     pricePerSeat,
                     minSeats,
                     purchasedSeats,
-                    maxSeats: subscription.offer?.maxTeamMembers ?? -1,
-                    canPurchaseSeats: Boolean(pricePerSeat && pricePerSeat > 0),
+                    maxSeats: canPurchaseSeats
+                        ? team_seats_1.MAX_PURCHASABLE_SEATS
+                        : (subscription.offer?.maxTeamMembers ?? -1),
+                    canPurchaseSeats,
                 }
                 : null,
         };

@@ -14,6 +14,7 @@ const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const client_1 = require("@prisma/client");
 const prisma_service_1 = require("../../prisma/prisma.service");
+const team_seats_1 = require("./team-seats");
 const entitlements_types_1 = require("./entitlements.types");
 const free_offer_constants_1 = require("./free-offer.constants");
 const subscription_validity_1 = require("./subscription-validity");
@@ -165,7 +166,7 @@ let EntitlementsService = class EntitlementsService {
             }
             throw new common_1.BadRequestException(seats.max < 0
                 ? 'Impossible d’ajouter un membre pour le moment'
-                : `Limite de ${seats.max} sièges atteinte. Passez à une offre supérieure pour en ajouter.`);
+                : `Limite de ${seats.max} places atteinte. Chaque place supplémentaire est payante.`);
         }
     }
     async getAiScanQuota(userId) {
@@ -317,9 +318,7 @@ let EntitlementsService = class EntitlementsService {
         });
     }
     mapOfferToEntitlements(offer, purchasedSeats) {
-        const maxTeamMembers = purchasedSeats != null && purchasedSeats > 0
-            ? purchasedSeats
-            : offer.maxTeamMembers;
+        const maxTeamMembers = (0, team_seats_1.teamSeatQuota)(offer, purchasedSeats);
         return {
             audience: offer.audience,
             canCustomize: offer.canCustomize,

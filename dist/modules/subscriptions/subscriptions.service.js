@@ -20,6 +20,7 @@ const paydunya_service_1 = require("../paydunya/paydunya.service");
 const stripe_service_1 = require("./stripe.service");
 const invoices_service_1 = require("./invoices.service");
 const subscription_validity_1 = require("./subscription-validity");
+const team_seats_1 = require("./team-seats");
 const mail_service_1 = require("../mail/mail.service");
 const config_1 = require("@nestjs/config");
 const apple_iap_service_1 = require("./apple-iap.service");
@@ -421,15 +422,10 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
         if (!Number.isFinite(perSeat) || perSeat <= 0) {
             throw new common_1.BadRequestException('Tarif au siège indisponible pour cette offre');
         }
-        const minSeats = Math.max(1, subscription.offer.minSeats || 1);
-        const currentSeats = Math.max(minSeats, subscription.purchasedSeats ?? minSeats);
-        const max = subscription.offer.maxTeamMembers;
-        const hardMax = max < 0 ? 500 : max;
+        const currentSeats = Math.max((0, team_seats_1.includedTeamSeats)(subscription.offer), subscription.purchasedSeats ?? 0);
         const newTotal = currentSeats + additionalSeats;
-        if (newTotal > hardMax) {
-            throw new common_1.BadRequestException(max < 0
-                ? `Maximum ${hardMax} utilisateurs`
-                : `Cette offre est limitée à ${hardMax} utilisateurs`);
+        if (newTotal > team_seats_1.MAX_PURCHASABLE_SEATS) {
+            throw new common_1.BadRequestException(`Maximum ${team_seats_1.MAX_PURCHASABLE_SEATS} utilisateurs`);
         }
         const amount = Math.round(perSeat * additionalSeats);
         const currency = subscription.offerPrice.currency || 'FCFA';
@@ -528,8 +524,7 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
             Math.abs(input.paidAmount - expected) > 1) {
             throw new common_1.BadRequestException('Montant de paiement incorrect pour les sièges');
         }
-        const minSeats = Math.max(1, subscription.offer.minSeats || 1);
-        const currentSeats = Math.max(minSeats, subscription.purchasedSeats ?? minSeats);
+        const currentSeats = Math.max((0, team_seats_1.includedTeamSeats)(subscription.offer), subscription.purchasedSeats ?? 0);
         const newTotal = currentSeats + input.additionalSeats;
         const lines = input.lines ?? [
             {
@@ -1095,17 +1090,10 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
         return Number.isFinite(perSeat) && perSeat > 0;
     }
     resolveSeats(offer, requested) {
-        const min = Math.max(1, offer.minSeats ?? 1);
-        const hardMax = offer.maxTeamMembers < 0 ? 500 : Math.max(min, offer.maxTeamMembers);
-        const fallback = offer.maxTeamMembers > 0 ? offer.maxTeamMembers : Math.max(min, 5);
-        const seats = requested ?? fallback;
-        if (seats < min) {
-            throw new common_1.BadRequestException(`Minimum ${min} utilisateur${min > 1 ? 's' : ''} pour cette offre`);
-        }
-        if (seats > hardMax) {
-            throw new common_1.BadRequestException(offer.maxTeamMembers < 0
-                ? `Maximum ${hardMax} utilisateurs par commande`
-                : `Cette offre est limitée à ${hardMax} utilisateurs`);
+        const included = (0, team_seats_1.includedTeamSeats)(offer);
+        const seats = Math.max(included, requested ?? included);
+        if (seats > team_seats_1.MAX_PURCHASABLE_SEATS) {
+            throw new common_1.BadRequestException(`Maximum ${team_seats_1.MAX_PURCHASABLE_SEATS} utilisateurs par commande`);
         }
         return seats;
     }
@@ -1116,7 +1104,7 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
         if (offer.audience === client_1.OfferAudience.TEAM &&
             this.isPerSeatPrice(price)) {
             const seats = this.resolveSeats(offer, requestedSeats);
-            const baseSeats = Math.max(1, offer.minSeats ?? 1);
+            const baseSeats = (0, team_seats_1.includedTeamSeats)(offer);
             const baseAmount = this.toNumber(price.priceAmount);
             const perSeat = this.toNumber(price.pricePerSeat);
             const extraSeats = Math.max(0, seats - baseSeats);
@@ -1520,9 +1508,9 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
         };
     }
     toEntitlementsResponse(offer, purchasedSeats) {
-        const maxTeamMembers = purchasedSeats != null && purchasedSeats > 0
-            ? purchasedSeats
-            : (offer?.maxTeamMembers ?? 0);
+        const maxTeamMembers = offer
+            ? (0, team_seats_1.teamSeatQuota)(offer, purchasedSeats)
+            : 0;
         return {
             audience: offer?.audience ?? client_1.OfferAudience.PERSONAL,
             canCustomize: offer?.canCustomize ?? false,

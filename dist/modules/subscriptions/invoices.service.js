@@ -18,6 +18,7 @@ const crypto_1 = require("crypto");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const notifications_service_1 = require("../notifications/notifications.service");
 const subscription_validity_1 = require("./subscription-validity");
+const team_seats_1 = require("./team-seats");
 const UPCOMING_INVOICE_WINDOW_DAYS = 10;
 let InvoicesService = InvoicesService_1 = class InvoicesService {
     prisma;
@@ -180,13 +181,10 @@ let InvoicesService = InvoicesService_1 = class InvoicesService {
         if (input.offer.audience === client_1.OfferAudience.TEAM &&
             Number.isFinite(perSeat) &&
             perSeat > 0) {
-            const baseSeats = Math.max(1, input.offer.minSeats || 1);
+            const baseSeats = (0, team_seats_1.includedTeamSeats)(input.offer);
             let seats = input.purchasedSeats ?? baseSeats;
             if (seats < baseSeats)
                 seats = baseSeats;
-            const max = input.offer.maxTeamMembers;
-            if (max > 0 && seats > max)
-                seats = max;
             const extraSeats = Math.max(0, seats - baseSeats);
             const baseAmount = Math.round(this.toNumber(input.offerPrice.priceAmount));
             const extraAmount = Math.round(perSeat * extraSeats);

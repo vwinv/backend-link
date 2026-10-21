@@ -164,7 +164,7 @@ __decorate([
 ], CreateAdminOfferDto.prototype, "canCustomize", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)({
-        description: '0 = perso, N = plafond, -1 = illimité',
+        description: 'Places comprises dans l’offre. 0 = perso, N = sièges inclus, -1 = illimité',
     }),
     (0, class_validator_1.IsOptional)(),
     (0, class_transformer_1.Type)(() => Number),

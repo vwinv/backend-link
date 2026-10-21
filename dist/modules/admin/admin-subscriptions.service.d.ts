@@ -103,12 +103,13 @@ export declare class AdminSubscriptionsService {
             label: string | null;
             isActive: boolean;
         }[];
-        id: string;
-        slug: string;
         title: string;
+        slug: string;
         audience: import("@prisma/client").$Enums.OfferAudience;
+        maxTeamMembers: number;
         minSeats: number;
         listedInApp: boolean;
+        id: string;
     }[]>;
     create(dto: CreateAdminSubscriptionDto): Promise<{
         id: string;

@@ -9,19 +9,20 @@ export declare class CardsController {
     create(user: {
         userId: string;
     }, dto: CreateCardDto): Promise<{
+        isActive: boolean;
+        slug: string;
         id: string;
         createdAt: Date;
-        slug: string;
-        phone: string | null;
-        lastName: string;
-        firstName: string;
-        email: string | null;
-        avatarUrl: string | null;
-        isActive: boolean;
         updatedAt: Date;
         teamId: string | null;
-        ownerId: string;
+        isPublic: boolean;
         kind: import("@prisma/client").$Enums.CardKind;
+        email: string | null;
+        firstName: string;
+        lastName: string;
+        phone: string | null;
+        avatarUrl: string | null;
+        ownerId: string;
         jobTitle: string | null;
         company: string | null;
         bio: string | null;
@@ -30,24 +31,24 @@ export declare class CardsController {
         coverImageUrl: string | null;
         logoUrl: string | null;
         theme: import("@prisma/client/runtime/client").JsonValue;
-        isPublic: boolean;
     }>;
     findAll(user: {
         userId: string;
     }): Promise<{
+        isActive: boolean;
+        slug: string;
         id: string;
         createdAt: Date;
-        slug: string;
-        phone: string | null;
-        lastName: string;
-        firstName: string;
-        email: string | null;
-        avatarUrl: string | null;
-        isActive: boolean;
         updatedAt: Date;
         teamId: string | null;
-        ownerId: string;
+        isPublic: boolean;
         kind: import("@prisma/client").$Enums.CardKind;
+        email: string | null;
+        firstName: string;
+        lastName: string;
+        phone: string | null;
+        avatarUrl: string | null;
+        ownerId: string;
         jobTitle: string | null;
         company: string | null;
         bio: string | null;
@@ -56,7 +57,6 @@ export declare class CardsController {
         coverImageUrl: string | null;
         logoUrl: string | null;
         theme: import("@prisma/client/runtime/client").JsonValue;
-        isPublic: boolean;
     }[]>;
     findSharedWithMe(user: {
         userId: string;
@@ -81,19 +81,20 @@ export declare class CardsController {
     findOne(user: {
         userId: string;
     }, id: string): Promise<{
+        isActive: boolean;
+        slug: string;
         id: string;
         createdAt: Date;
-        slug: string;
-        phone: string | null;
-        lastName: string;
-        firstName: string;
-        email: string | null;
-        avatarUrl: string | null;
-        isActive: boolean;
         updatedAt: Date;
         teamId: string | null;
-        ownerId: string;
+        isPublic: boolean;
         kind: import("@prisma/client").$Enums.CardKind;
+        email: string | null;
+        firstName: string;
+        lastName: string;
+        phone: string | null;
+        avatarUrl: string | null;
+        ownerId: string;
         jobTitle: string | null;
         company: string | null;
         bio: string | null;
@@ -102,24 +103,24 @@ export declare class CardsController {
         coverImageUrl: string | null;
         logoUrl: string | null;
         theme: import("@prisma/client/runtime/client").JsonValue;
-        isPublic: boolean;
     }>;
     update(user: {
         userId: string;
     }, id: string, dto: UpdateCardDto): Promise<{
+        isActive: boolean;
+        slug: string;
         id: string;
         createdAt: Date;
-        slug: string;
-        phone: string | null;
-        lastName: string;
-        firstName: string;
-        email: string | null;
-        avatarUrl: string | null;
-        isActive: boolean;
         updatedAt: Date;
         teamId: string | null;
-        ownerId: string;
+        isPublic: boolean;
         kind: import("@prisma/client").$Enums.CardKind;
+        email: string | null;
+        firstName: string;
+        lastName: string;
+        phone: string | null;
+        avatarUrl: string | null;
+        ownerId: string;
         jobTitle: string | null;
         company: string | null;
         bio: string | null;
@@ -128,24 +129,24 @@ export declare class CardsController {
         coverImageUrl: string | null;
         logoUrl: string | null;
         theme: import("@prisma/client/runtime/client").JsonValue;
-        isPublic: boolean;
     }>;
     updateTheme(user: {
         userId: string;
     }, id: string, dto: UpdateCardThemeDto): Promise<{
+        isActive: boolean;
+        slug: string;
         id: string;
         createdAt: Date;
-        slug: string;
-        phone: string | null;
-        lastName: string;
-        firstName: string;
-        email: string | null;
-        avatarUrl: string | null;
-        isActive: boolean;
         updatedAt: Date;
         teamId: string | null;
-        ownerId: string;
+        isPublic: boolean;
         kind: import("@prisma/client").$Enums.CardKind;
+        email: string | null;
+        firstName: string;
+        lastName: string;
+        phone: string | null;
+        avatarUrl: string | null;
+        ownerId: string;
         jobTitle: string | null;
         company: string | null;
         bio: string | null;
@@ -154,7 +155,6 @@ export declare class CardsController {
         coverImageUrl: string | null;
         logoUrl: string | null;
         theme: import("@prisma/client/runtime/client").JsonValue;
-        isPublic: boolean;
     }>;
     remove(id: string): {
         message: string;
@@ -163,22 +163,22 @@ export declare class CardsController {
     syncSocialLinks(user: {
         userId: string;
     }, id: string, dto: SyncSocialLinksDto): Promise<{
-        url: string;
         id: string;
         createdAt: Date;
-        platform: import("@prisma/client").$Enums.SocialPlatform;
         label: string | null;
+        platform: import("@prisma/client").$Enums.SocialPlatform;
+        url: string;
         cardId: string;
         order: number;
     }[]>;
     getSocialLinks(user: {
         userId: string;
     }, id: string): Promise<{
-        url: string;
         id: string;
         createdAt: Date;
-        platform: import("@prisma/client").$Enums.SocialPlatform;
         label: string | null;
+        platform: import("@prisma/client").$Enums.SocialPlatform;
+        url: string;
         cardId: string;
         order: number;
     }[]>;
@@ -208,7 +208,7 @@ export declare class CardsController {
             count: number;
         }[];
         sources: {
-            key: "link" | "app" | "qr" | "share" | "other";
+            key: "link" | "qr" | "share" | "app" | "other";
             count: number;
             percent: number;
         }[];
