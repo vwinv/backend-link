@@ -11,6 +11,7 @@ import { randomBytes } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { LIVE_SUBSCRIPTION_STATUSES } from './subscription-validity';
+import { includedTeamSeats } from './team-seats';
 
 /** Génère la facture de renouvellement à J-10 de l’échéance. */
 const UPCOMING_INVOICE_WINDOW_DAYS = 10;
@@ -220,11 +221,9 @@ export class InvoicesService implements OnModuleInit {
       Number.isFinite(perSeat) &&
       perSeat > 0
     ) {
-      const baseSeats = Math.max(1, input.offer.minSeats || 1);
+      const baseSeats = includedTeamSeats(input.offer);
       let seats = input.purchasedSeats ?? baseSeats;
       if (seats < baseSeats) seats = baseSeats;
-      const max = input.offer.maxTeamMembers;
-      if (max > 0 && seats > max) seats = max;
 
       const extraSeats = Math.max(0, seats - baseSeats);
       const baseAmount = Math.round(this.toNumber(input.offerPrice.priceAmount));

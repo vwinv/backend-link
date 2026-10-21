@@ -11,6 +11,7 @@ import {
   SubscriptionStatus,
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { includedTeamSeats } from '../subscriptions/team-seats';
 import { AdminSubscriptionsQueryDto } from './dto/admin-subscriptions-query.dto';
 import { CreateAdminSubscriptionDto } from './dto/create-admin-subscription.dto';
 import { UpdateAdminSubscriptionDto } from './dto/update-admin-subscription.dto';
@@ -239,6 +240,7 @@ export class AdminSubscriptionsService {
         slug: true,
         audience: true,
         minSeats: true,
+        maxTeamMembers: true,
         listedInApp: true,
         prices: {
           orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
@@ -326,7 +328,7 @@ export class AdminSubscriptionsService {
       teamId = null;
     }
 
-    const minSeats = Math.max(1, offer.minSeats ?? 1);
+    const minSeats = includedTeamSeats(offer);
     const purchasedSeats =
       offer.audience === OfferAudience.TEAM
         ? Math.max(minSeats, dto.purchasedSeats ?? minSeats)
@@ -468,7 +470,7 @@ export class AdminSubscriptionsService {
       teamId = null;
     }
 
-    const minSeats = Math.max(1, offer.minSeats ?? 1);
+    const minSeats = includedTeamSeats(offer);
     const purchasedSeats =
       offer.audience === OfferAudience.TEAM
         ? Math.max(minSeats, dto.purchasedSeats ?? existing.purchasedSeats ?? minSeats)
@@ -696,22 +698,18 @@ export class AdminSubscriptionsService {
 
     const rows = await this.prisma.$queryRawUnsafe<TotalsRow[]>(
       `SELECT
-         COALESCE(SUM(p."priceAmount"), 0) AS total,
+         COALESCE(SUM(i.amount), 0) AS total,
          COALESCE(
-           SUM(
-             CASE
-               WHEN s.status IN ('ACTIVE', 'PAST_DUE') THEN p."priceAmount"
-               ELSE 0
-             END
+           SUM(i.amount) FILTER (
+             WHERE s.status IN ('ACTIVE', 'PAST_DUE')
            ),
            0
          ) AS active,
-         MAX(p.currency) AS currency
-       FROM subscriptions s
-       INNER JOIN premium_offer_prices p ON p.id = s."offerPriceId"
-       WHERE s.status <> 'TRIAL'
-         AND s."offerPriceId" IS NOT NULL
-         AND s."countsInRevenue" = true`,
+         MAX(i.currency) AS currency
+       FROM payment_invoices i
+       LEFT JOIN subscriptions s ON s.id = i."subscriptionId"
+       WHERE i.status = 'PAID'
+         AND (s.id IS NULL OR s."countsInRevenue" = true)`,
     );
 
     const totals = rows[0];
@@ -744,21 +742,16 @@ export class AdminSubscriptionsService {
          COUNT(*) FILTER (
            WHERE s.status IN ('ACTIVE', 'TRIAL', 'PAST_DUE')
          )::int AS active_count,
-         COALESCE(
-           SUM(
-             CASE
-               WHEN s.status <> 'TRIAL'
-                 AND s."offerPriceId" IS NOT NULL
-                 AND s."countsInRevenue" = true
-               THEN p."priceAmount"
-               ELSE 0
-             END
-           ),
-           0
-         ) AS revenue
+         COALESCE((
+           SELECT SUM(i.amount)
+           FROM payment_invoices i
+           INNER JOIN subscriptions cs ON cs.id = i."subscriptionId"
+           WHERE cs."offerId" = o.id
+             AND i.status = 'PAID'
+             AND cs."countsInRevenue" = true
+         ), 0) AS revenue
        FROM premium_offers o
        LEFT JOIN subscriptions s ON s."offerId" = o.id
-       LEFT JOIN premium_offer_prices p ON p.id = s."offerPriceId"
        GROUP BY o.id, o.title, o.slug
        ORDER BY subscriptions_count DESC, o.title ASC`,
     );

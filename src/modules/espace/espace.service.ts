@@ -17,6 +17,10 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { validSubscriptionWhere } from '../subscriptions/subscription-validity';
+import {
+  includedTeamSeats,
+  MAX_PURCHASABLE_SEATS,
+} from '../subscriptions/team-seats';
 
 @Injectable()
 export class EspaceService {
@@ -243,12 +247,13 @@ export class EspaceService {
     const pricePerSeat = subscription?.offerPrice?.pricePerSeat
       ? Number(subscription.offerPrice.pricePerSeat)
       : null;
-    const minSeats = subscription?.offer?.minSeats ?? 1;
-    const purchasedSeats =
-      subscription?.purchasedSeats ??
-      (membersPayload.seats.max > 0
-        ? membersPayload.seats.max
-        : membersPayload.seats.used);
+    const canPurchaseSeats = Boolean(pricePerSeat && pricePerSeat > 0);
+    const minSeats = subscription?.offer
+      ? includedTeamSeats(subscription.offer)
+      : 1;
+    const purchasedSeats = subscription?.offer
+      ? Math.max(minSeats, subscription.purchasedSeats ?? 0)
+      : membersPayload.seats.used;
 
     return {
       ...membersPayload,
@@ -267,8 +272,10 @@ export class EspaceService {
             pricePerSeat,
             minSeats,
             purchasedSeats,
-            maxSeats: subscription.offer?.maxTeamMembers ?? -1,
-            canPurchaseSeats: Boolean(pricePerSeat && pricePerSeat > 0),
+            maxSeats: canPurchaseSeats
+              ? MAX_PURCHASABLE_SEATS
+              : (subscription.offer?.maxTeamMembers ?? -1),
+            canPurchaseSeats,
           }
         : null,
     };

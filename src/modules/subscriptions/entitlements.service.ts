@@ -12,6 +12,7 @@ import {
   TeamMemberRole,
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { teamSeatQuota } from './team-seats';
 import {
   AiScanQuota,
   DEFAULT_ENTITLEMENTS,
@@ -241,7 +242,7 @@ export class EntitlementsService {
       throw new BadRequestException(
         seats.max < 0
           ? 'Impossible d’ajouter un membre pour le moment'
-          : `Limite de ${seats.max} sièges atteinte. Passez à une offre supérieure pour en ajouter.`,
+          : `Limite de ${seats.max} places atteinte. Chaque place supplémentaire est payante.`,
       );
     }
   }
@@ -461,10 +462,7 @@ export class EntitlementsService {
     },
     purchasedSeats?: number | null,
   ): UserEntitlements {
-    const maxTeamMembers =
-      purchasedSeats != null && purchasedSeats > 0
-        ? purchasedSeats
-        : offer.maxTeamMembers;
+    const maxTeamMembers = teamSeatQuota(offer, purchasedSeats);
 
     return {
       audience: offer.audience,

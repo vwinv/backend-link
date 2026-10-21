@@ -25,6 +25,7 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
         currentPeriodEnd: true,
         cancelledAt: true,
         purchasedSeats: true,
+        countsInRevenue: true,
         createdAt: true,
         updatedAt: true,
         stripeSubscriptionId: true,
@@ -335,6 +336,7 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
                 status: dto.status ?? client_1.SubscriptionStatus.ACTIVE,
                 billingPeriod,
                 currentPeriodEnd,
+                countsInRevenue: dto.countsInRevenue ?? true,
             },
             select: this.adminSelect,
         });
@@ -364,6 +366,7 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
                 purchasedSeats: true,
                 currentPeriodEnd: true,
                 cancelledAt: true,
+                countsInRevenue: true,
             },
         });
         if (!existing) {
@@ -478,6 +481,9 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
                 billingPeriod,
                 currentPeriodEnd,
                 cancelledAt,
+                ...(dto.countsInRevenue !== undefined && {
+                    countsInRevenue: dto.countsInRevenue,
+                }),
             },
             select: this.adminSelect,
         });
@@ -502,6 +508,7 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
             currentPeriodEnd: row.currentPeriodEnd,
             cancelledAt: row.cancelledAt,
             purchasedSeats: row.purchasedSeats,
+            countsInRevenue: row.countsInRevenue,
             createdAt: row.createdAt,
             updatedAt: row.updatedAt,
             paymentProvider: row.stripeSubscriptionId
@@ -601,7 +608,8 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
        FROM subscriptions s
        INNER JOIN premium_offer_prices p ON p.id = s."offerPriceId"
        WHERE s.status <> 'TRIAL'
-         AND s."offerPriceId" IS NOT NULL`);
+         AND s."offerPriceId" IS NOT NULL
+         AND s."countsInRevenue" = true`);
         const totals = rows[0];
         const toAmount = (value) => Math.round(Number(value ?? 0));
         return {
@@ -622,7 +630,9 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
          COALESCE(
            SUM(
              CASE
-               WHEN s.status <> 'TRIAL' AND s."offerPriceId" IS NOT NULL
+               WHEN s.status <> 'TRIAL'
+                 AND s."offerPriceId" IS NOT NULL
+                 AND s."countsInRevenue" = true
                THEN p."priceAmount"
                ELSE 0
              END

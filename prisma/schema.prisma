@@ -538,7 +538,7 @@ model PremiumOfferPrice {
   billingType     OfferBillingType
   priceLabel      String?
   priceAmount     Decimal          @db.Decimal(10, 2)
-  /** Si défini (offres pro) : montant = pricePerSeat × sièges. */
+  /** Si défini (offres pro) : places au-delà du max membres, facturées à ce prix. */
   pricePerSeat    Decimal?         @db.Decimal(10, 2)
   currency        String           @default("FCFA")
   discountPercent Int?

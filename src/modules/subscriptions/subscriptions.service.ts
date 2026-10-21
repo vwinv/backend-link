@@ -27,6 +27,11 @@ import { StripeService } from './stripe.service';
 import { InvoicesService } from './invoices.service';
 import type { InvoiceLine } from './invoices.service';
 import { validSubscriptionWhere } from './subscription-validity';
+import {
+  includedTeamSeats,
+  MAX_PURCHASABLE_SEATS,
+  teamSeatQuota,
+} from './team-seats';
 import { MailService } from '../mail/mail.service';
 import { ConfigService } from '@nestjs/config';
 import { AppleIapService } from './apple-iap.service';
@@ -554,19 +559,14 @@ export class SubscriptionsService {
       throw new BadRequestException('Tarif au siège indisponible pour cette offre');
     }
 
-    const minSeats = Math.max(1, subscription.offer.minSeats || 1);
     const currentSeats = Math.max(
-      minSeats,
-      subscription.purchasedSeats ?? minSeats,
+      includedTeamSeats(subscription.offer),
+      subscription.purchasedSeats ?? 0,
     );
-    const max = subscription.offer.maxTeamMembers;
-    const hardMax = max < 0 ? 500 : max;
     const newTotal = currentSeats + additionalSeats;
-    if (newTotal > hardMax) {
+    if (newTotal > MAX_PURCHASABLE_SEATS) {
       throw new BadRequestException(
-        max < 0
-          ? `Maximum ${hardMax} utilisateurs`
-          : `Cette offre est limitée à ${hardMax} utilisateurs`,
+        `Maximum ${MAX_PURCHASABLE_SEATS} utilisateurs`,
       );
     }
 
@@ -688,10 +688,9 @@ export class SubscriptionsService {
       throw new BadRequestException('Montant de paiement incorrect pour les sièges');
     }
 
-    const minSeats = Math.max(1, subscription.offer.minSeats || 1);
     const currentSeats = Math.max(
-      minSeats,
-      subscription.purchasedSeats ?? minSeats,
+      includedTeamSeats(subscription.offer),
+      subscription.purchasedSeats ?? 0,
     );
     const newTotal = currentSeats + input.additionalSeats;
 
@@ -1456,23 +1455,12 @@ export class SubscriptionsService {
   }
 
   private resolveSeats(offer: OfferForPricing, requested?: number): number {
-    const min = Math.max(1, offer.minSeats ?? 1);
-    const hardMax =
-      offer.maxTeamMembers < 0 ? 500 : Math.max(min, offer.maxTeamMembers);
-    const fallback =
-      offer.maxTeamMembers > 0 ? offer.maxTeamMembers : Math.max(min, 5);
-    const seats = requested ?? fallback;
+    const included = includedTeamSeats(offer);
+    const seats = Math.max(included, requested ?? included);
 
-    if (seats < min) {
+    if (seats > MAX_PURCHASABLE_SEATS) {
       throw new BadRequestException(
-        `Minimum ${min} utilisateur${min > 1 ? 's' : ''} pour cette offre`,
-      );
-    }
-    if (seats > hardMax) {
-      throw new BadRequestException(
-        offer.maxTeamMembers < 0
-          ? `Maximum ${hardMax} utilisateurs par commande`
-          : `Cette offre est limitée à ${hardMax} utilisateurs`,
+        `Maximum ${MAX_PURCHASABLE_SEATS} utilisateurs par commande`,
       );
     }
 
@@ -1495,7 +1483,7 @@ export class SubscriptionsService {
       this.isPerSeatPrice(price)
     ) {
       const seats = this.resolveSeats(offer, requestedSeats);
-      const baseSeats = Math.max(1, offer.minSeats ?? 1);
+      const baseSeats = includedTeamSeats(offer);
       const baseAmount = this.toNumber(price.priceAmount);
       const perSeat = this.toNumber(price.pricePerSeat);
       const extraSeats = Math.max(0, seats - baseSeats);
@@ -2029,10 +2017,9 @@ export class SubscriptionsService {
     } | null,
     purchasedSeats?: number | null,
   ) {
-    const maxTeamMembers =
-      purchasedSeats != null && purchasedSeats > 0
-        ? purchasedSeats
-        : (offer?.maxTeamMembers ?? 0);
+    const maxTeamMembers = offer
+      ? teamSeatQuota(offer, purchasedSeats)
+      : 0;
 
     return {
       audience: offer?.audience ?? OfferAudience.PERSONAL,

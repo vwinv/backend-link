@@ -493,6 +493,7 @@ export declare class AdminController {
             currentPeriodEnd: Date | null;
             cancelledAt: Date | null;
             purchasedSeats: number | null;
+            countsInRevenue: boolean;
             createdAt: Date;
             updatedAt: Date;
             paymentProvider: string | null;
@@ -542,6 +543,7 @@ export declare class AdminController {
         currentPeriodEnd: Date | null;
         cancelledAt: Date | null;
         purchasedSeats: number | null;
+        countsInRevenue: boolean;
         createdAt: Date;
         updatedAt: Date;
         paymentProvider: string | null;
@@ -584,6 +586,7 @@ export declare class AdminController {
         currentPeriodEnd: Date | null;
         cancelledAt: Date | null;
         purchasedSeats: number | null;
+        countsInRevenue: boolean;
         createdAt: Date;
         updatedAt: Date;
         paymentProvider: string | null;
@@ -626,6 +629,7 @@ export declare class AdminController {
         currentPeriodEnd: Date | null;
         cancelledAt: Date | null;
         purchasedSeats: number | null;
+        countsInRevenue: boolean;
         createdAt: Date;
         updatedAt: Date;
         paymentProvider: string | null;
