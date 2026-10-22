@@ -116,6 +116,7 @@ export declare class AdminController {
     listPermissions(): {
         modules: {
             key: "subscriptions" | "notifications" | "dashboard" | "backoffice_users" | "roles" | "clients" | "support" | "app_update";
+            key: "subscriptions" | "notifications" | "roles" | "dashboard" | "backoffice_users" | "clients" | "support" | "app_update";
             label: "Tableau de bord" | "Utilisateurs backoffice" | "Rôles & permissions" | "Clients" | "Abonnements & offres" | "Notifications" | "Support" | "Mise à jour app";
             permissions: ({
                 readonly key: "dashboard.view";
@@ -328,6 +329,9 @@ export declare class AdminController {
     getClient(id: string): Promise<{
         stripeCustomerId: string | null;
         cards: {
+            isActive: boolean;
+            isPublic: boolean;
+            kind: import("@prisma/client").$Enums.CardKind;
             id: string;
             createdAt: Date;
             firstName: string;
@@ -336,6 +340,7 @@ export declare class AdminController {
             slug: string;
             isPublic: boolean;
             kind: import("@prisma/client").$Enums.CardKind;
+            slug: string;
             jobTitle: string | null;
             company: string | null;
         }[];
@@ -354,6 +359,8 @@ export declare class AdminController {
             plan: {
                 id: string;
                 name: string;
+                name: string;
+                id: string;
                 slug: string;
             };
         }[];
@@ -361,6 +368,9 @@ export declare class AdminController {
             id: string;
             isActive: boolean;
             name: string;
+            name: string;
+            isActive: boolean;
+            id: string;
             slug: string;
             role: import("@prisma/client").$Enums.TeamMemberRole;
         }[];

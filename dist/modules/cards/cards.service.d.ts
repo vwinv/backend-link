@@ -15,7 +15,11 @@ export declare class CardsService {
     constructor(prisma: PrismaService, contactsService: ContactsService, entitlementsService: EntitlementsService, uploadsService: UploadsService);
     create(userId: string, dto: CreateCardDto): Promise<BusinessCard>;
     findAll(userId: string): Promise<{
+        isActive: boolean;
+        isPublic: boolean;
+        kind: import("@prisma/client").$Enums.CardKind;
         id: string;
+        teamId: string | null;
         createdAt: Date;
         teamId: string | null;
         updatedAt: Date;
@@ -25,6 +29,15 @@ export declare class CardsService {
         kind: import("@prisma/client").$Enums.CardKind;
         firstName: string;
         lastName: string;
+        updatedAt: Date;
+        email: string | null;
+        firstName: string;
+        lastName: string;
+        phone: string | null;
+        avatarUrl: string | null;
+        slug: string;
+        logoUrl: string | null;
+        ownerId: string;
         jobTitle: string | null;
         company: string | null;
         bio: string | null;
@@ -34,7 +47,6 @@ export declare class CardsService {
         website: string | null;
         avatarUrl: string | null;
         coverImageUrl: string | null;
-        logoUrl: string | null;
         theme: import("@prisma/client/runtime/client").JsonValue;
         isPublic: boolean;
     }[]>;
@@ -48,6 +60,7 @@ export declare class CardsService {
         id: string;
     };
     syncSocialLinks(userId: string, cardId: string, links: SocialLinkItemDto[]): Promise<{
+        url: string;
         id: string;
         createdAt: Date;
         order: number;
@@ -55,8 +68,11 @@ export declare class CardsService {
         platform: import("@prisma/client").$Enums.SocialPlatform;
         label: string | null;
         url: string;
+        order: number;
+        cardId: string;
     }[]>;
     getSocialLinks(userId: string, cardId: string): Promise<{
+        url: string;
         id: string;
         createdAt: Date;
         order: number;
@@ -64,6 +80,8 @@ export declare class CardsService {
         platform: import("@prisma/client").$Enums.SocialPlatform;
         label: string | null;
         url: string;
+        order: number;
+        cardId: string;
     }[]>;
     addSocialLink(id: string): {
         message: string;
@@ -93,7 +111,7 @@ export declare class CardsService {
             count: number;
         }[];
         sources: {
-            key: "link" | "qr" | "share" | "app" | "other";
+            key: "link" | "app" | "other" | "qr" | "share";
             count: number;
             percent: number;
         }[];

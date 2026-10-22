@@ -26,6 +26,7 @@ export declare class WalletController {
             slug: string;
             firstName: string;
             lastName: string;
+            slug: string;
             jobTitle: string | null;
             company: string | null;
         };

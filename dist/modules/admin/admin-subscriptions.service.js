@@ -618,6 +618,11 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
        INNER JOIN premium_offer_prices p ON p.id = s."offerPriceId"
        WHERE s.status <> 'TRIAL'
          AND s."offerPriceId" IS NOT NULL`);
+         MAX(i.currency) AS currency
+       FROM payment_invoices i
+       INNER JOIN subscriptions s ON s.id = i."subscriptionId"
+       WHERE i.status = 'PAID'
+         AND s."countsInRevenue" = true`);
         const totals = rows[0];
         const toAmount = (value) => Math.round(Number(value ?? 0));
         return {
