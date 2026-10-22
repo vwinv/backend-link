@@ -3,11 +3,13 @@ import { ConfigService } from '@nestjs/config';
 import nodemailer, { type Transporter } from 'nodemailer';
 import { buildResetPasswordEmail } from './reset-password-email.template';
 import { buildSupportTicketReplyEmail } from './support-ticket-reply-email.template';
+import { buildTeamDashboardEmail } from './team-dashboard-email.template';
 import { buildTeamInviteEmail } from './team-invite-email.template';
 import type {
   ResetPasswordEmailPayload,
   SubscriptionSignupNoticePayload,
   SupportTicketReplyEmailPayload,
+  TeamDashboardEmailPayload,
   TeamInviteEmailPayload,
 } from './mail.types';
 import { buildSubscriptionSignupNoticeEmail } from './subscription-signup-email';
@@ -35,6 +37,13 @@ export class MailService {
         mail.user?.trim() &&
         mail.password?.trim(),
     );
+  }
+
+  async sendTeamDashboardEmail(
+    payload: TeamDashboardEmailPayload,
+  ): Promise<void> {
+    const { subject, text, html } = buildTeamDashboardEmail(payload);
+    await this.send({ to: payload.to, subject, text, html });
   }
 
   async sendTeamInviteEmail(payload: TeamInviteEmailPayload): Promise<void> {
