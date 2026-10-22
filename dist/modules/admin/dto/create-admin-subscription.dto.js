@@ -22,7 +22,6 @@ class CreateAdminSubscriptionDto {
     teamId;
     purchasedSeats;
     currentPeriodEnd;
-    countsInRevenue;
 }
 exports.CreateAdminSubscriptionDto = CreateAdminSubscriptionDto;
 __decorate([
@@ -75,13 +74,4 @@ __decorate([
     (0, class_validator_1.IsDateString)(),
     __metadata("design:type", String)
 ], CreateAdminSubscriptionDto.prototype, "currentPeriodEnd", void 0);
-__decorate([
-    (0, swagger_1.ApiPropertyOptional)({
-        description: 'false = exclu du chiffre d’affaires (abonnement de test).',
-        default: true,
-    }),
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsBoolean)(),
-    __metadata("design:type", Boolean)
-], CreateAdminSubscriptionDto.prototype, "countsInRevenue", void 0);
 //# sourceMappingURL=create-admin-subscription.dto.js.map

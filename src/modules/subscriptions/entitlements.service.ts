@@ -12,7 +12,6 @@ import {
   TeamMemberRole,
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { teamSeatQuota } from './team-seats';
 import {
   AiScanQuota,
   DEFAULT_ENTITLEMENTS,
@@ -23,6 +22,7 @@ import {
 } from './entitlements.types';
 import { FREE_OFFER_SLUG } from './free-offer.constants';
 import { validSubscriptionWhere } from './subscription-validity';
+import { effectiveTeamSeats } from './team-seats';
 
 @Injectable()
 export class EntitlementsService {
@@ -181,6 +181,128 @@ export class EntitlementsService {
     }
   }
 
+  /**
+   * Droits de l’offre Portfolio active. Sans abonnement Portfolio,
+   * aucune capacité (partage, personnalisation, stats) n’est ouverte.
+   */
+  async getPortfolioEntitlements(userId: string): Promise<UserEntitlements> {
+    if (this.isAppleReviewFullAccessEnabled()) {
+      return {
+        ...FULL_ACCESS_ENTITLEMENTS,
+        audience: OfferAudience.PORTFOLIO,
+      };
+    }
+
+    const subscription = await this.prisma.subscription.findFirst({
+      where: validSubscriptionWhere({
+        userId,
+        offer: { audience: OfferAudience.PORTFOLIO },
+      }),
+      include: { offer: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!subscription?.offer) {
+      return {
+        ...DEFAULT_ENTITLEMENTS,
+        audience: OfferAudience.PORTFOLIO,
+        maxShares: 0,
+      };
+    }
+
+    return this.mapOfferToEntitlements(
+      subscription.offer,
+      subscription.purchasedSeats,
+    );
+  }
+
+  /** Lien public : abonnement Portfolio valide, portfolio inclus, partage autorisé. */
+  async canPublishPortfolio(userId: string): Promise<boolean> {
+    if (!(await this.hasActivePortfolioPlan(userId))) return false;
+    const entitlements = await this.getPortfolioEntitlements(userId);
+    return entitlements.hasPortfolio && entitlements.maxShares !== 0;
+  }
+
+  async getPortfolioShareQuota(userId: string): Promise<ShareQuota> {
+    if (!(await this.hasActivePortfolioPlan(userId))) {
+      return { used: 0, max: 0, canShare: false, isUnlimited: false };
+    }
+
+    const entitlements = await this.getPortfolioEntitlements(userId);
+    const max = entitlements.hasPortfolio ? entitlements.maxShares : 0;
+    const isUnlimited = max < 0;
+
+    if (max === 0) {
+      return { used: 0, max, canShare: false, isUnlimited: false };
+    }
+
+    const used = await this.prisma.shareEvent.count({ where: { userId } });
+    return {
+      used,
+      max,
+      canShare: isUnlimited || used < max,
+      isUnlimited,
+    };
+  }
+
+  async assertCanSharePortfolio(userId: string): Promise<ShareQuota> {
+    if (!(await this.hasActivePortfolioPlan(userId))) {
+      throw new ForbiddenException(
+        'Un abonnement Portfolio est nécessaire pour partager ce portfolio',
+      );
+    }
+
+    const quota = await this.getPortfolioShareQuota(userId);
+    if (!quota.canShare) {
+      throw new ForbiddenException(
+        quota.max <= 0
+          ? 'Un abonnement Portfolio est nécessaire pour partager ce portfolio'
+          : `Quota de ${quota.max} partages atteint. Passez à une offre Portfolio supérieure.`,
+      );
+    }
+    return quota;
+  }
+
+  async assertCanCustomizePortfolio(userId: string): Promise<void> {
+    const active = await this.hasActivePortfolioPlan(userId);
+    if (!active) {
+      throw new ForbiddenException(
+        'Un abonnement Portfolio est nécessaire',
+      );
+    }
+  }
+
+  async assertCanViewPortfolioStats(userId: string): Promise<void> {
+    const active = await this.hasActivePortfolioPlan(userId);
+    if (!active) {
+      throw new ForbiddenException(
+        'Un abonnement Portfolio est nécessaire',
+      );
+    }
+  }
+
+  /**
+   * Abonnement Portfolio encore en cours.
+   * HIDE_IN_APP_PAYMENTS lève la restriction, comme pour les cartes.
+   */
+  async hasActivePortfolioPlan(userId: string): Promise<boolean> {
+    if (this.isAppleReviewFullAccessEnabled()) return true;
+
+    const subscription = await this.prisma.subscription.findFirst({
+      where: validSubscriptionWhere({
+        userId,
+        offer: { audience: OfferAudience.PORTFOLIO },
+      }),
+      select: { id: true },
+    });
+    return subscription != null;
+  }
+
+  async hasValidPortfolioSubscription(userId: string): Promise<boolean> {
+    const entitlements = await this.getPortfolioEntitlements(userId);
+    return entitlements.hasPortfolio && entitlements.maxShares !== 0;
+  }
+
   async assertHasTeamAccess(userId: string): Promise<void> {
     const entitlements = await this.getUserEntitlements(userId);
     if (!this.hasTeamAccess(entitlements)) {
@@ -242,7 +364,7 @@ export class EntitlementsService {
       throw new BadRequestException(
         seats.max < 0
           ? 'Impossible d’ajouter un membre pour le moment'
-          : `Limite de ${seats.max} places atteinte. Chaque place supplémentaire est payante.`,
+          : `Les ${seats.max} places sont utilisées. Chaque place supplémentaire est payante.`,
       );
     }
   }
@@ -462,7 +584,10 @@ export class EntitlementsService {
     },
     purchasedSeats?: number | null,
   ): UserEntitlements {
-    const maxTeamMembers = teamSeatQuota(offer, purchasedSeats);
+    const maxTeamMembers = effectiveTeamSeats(
+      offer.maxTeamMembers,
+      purchasedSeats,
+    );
 
     return {
       audience: offer.audience,

@@ -17,6 +17,7 @@ const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
 const current_user_decorator_1 = require("../auth/decorators/current-user.decorator");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
+const add_subscription_seats_dto_1 = require("./dto/add-subscription-seats.dto");
 const checkout_dto_1 = require("./dto/checkout.dto");
 const payment_config_response_dto_1 = require("./dto/payment-config-response.dto");
 const premium_offer_response_dto_1 = require("./dto/premium-offer-response.dto");
@@ -44,6 +45,12 @@ let SubscriptionsController = class SubscriptionsController {
     }
     getPlan(slug) {
         return this.subscriptionsService.getPlan(slug);
+    }
+    addSeats(user, dto) {
+        return this.subscriptionsService.createSeatUpgradeCheckout(user.userId, {
+            teamId: dto.teamId,
+            additionalSeats: dto.additionalSeats,
+        });
     }
     createCheckout(user, dto) {
         return this.subscriptionsService.createCheckout(user.userId, dto);
@@ -121,6 +128,19 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], SubscriptionsController.prototype, "getPlan", null);
+__decorate([
+    (0, common_1.Post)('seats'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Payer des places en plus de celles incluses dans l’offre équipe',
+    }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, add_subscription_seats_dto_1.AddSubscriptionSeatsDto]),
+    __metadata("design:returntype", void 0)
+], SubscriptionsController.prototype, "addSeats", null);
 __decorate([
     (0, common_1.Post)('checkout'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),

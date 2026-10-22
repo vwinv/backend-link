@@ -2,7 +2,6 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { SubscriptionStatus } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
-  IsBoolean,
   IsDateString,
   IsEnum,
   IsInt,
@@ -48,11 +47,4 @@ export class UpdateAdminSubscriptionDto {
   @IsOptional()
   @IsDateString()
   currentPeriodEnd?: string;
-
-  @ApiPropertyOptional({
-    description: 'false = exclu du chiffre d’affaires (abonnement de test).',
-  })
-  @IsOptional()
-  @IsBoolean()
-  countsInRevenue?: boolean;
 }

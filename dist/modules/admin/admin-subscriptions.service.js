@@ -26,7 +26,6 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
         currentPeriodEnd: true,
         cancelledAt: true,
         purchasedSeats: true,
-        countsInRevenue: true,
         createdAt: true,
         updatedAt: true,
         stripeSubscriptionId: true,
@@ -53,6 +52,7 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
                 title: true,
                 slug: true,
                 audience: true,
+                maxTeamMembers: true,
             },
         },
         offerPrice: {
@@ -298,10 +298,7 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
         else {
             teamId = null;
         }
-        const minSeats = (0, team_seats_1.includedTeamSeats)(offer);
-        const purchasedSeats = offer.audience === client_1.OfferAudience.TEAM
-            ? Math.max(minSeats, dto.purchasedSeats ?? minSeats)
-            : null;
+        const purchasedSeats = this.resolvePurchasedSeats(offer, dto.purchasedSeats);
         const plan = await this.ensurePremiumPlan(offer.audience);
         const billingType = price?.billingType ?? client_1.OfferBillingType.MONTHLY;
         const billingPeriod = this.mapBillingPeriod(billingType);
@@ -338,7 +335,6 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
                 status: dto.status ?? client_1.SubscriptionStatus.ACTIVE,
                 billingPeriod,
                 currentPeriodEnd,
-                countsInRevenue: dto.countsInRevenue ?? true,
             },
             select: this.adminSelect,
         });
@@ -368,7 +364,6 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
                 purchasedSeats: true,
                 currentPeriodEnd: true,
                 cancelledAt: true,
-                countsInRevenue: true,
             },
         });
         if (!existing) {
@@ -426,10 +421,7 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
         else {
             teamId = null;
         }
-        const minSeats = (0, team_seats_1.includedTeamSeats)(offer);
-        const purchasedSeats = offer.audience === client_1.OfferAudience.TEAM
-            ? Math.max(minSeats, dto.purchasedSeats ?? existing.purchasedSeats ?? minSeats)
-            : null;
+        const purchasedSeats = this.resolvePurchasedSeats(offer, dto.purchasedSeats ?? existing.purchasedSeats);
         const plan = await this.ensurePremiumPlan(offer.audience);
         const billingPeriod = price
             ? this.mapBillingPeriod(price.billingType)
@@ -483,9 +475,6 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
                 billingPeriod,
                 currentPeriodEnd,
                 cancelledAt,
-                ...(dto.countsInRevenue !== undefined && {
-                    countsInRevenue: dto.countsInRevenue,
-                }),
             },
             select: this.adminSelect,
         });
@@ -509,8 +498,7 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
             billingPeriod: row.billingPeriod,
             currentPeriodEnd: row.currentPeriodEnd,
             cancelledAt: row.cancelledAt,
-            purchasedSeats: row.purchasedSeats,
-            countsInRevenue: row.countsInRevenue,
+            purchasedSeats: this.displayedPurchasedSeats(row),
             createdAt: row.createdAt,
             updatedAt: row.updatedAt,
             paymentProvider: row.stripeSubscriptionId
@@ -542,6 +530,25 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
                 }
                 : null,
         };
+    }
+    displayedPurchasedSeats(row) {
+        const offer = row.offer;
+        if (!offer || offer.audience !== client_1.OfferAudience.TEAM) {
+            return row.purchasedSeats;
+        }
+        const seats = (0, team_seats_1.effectiveTeamSeats)(offer.maxTeamMembers, row.purchasedSeats);
+        return seats < 0 ? row.purchasedSeats : seats;
+    }
+    resolvePurchasedSeats(offer, requested) {
+        if (offer.audience !== client_1.OfferAudience.TEAM)
+            return null;
+        if (offer.maxTeamMembers < 0) {
+            return requested != null && requested > 0 ? requested : null;
+        }
+        const included = Math.max(offer.maxTeamMembers, 0);
+        const floor = Math.max(included, Math.max(1, offer.minSeats || 1));
+        const seats = requested != null && requested > 0 ? requested : floor;
+        return Math.max(floor, seats);
     }
     async ensurePremiumPlan(audience) {
         const isTeam = audience === client_1.OfferAudience.TEAM;
@@ -596,18 +603,21 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
     }
     async buildRevenueTotals() {
         const rows = await this.prisma.$queryRawUnsafe(`SELECT
-         COALESCE(SUM(i.amount), 0) AS total,
+         COALESCE(SUM(p."priceAmount"), 0) AS total,
          COALESCE(
-           SUM(i.amount) FILTER (
-             WHERE s.status IN ('ACTIVE', 'PAST_DUE')
+           SUM(
+             CASE
+               WHEN s.status IN ('ACTIVE', 'PAST_DUE') THEN p."priceAmount"
+               ELSE 0
+             END
            ),
            0
          ) AS active,
-         MAX(i.currency) AS currency
-       FROM payment_invoices i
-       LEFT JOIN subscriptions s ON s.id = i."subscriptionId"
-       WHERE i.status = 'PAID'
-         AND (s.id IS NULL OR s."countsInRevenue" = true)`);
+         MAX(p.currency) AS currency
+       FROM subscriptions s
+       INNER JOIN premium_offer_prices p ON p.id = s."offerPriceId"
+       WHERE s.status <> 'TRIAL'
+         AND s."offerPriceId" IS NOT NULL`);
         const totals = rows[0];
         const toAmount = (value) => Math.round(Number(value ?? 0));
         return {
@@ -625,16 +635,19 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
          COUNT(*) FILTER (
            WHERE s.status IN ('ACTIVE', 'TRIAL', 'PAST_DUE')
          )::int AS active_count,
-         COALESCE((
-           SELECT SUM(i.amount)
-           FROM payment_invoices i
-           INNER JOIN subscriptions cs ON cs.id = i."subscriptionId"
-           WHERE cs."offerId" = o.id
-             AND i.status = 'PAID'
-             AND cs."countsInRevenue" = true
-         ), 0) AS revenue
+         COALESCE(
+           SUM(
+             CASE
+               WHEN s.status <> 'TRIAL' AND s."offerPriceId" IS NOT NULL
+               THEN p."priceAmount"
+               ELSE 0
+             END
+           ),
+           0
+         ) AS revenue
        FROM premium_offers o
        LEFT JOIN subscriptions s ON s."offerId" = o.id
+       LEFT JOIN premium_offer_prices p ON p.id = s."offerPriceId"
        GROUP BY o.id, o.title, o.slug
        ORDER BY subscriptions_count DESC, o.title ASC`);
         return rows.map((row) => ({

@@ -28,4 +28,6 @@ export type PublicCardPageParams = {
   downloadUrl?: string | null;
   /** Identifiant numérique App Store, pour la bannière Safari. */
   appleAppId?: string | null;
+  /** Lien public du portfolio, seulement avec un abonnement Portfolio valide. */
+  showPortfolioLink?: boolean;
 };

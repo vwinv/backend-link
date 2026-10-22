@@ -9,11 +9,11 @@ export declare class NotificationsService {
     listMine(userId: string, page?: number, limit?: number): Promise<{
         data: {
             id: string;
-            createdAt: Date;
             title: string;
+            createdAt: Date;
             isRead: boolean;
-            body: string;
             campaignId: string | null;
+            body: string;
             readAt: Date | null;
         }[];
         meta: {
@@ -29,22 +29,22 @@ export declare class NotificationsService {
     }>;
     markRead(userId: string, id: string): Promise<{
         id: string;
-        userId: string;
-        createdAt: Date;
         title: string;
+        createdAt: Date;
+        userId: string;
         isRead: boolean;
-        body: string;
         campaignId: string | null;
+        body: string;
         readAt: Date | null;
     }>;
     markAllRead(userId: string): Promise<{
         updated: number;
     }>;
     registerPushToken(userId: string, token: string, platform: PushPlatform): Promise<{
-        token: string;
         id: string;
         updatedAt: Date;
         platform: import("@prisma/client").$Enums.PushPlatform;
+        token: string;
     }>;
     unregisterPushToken(userId: string, token: string): Promise<{
         ok: boolean;

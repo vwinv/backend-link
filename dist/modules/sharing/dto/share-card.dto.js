@@ -15,6 +15,7 @@ const client_1 = require("@prisma/client");
 const class_validator_1 = require("class-validator");
 class ShareCardDto {
     method;
+    scope;
 }
 exports.ShareCardDto = ShareCardDto;
 __decorate([
@@ -22,4 +23,10 @@ __decorate([
     (0, class_validator_1.IsEnum)(client_1.ShareMethod),
     __metadata("design:type", String)
 ], ShareCardDto.prototype, "method", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ enum: ['card', 'portfolio'] }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(['card', 'portfolio']),
+    __metadata("design:type", String)
+], ShareCardDto.prototype, "scope", void 0);
 //# sourceMappingURL=share-card.dto.js.map

@@ -17,7 +17,7 @@ export class PremiumOfferPriceResponseDto {
   @ApiPropertyOptional({
     example: 700,
     description:
-      'Prix par place supplémentaire, au-delà des places incluses (max membres). Montant = priceAmount + pricePerSeat × (places − places incluses).',
+      'Prix par utilisateur supplémentaire (au-delà des sièges inclus). Montant = priceAmount + pricePerSeat × (sièges − minSeats).',
   })
   pricePerSeat?: number | null;
 

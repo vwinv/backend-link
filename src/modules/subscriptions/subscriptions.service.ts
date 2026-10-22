@@ -28,9 +28,9 @@ import { InvoicesService } from './invoices.service';
 import type { InvoiceLine } from './invoices.service';
 import { validSubscriptionWhere } from './subscription-validity';
 import {
-  includedTeamSeats,
-  MAX_PURCHASABLE_SEATS,
-  teamSeatQuota,
+  effectiveTeamSeats,
+  paidExtraSeats,
+  TEAM_SEAT_ORDER_CAP,
 } from './team-seats';
 import { MailService } from '../mail/mail.service';
 import { ConfigService } from '@nestjs/config';
@@ -266,17 +266,20 @@ export class SubscriptionsService {
       );
     }
 
+    const seatUpgrade = dto.purpose === 'seat_upgrade';
     const { offer, price, billingMultiplier } = await this.resolveOfferPrice(
       dto.offerSlug,
       dto.billingType,
     );
 
-    const { amount } = this.resolveCheckoutPricing(
-      offer,
-      price,
-      dto.seats,
-      billingMultiplier,
-    );
+    const amount = seatUpgrade
+      ? await this.seatUpgradeAmount(userId, dto.teamId, dto.seats ?? 1)
+      : this.resolveCheckoutPricing(
+          offer,
+          price,
+          dto.seats,
+          billingMultiplier,
+        ).amount;
     if (!Number.isFinite(amount) || amount <= 0) {
       throw new BadRequestException('Montant invalide pour SoftPay');
     }
@@ -559,14 +562,20 @@ export class SubscriptionsService {
       throw new BadRequestException('Tarif au siège indisponible pour cette offre');
     }
 
-    const currentSeats = Math.max(
-      includedTeamSeats(subscription.offer),
-      subscription.purchasedSeats ?? 0,
+    if (subscription.offer.maxTeamMembers < 0) {
+      throw new BadRequestException(
+        'Cette offre inclut un nombre illimité de places',
+      );
+    }
+
+    const currentSeats = effectiveTeamSeats(
+      subscription.offer.maxTeamMembers,
+      subscription.purchasedSeats,
     );
     const newTotal = currentSeats + additionalSeats;
-    if (newTotal > MAX_PURCHASABLE_SEATS) {
+    if (newTotal > TEAM_SEAT_ORDER_CAP) {
       throw new BadRequestException(
-        `Maximum ${MAX_PURCHASABLE_SEATS} utilisateurs`,
+        `Maximum ${TEAM_SEAT_ORDER_CAP} utilisateurs`,
       );
     }
 
@@ -597,6 +606,10 @@ export class SubscriptionsService {
         amountFcfa: amount,
         additionalSeats,
         newSeatsTotal: result.purchasedSeats,
+        pricePerSeat: perSeat,
+        currency,
+        offerSlug: subscription.offer.slug,
+        billingType: subscription.offerPrice.billingType,
         checkoutUrl: null,
         invoiceToken: null,
       };
@@ -634,6 +647,8 @@ export class SubscriptionsService {
       pricePerSeat: perSeat,
       currency,
       lines,
+      offerSlug: subscription.offer.slug,
+      billingType: subscription.offerPrice.billingType,
       checkoutUrl: inv.checkoutUrl,
       invoiceToken: inv.invoiceToken,
     };
@@ -688,9 +703,9 @@ export class SubscriptionsService {
       throw new BadRequestException('Montant de paiement incorrect pour les sièges');
     }
 
-    const currentSeats = Math.max(
-      includedTeamSeats(subscription.offer),
-      subscription.purchasedSeats ?? 0,
+    const currentSeats = effectiveTeamSeats(
+      subscription.offer.maxTeamMembers,
+      subscription.purchasedSeats,
     );
     const newTotal = currentSeats + input.additionalSeats;
 
@@ -1455,16 +1470,44 @@ export class SubscriptionsService {
   }
 
   private resolveSeats(offer: OfferForPricing, requested?: number): number {
-    const included = includedTeamSeats(offer);
-    const seats = Math.max(included, requested ?? included);
+    const included =
+      offer.maxTeamMembers > 0 ? offer.maxTeamMembers : 0;
+    const min = Math.max(1, offer.minSeats ?? 1);
+    const floor = Math.max(included, min);
+    const seats = Math.max(floor, requested ?? floor);
 
-    if (seats > MAX_PURCHASABLE_SEATS) {
+    if (seats > TEAM_SEAT_ORDER_CAP) {
       throw new BadRequestException(
-        `Maximum ${MAX_PURCHASABLE_SEATS} utilisateurs par commande`,
+        `Maximum ${TEAM_SEAT_ORDER_CAP} utilisateurs par commande`,
       );
     }
 
     return seats;
+  }
+
+  /** Montant d’une place au-delà de celles incluses dans l’offre. */
+  private async seatUpgradeAmount(
+    userId: string,
+    teamId: string | undefined,
+    additionalSeats: number,
+  ): Promise<number> {
+    const subscription = await this.prisma.subscription.findFirst({
+      where: validSubscriptionWhere({
+        OR: [
+          ...(teamId ? [{ teamId }] : []),
+          { userId },
+        ],
+      }),
+      include: { offerPrice: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    const perSeat = this.toNumber(subscription?.offerPrice?.pricePerSeat);
+    if (!Number.isFinite(perSeat) || perSeat <= 0) {
+      throw new BadRequestException(
+        'Tarif au siège indisponible pour cette offre',
+      );
+    }
+    return Math.round(perSeat * Math.max(1, additionalSeats));
   }
 
   private resolveCheckoutPricing(
@@ -1478,21 +1521,26 @@ export class SubscriptionsService {
         ? billingMultiplier
         : 1;
 
-    if (
-      offer.audience === OfferAudience.TEAM &&
-      this.isPerSeatPrice(price)
-    ) {
-      const seats = this.resolveSeats(offer, requestedSeats);
-      const baseSeats = includedTeamSeats(offer);
+    if (offer.audience === OfferAudience.TEAM && offer.maxTeamMembers > 0) {
+      const included = offer.maxTeamMembers;
       const baseAmount = this.toNumber(price.priceAmount);
-      const perSeat = this.toNumber(price.pricePerSeat);
-      const extraSeats = Math.max(0, seats - baseSeats);
-      const amount = Math.round(
-        ((Number.isFinite(baseAmount) ? baseAmount : 0) +
-          perSeat * extraSeats) *
-        factor,
-      );
-      return { amount, seats };
+      if (this.isPerSeatPrice(price)) {
+        const seats = this.resolveSeats(offer, requestedSeats);
+        const extraSeats = paidExtraSeats(included, seats);
+        const perSeat = this.toNumber(price.pricePerSeat);
+        const amount = Math.round(
+          ((Number.isFinite(baseAmount) ? baseAmount : 0) +
+            perSeat * extraSeats) *
+            factor,
+        );
+        return { amount, seats };
+      }
+      return {
+        amount: Math.round(
+          (Number.isFinite(baseAmount) ? baseAmount : 0) * factor,
+        ),
+        seats: included,
+      };
     }
 
     return {
@@ -1997,9 +2045,20 @@ export class SubscriptionsService {
         offer,
         subscription.purchasedSeats,
       ),
-      purchasedSeats: subscription.purchasedSeats ?? null,
+      purchasedSeats: this.displayedSeats(offer, subscription.purchasedSeats),
       currentPeriodEnd: subscription.currentPeriodEnd?.toISOString() ?? null,
     };
+  }
+
+  private displayedSeats(
+    offer: { audience: OfferAudience; maxTeamMembers: number } | null,
+    purchasedSeats?: number | null,
+  ): number | null {
+    if (!offer || offer.audience !== OfferAudience.TEAM) {
+      return purchasedSeats ?? null;
+    }
+    const seats = effectiveTeamSeats(offer.maxTeamMembers, purchasedSeats);
+    return seats < 0 ? purchasedSeats ?? null : seats;
   }
 
   private toEntitlementsResponse(
@@ -2018,7 +2077,7 @@ export class SubscriptionsService {
     purchasedSeats?: number | null,
   ) {
     const maxTeamMembers = offer
-      ? teamSeatQuota(offer, purchasedSeats)
+      ? effectiveTeamSeats(offer.maxTeamMembers, purchasedSeats)
       : 0;
 
     return {

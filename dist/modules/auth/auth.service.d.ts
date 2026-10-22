@@ -61,11 +61,11 @@ export declare class AuthService {
     }>;
     getValidResetToken(rawToken: string): Promise<{
         id: string;
+        createdAt: Date;
         tokenHash: string;
         userId: string;
         expiresAt: Date;
         usedAt: Date | null;
-        createdAt: Date;
     } | null>;
     resetPassword(dto: ResetPasswordDto): Promise<{
         message: string;

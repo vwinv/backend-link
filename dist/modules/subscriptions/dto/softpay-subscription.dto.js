@@ -30,6 +30,7 @@ class SoftPaySubscriptionDto {
     email;
     teamId;
     seats;
+    purpose;
 }
 exports.SoftPaySubscriptionDto = SoftPaySubscriptionDto;
 __decorate([
@@ -101,4 +102,13 @@ __decorate([
     (0, class_validator_1.Min)(1),
     __metadata("design:type", Number)
 ], SoftPaySubscriptionDto.prototype, "seats", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        enum: ['subscription', 'seat_upgrade'],
+        description: 'seat_upgrade facture uniquement les places en plus',
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(['subscription', 'seat_upgrade']),
+    __metadata("design:type", String)
+], SoftPaySubscriptionDto.prototype, "purpose", void 0);
 //# sourceMappingURL=softpay-subscription.dto.js.map

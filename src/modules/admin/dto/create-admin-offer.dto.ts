@@ -116,7 +116,7 @@ export class CreateAdminOfferDto {
   canCustomize?: boolean;
 
   @ApiPropertyOptional({
-    description: 'Places comprises dans l’offre. 0 = perso, N = sièges inclus, -1 = illimité',
+    description: '0 = perso, N = plafond, -1 = illimité',
   })
   @IsOptional()
   @Type(() => Number)

@@ -184,37 +184,43 @@ export class AdminDashboardService {
     const [totalsRows, offerRows] = await Promise.all([
       this.prisma.$queryRawUnsafe<TotalsRow[]>(
         `SELECT
-           COALESCE(SUM(i.amount), 0) AS total,
+           COALESCE(SUM(p."priceAmount"), 0) AS total,
            COALESCE(
-             SUM(i.amount) FILTER (
-               WHERE s.status IN ('ACTIVE', 'PAST_DUE')
+             SUM(
+               CASE
+                 WHEN s.status IN ('ACTIVE', 'PAST_DUE') THEN p."priceAmount"
+                 ELSE 0
+               END
              ),
              0
            ) AS active,
-           MAX(i.currency) AS currency
-         FROM payment_invoices i
-         INNER JOIN subscriptions s ON s.id = i."subscriptionId"
-         WHERE i.status = 'PAID'
-           AND s."countsInRevenue" = true`,
+           MAX(p.currency) AS currency
+         FROM subscriptions s
+         INNER JOIN premium_offer_prices p ON p.id = s."offerPriceId"
+         WHERE s.status <> 'TRIAL'
+           AND s."offerPriceId" IS NOT NULL`,
       ),
       this.prisma.$queryRawUnsafe<OfferRevenueRow[]>(
         `SELECT
            o.id,
            o.title,
            o.slug,
-           COUNT(DISTINCT s.id)::int AS subscriptions_count,
-           COALESCE(SUM(i.amount), 0) AS revenue,
+           COUNT(s.id)::int AS subscriptions_count,
+           COALESCE(SUM(p."priceAmount"), 0) AS revenue,
            COALESCE(
-             SUM(i.amount) FILTER (
-               WHERE s.status IN ('ACTIVE', 'PAST_DUE')
+             SUM(
+               CASE
+                 WHEN s.status IN ('ACTIVE', 'PAST_DUE') THEN p."priceAmount"
+                 ELSE 0
+               END
              ),
              0
            ) AS active_revenue
-         FROM payment_invoices i
-         INNER JOIN subscriptions s ON s.id = i."subscriptionId"
+         FROM subscriptions s
+         INNER JOIN premium_offer_prices p ON p.id = s."offerPriceId"
          INNER JOIN premium_offers o ON o.id = s."offerId"
-         WHERE i.status = 'PAID'
-           AND s."countsInRevenue" = true
+         WHERE s.status <> 'TRIAL'
+           AND s."offerPriceId" IS NOT NULL
          GROUP BY o.id, o.title, o.slug
          ORDER BY revenue DESC, subscriptions_count DESC`,
       ),

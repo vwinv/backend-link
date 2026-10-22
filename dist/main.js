@@ -9,6 +9,7 @@ const express_1 = require("express");
 const node_fs_1 = require("node:fs");
 const node_path_1 = require("node:path");
 const app_module_1 = require("./app.module");
+const portfolios_service_1 = require("./modules/portfolios/portfolios.service");
 const sharing_service_1 = require("./modules/sharing/sharing.service");
 const teams_service_1 = require("./modules/teams/teams.service");
 const auth_service_1 = require("./modules/auth/auth.service");
@@ -29,6 +30,7 @@ async function bootstrap() {
     const apiPrefix = configService.get('apiPrefix', 'api/v1');
     app.setGlobalPrefix(apiPrefix);
     const sharingService = app.get(sharing_service_1.SharingService);
+    const portfoliosService = app.get(portfolios_service_1.PortfoliosService);
     const teamsService = app.get(teams_service_1.TeamsService);
     const authService = app.get(auth_service_1.AuthService);
     const jwtService = app.get(jwt_1.JwtService);
@@ -62,7 +64,7 @@ async function bootstrap() {
             details: [
                 {
                     appIDs: [appleAppId],
-                    paths: ['/cards/*'],
+                    paths: ['/cards/*', '/portfolios/*'],
                 },
             ],
         },
@@ -176,6 +178,21 @@ async function bootstrap() {
         }
         res.status(200).type('text/html; charset=utf-8').send(html);
     });
+    expressApp.get('/portfolios/:slug', async (req, res) => {
+        const slug = String(req.params.slug);
+        const embed = req.query.embed === '1' || req.query.embed === 'true';
+        const layout = typeof req.query.layout === 'string' ? req.query.layout : undefined;
+        const color = typeof req.query.color === 'string' ? req.query.color : undefined;
+        const html = await portfoliosService.renderPublicPage(slug, resolveViewerUserId(req), embed, { layout, color });
+        if (!html) {
+            res
+                .status(404)
+                .type('text/html; charset=utf-8')
+                .send(portfoliosService.notFoundPage());
+            return;
+        }
+        res.status(200).type('text/html; charset=utf-8').send(html);
+    });
     app.useGlobalPipes(new common_1.ValidationPipe({
         whitelist: true,
         forbidNonWhitelisted: true,
@@ -219,6 +236,7 @@ async function bootstrap() {
     await app.listen(port);
     console.log(`🚀 DropOne API running on http://localhost:${port}/${apiPrefix}`);
     console.log(`🃏 Public cards: http://localhost:${port}/cards/{slug}`);
+    console.log(`🗂️ Public portfolios: http://localhost:${port}/portfolios/{slug}`);
     console.log(`🔒 Privacy policy: http://localhost:${port}/privacy`);
     console.log(`✉️ Team invites: http://localhost:${port}/team-invites/{inviteId}`);
     if (swaggerEnabled) {

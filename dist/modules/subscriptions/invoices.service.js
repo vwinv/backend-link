@@ -181,19 +181,24 @@ let InvoicesService = InvoicesService_1 = class InvoicesService {
         if (input.offer.audience === client_1.OfferAudience.TEAM &&
             Number.isFinite(perSeat) &&
             perSeat > 0) {
-            const baseSeats = (0, team_seats_1.includedTeamSeats)(input.offer);
-            let seats = input.purchasedSeats ?? baseSeats;
-            if (seats < baseSeats)
-                seats = baseSeats;
-            const extraSeats = Math.max(0, seats - baseSeats);
+            const unlimited = input.offer.maxTeamMembers < 0;
+            const included = unlimited
+                ? Math.max(1, input.offer.minSeats || 1)
+                : input.offer.maxTeamMembers > 0
+                    ? input.offer.maxTeamMembers
+                    : Math.max(1, input.offer.minSeats || 1);
+            const seats = unlimited
+                ? (input.purchasedSeats ?? included)
+                : (0, team_seats_1.effectiveTeamSeats)(included, input.purchasedSeats ?? included);
+            const extraSeats = unlimited ? 0 : (0, team_seats_1.paidExtraSeats)(included, seats);
             const baseAmount = Math.round(this.toNumber(input.offerPrice.priceAmount));
             const extraAmount = Math.round(perSeat * extraSeats);
             const lines = [
                 {
                     kind: 'offer',
-                    label: `Offre : ${input.offer.title} (${baseSeats} siège${baseSeats > 1 ? 's' : ''} inclus)`,
+                    label: `Offre : ${input.offer.title} (${included} place${included > 1 ? 's' : ''} incluse${included > 1 ? 's' : ''})`,
                     amount: baseAmount,
-                    seats: baseSeats,
+                    seats: included,
                 },
             ];
             if (extraSeats > 0) {

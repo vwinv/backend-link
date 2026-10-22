@@ -14,10 +14,10 @@ const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const client_1 = require("@prisma/client");
 const prisma_service_1 = require("../../prisma/prisma.service");
-const team_seats_1 = require("./team-seats");
 const entitlements_types_1 = require("./entitlements.types");
 const free_offer_constants_1 = require("./free-offer.constants");
 const subscription_validity_1 = require("./subscription-validity");
+const team_seats_1 = require("./team-seats");
 let EntitlementsService = class EntitlementsService {
     prisma;
     configService;
@@ -122,6 +122,94 @@ let EntitlementsService = class EntitlementsService {
             throw new common_1.ForbiddenException('Le portfolio nécessite une offre Premium');
         }
     }
+    async getPortfolioEntitlements(userId) {
+        if (this.isAppleReviewFullAccessEnabled()) {
+            return {
+                ...entitlements_types_1.FULL_ACCESS_ENTITLEMENTS,
+                audience: client_1.OfferAudience.PORTFOLIO,
+            };
+        }
+        const subscription = await this.prisma.subscription.findFirst({
+            where: (0, subscription_validity_1.validSubscriptionWhere)({
+                userId,
+                offer: { audience: client_1.OfferAudience.PORTFOLIO },
+            }),
+            include: { offer: true },
+            orderBy: { createdAt: 'desc' },
+        });
+        if (!subscription?.offer) {
+            return {
+                ...entitlements_types_1.DEFAULT_ENTITLEMENTS,
+                audience: client_1.OfferAudience.PORTFOLIO,
+                maxShares: 0,
+            };
+        }
+        return this.mapOfferToEntitlements(subscription.offer, subscription.purchasedSeats);
+    }
+    async canPublishPortfolio(userId) {
+        if (!(await this.hasActivePortfolioPlan(userId)))
+            return false;
+        const entitlements = await this.getPortfolioEntitlements(userId);
+        return entitlements.hasPortfolio && entitlements.maxShares !== 0;
+    }
+    async getPortfolioShareQuota(userId) {
+        if (!(await this.hasActivePortfolioPlan(userId))) {
+            return { used: 0, max: 0, canShare: false, isUnlimited: false };
+        }
+        const entitlements = await this.getPortfolioEntitlements(userId);
+        const max = entitlements.hasPortfolio ? entitlements.maxShares : 0;
+        const isUnlimited = max < 0;
+        if (max === 0) {
+            return { used: 0, max, canShare: false, isUnlimited: false };
+        }
+        const used = await this.prisma.shareEvent.count({ where: { userId } });
+        return {
+            used,
+            max,
+            canShare: isUnlimited || used < max,
+            isUnlimited,
+        };
+    }
+    async assertCanSharePortfolio(userId) {
+        if (!(await this.hasActivePortfolioPlan(userId))) {
+            throw new common_1.ForbiddenException('Un abonnement Portfolio est nécessaire pour partager ce portfolio');
+        }
+        const quota = await this.getPortfolioShareQuota(userId);
+        if (!quota.canShare) {
+            throw new common_1.ForbiddenException(quota.max <= 0
+                ? 'Un abonnement Portfolio est nécessaire pour partager ce portfolio'
+                : `Quota de ${quota.max} partages atteint. Passez à une offre Portfolio supérieure.`);
+        }
+        return quota;
+    }
+    async assertCanCustomizePortfolio(userId) {
+        const active = await this.hasActivePortfolioPlan(userId);
+        if (!active) {
+            throw new common_1.ForbiddenException('Un abonnement Portfolio est nécessaire');
+        }
+    }
+    async assertCanViewPortfolioStats(userId) {
+        const active = await this.hasActivePortfolioPlan(userId);
+        if (!active) {
+            throw new common_1.ForbiddenException('Un abonnement Portfolio est nécessaire');
+        }
+    }
+    async hasActivePortfolioPlan(userId) {
+        if (this.isAppleReviewFullAccessEnabled())
+            return true;
+        const subscription = await this.prisma.subscription.findFirst({
+            where: (0, subscription_validity_1.validSubscriptionWhere)({
+                userId,
+                offer: { audience: client_1.OfferAudience.PORTFOLIO },
+            }),
+            select: { id: true },
+        });
+        return subscription != null;
+    }
+    async hasValidPortfolioSubscription(userId) {
+        const entitlements = await this.getPortfolioEntitlements(userId);
+        return entitlements.hasPortfolio && entitlements.maxShares !== 0;
+    }
     async assertHasTeamAccess(userId) {
         const entitlements = await this.getUserEntitlements(userId);
         if (!this.hasTeamAccess(entitlements)) {
@@ -166,7 +254,7 @@ let EntitlementsService = class EntitlementsService {
             }
             throw new common_1.BadRequestException(seats.max < 0
                 ? 'Impossible d’ajouter un membre pour le moment'
-                : `Limite de ${seats.max} places atteinte. Chaque place supplémentaire est payante.`);
+                : `Les ${seats.max} places sont utilisées. Chaque place supplémentaire est payante.`);
         }
     }
     async getAiScanQuota(userId) {
@@ -318,7 +406,7 @@ let EntitlementsService = class EntitlementsService {
         });
     }
     mapOfferToEntitlements(offer, purchasedSeats) {
-        const maxTeamMembers = (0, team_seats_1.teamSeatQuota)(offer, purchasedSeats);
+        const maxTeamMembers = (0, team_seats_1.effectiveTeamSeats)(offer.maxTeamMembers, purchasedSeats);
         return {
             audience: offer.audience,
             canCustomize: offer.canCustomize,

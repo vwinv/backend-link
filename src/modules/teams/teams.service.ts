@@ -3,7 +3,6 @@ import {
   ForbiddenException,
   Injectable,
   InternalServerErrorException,
-  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -27,8 +26,6 @@ import { UpdateTeamDto } from './dto/update-team.dto';
 
 @Injectable()
 export class TeamsService {
-  private readonly logger = new Logger(TeamsService.name);
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly entitlementsService: EntitlementsService,
@@ -91,8 +88,8 @@ export class TeamsService {
 
     const slug = await this.generateUniqueSlug(dto.name);
 
-    const team = await this.prisma.$transaction(async (tx) => {
-      const created = await tx.team.create({
+    return this.prisma.$transaction(async (tx) => {
+      const team = await tx.team.create({
         data: {
           name: dto.name.trim(),
           slug,
@@ -105,49 +102,14 @@ export class TeamsService {
 
       await tx.teamMember.create({
         data: {
-          teamId: created.id,
+          teamId: team.id,
           userId,
           role: TeamMemberRole.OWNER,
         },
       });
 
-      return created;
+      return team;
     });
-
-    await this.notifyOwnerDashboardReady(userId, team.name, team.slug);
-    return team;
-  }
-
-  private async notifyOwnerDashboardReady(
-    userId: string,
-    teamName: string,
-    slug: string,
-  ): Promise<void> {
-    const owner = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { email: true, firstName: true },
-    });
-    const email = owner?.email?.trim();
-    if (!email) return;
-
-    const landing = (
-      this.configService.get<string>('landingPublicUrl') ?? 'https://dropone.pro'
-    ).replace(/\/$/, '');
-    const dashboardUrl = `${landing}/espace_${slug}`;
-
-    try {
-      await this.mailService.sendTeamDashboardEmail({
-        to: email,
-        firstName: owner?.firstName,
-        teamName,
-        dashboardUrl,
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'envoi impossible';
-      this.logger.error(
-        `E-mail tableau de bord non envoyé à ${email} : ${message}`,
-      );
-    }
   }
 
   async findAllForUser(userId: string) {

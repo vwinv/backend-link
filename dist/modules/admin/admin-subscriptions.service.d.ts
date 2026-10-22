@@ -50,7 +50,6 @@ export declare class AdminSubscriptionsService {
             currentPeriodEnd: Date | null;
             cancelledAt: Date | null;
             purchasedSeats: number | null;
-            countsInRevenue: boolean;
             createdAt: Date;
             updatedAt: Date;
             paymentProvider: string | null;
@@ -72,6 +71,7 @@ export declare class AdminSubscriptionsService {
                 title: string;
                 slug: string;
                 audience: OfferAudience;
+                maxTeamMembers: number;
             } | null;
             plan: {
                 id: string;
@@ -103,13 +103,13 @@ export declare class AdminSubscriptionsService {
             label: string | null;
             isActive: boolean;
         }[];
-        title: string;
+        id: string;
         slug: string;
-        audience: import("@prisma/client").$Enums.OfferAudience;
         maxTeamMembers: number;
+        title: string;
+        audience: import("@prisma/client").$Enums.OfferAudience;
         minSeats: number;
         listedInApp: boolean;
-        id: string;
     }[]>;
     create(dto: CreateAdminSubscriptionDto): Promise<{
         id: string;
@@ -118,7 +118,6 @@ export declare class AdminSubscriptionsService {
         currentPeriodEnd: Date | null;
         cancelledAt: Date | null;
         purchasedSeats: number | null;
-        countsInRevenue: boolean;
         createdAt: Date;
         updatedAt: Date;
         paymentProvider: string | null;
@@ -140,6 +139,7 @@ export declare class AdminSubscriptionsService {
             title: string;
             slug: string;
             audience: OfferAudience;
+            maxTeamMembers: number;
         } | null;
         plan: {
             id: string;
@@ -161,7 +161,6 @@ export declare class AdminSubscriptionsService {
         currentPeriodEnd: Date | null;
         cancelledAt: Date | null;
         purchasedSeats: number | null;
-        countsInRevenue: boolean;
         createdAt: Date;
         updatedAt: Date;
         paymentProvider: string | null;
@@ -183,6 +182,7 @@ export declare class AdminSubscriptionsService {
             title: string;
             slug: string;
             audience: OfferAudience;
+            maxTeamMembers: number;
         } | null;
         plan: {
             id: string;
@@ -204,7 +204,6 @@ export declare class AdminSubscriptionsService {
         currentPeriodEnd: Date | null;
         cancelledAt: Date | null;
         purchasedSeats: number | null;
-        countsInRevenue: boolean;
         createdAt: Date;
         updatedAt: Date;
         paymentProvider: string | null;
@@ -226,6 +225,7 @@ export declare class AdminSubscriptionsService {
             title: string;
             slug: string;
             audience: OfferAudience;
+            maxTeamMembers: number;
         } | null;
         plan: {
             id: string;
@@ -245,6 +245,8 @@ export declare class AdminSubscriptionsService {
         id: string;
     }>;
     private serialize;
+    private displayedPurchasedSeats;
+    private resolvePurchasedSeats;
     private ensurePremiumPlan;
     private mapBillingPeriod;
     private computePeriodEnd;

@@ -18,6 +18,14 @@ export declare class EntitlementsService {
     assertHasVisitorInsights(userId: string, cardId: string): Promise<void>;
     assertCanEditSocialLinks(userId: string, cardId: string): Promise<void>;
     assertHasPortfolio(userId: string): Promise<void>;
+    getPortfolioEntitlements(userId: string): Promise<UserEntitlements>;
+    canPublishPortfolio(userId: string): Promise<boolean>;
+    getPortfolioShareQuota(userId: string): Promise<ShareQuota>;
+    assertCanSharePortfolio(userId: string): Promise<ShareQuota>;
+    assertCanCustomizePortfolio(userId: string): Promise<void>;
+    assertCanViewPortfolioStats(userId: string): Promise<void>;
+    hasActivePortfolioPlan(userId: string): Promise<boolean>;
+    hasValidPortfolioSubscription(userId: string): Promise<boolean>;
     assertHasTeamAccess(userId: string): Promise<void>;
     getTeamSeatsQuota(userId: string, teamId: string): Promise<TeamSeatsQuota>;
     assertCanAddTeamMember(userId: string, teamId: string): Promise<void>;

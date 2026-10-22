@@ -84,6 +84,9 @@ let SharingController = class SharingController {
     getShareQuota(user) {
         return this.sharingService.getShareQuota(user.userId);
     }
+    getPortfolioShareAccess(user) {
+        return this.sharingService.getPortfolioShareAccess(user.userId);
+    }
     getQrCode(id) {
         return this.sharingService.getQrCode(id);
     }
@@ -156,6 +159,18 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], SharingController.prototype, "getShareQuota", null);
+__decorate([
+    (0, common_1.Get)('portfolio-access'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Indique si le portfolio peut être partagé (abonnement valide)',
+    }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], SharingController.prototype, "getPortfolioShareAccess", null);
 __decorate([
     (0, common_1.Get)('cards/:id/qr'),
     (0, swagger_1.ApiOperation)({ summary: 'Générer le QR code de partage' }),
