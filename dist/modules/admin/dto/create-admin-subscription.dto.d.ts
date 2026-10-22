@@ -7,5 +7,4 @@ export declare class CreateAdminSubscriptionDto {
     teamId?: string;
     purchasedSeats?: number;
     currentPeriodEnd?: string;
-    countsInRevenue?: boolean;
 }

@@ -218,13 +218,14 @@ let EspaceService = class EspaceService {
         const pricePerSeat = subscription?.offerPrice?.pricePerSeat
             ? Number(subscription.offerPrice.pricePerSeat)
             : null;
-        const canPurchaseSeats = Boolean(pricePerSeat && pricePerSeat > 0);
-        const minSeats = subscription?.offer
-            ? (0, team_seats_1.includedTeamSeats)(subscription.offer)
-            : 1;
-        const purchasedSeats = subscription?.offer
-            ? Math.max(minSeats, subscription.purchasedSeats ?? 0)
-            : membersPayload.seats.used;
+        const minSeats = subscription?.offer?.minSeats ?? 1;
+        const included = subscription?.offer?.maxTeamMembers ?? -1;
+        const purchasedSeats = included > 0
+            ? (0, team_seats_1.effectiveTeamSeats)(included, subscription?.purchasedSeats)
+            : (subscription?.purchasedSeats ??
+                (membersPayload.seats.max > 0
+                    ? membersPayload.seats.max
+                    : membersPayload.seats.used));
         return {
             ...membersPayload,
             team: {
@@ -242,10 +243,8 @@ let EspaceService = class EspaceService {
                     pricePerSeat,
                     minSeats,
                     purchasedSeats,
-                    maxSeats: canPurchaseSeats
-                        ? team_seats_1.MAX_PURCHASABLE_SEATS
-                        : (subscription.offer?.maxTeamMembers ?? -1),
-                    canPurchaseSeats,
+                    maxSeats: subscription.offer?.maxTeamMembers ?? -1,
+                    canPurchaseSeats: Boolean(pricePerSeat && pricePerSeat > 0),
                 }
                 : null,
         };

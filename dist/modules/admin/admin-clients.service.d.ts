@@ -44,6 +44,15 @@ export declare class AdminClientsService {
             isPublic: boolean;
             kind: import("@prisma/client").$Enums.CardKind;
             id: string;
+            company: string | null;
+            firstName: string;
+            lastName: string;
+            jobTitle: string | null;
+            isPublic: boolean;
+            createdAt: Date;
+            slug: string;
+            kind: import("@prisma/client").$Enums.CardKind;
+            isActive: boolean;
             createdAt: Date;
             firstName: string;
             lastName: string;
@@ -59,13 +68,13 @@ export declare class AdminClientsService {
             createdAt: Date;
             offer: {
                 id: string;
-                slug: string;
                 title: string;
+                slug: string;
                 audience: import("@prisma/client").$Enums.OfferAudience;
             } | null;
             plan: {
-                name: string;
                 id: string;
+                name: string;
                 slug: string;
             };
         }[];
@@ -73,6 +82,7 @@ export declare class AdminClientsService {
             name: string;
             isActive: boolean;
             id: string;
+            name: string;
             slug: string;
             role: import("@prisma/client").$Enums.TeamMemberRole;
         }[];

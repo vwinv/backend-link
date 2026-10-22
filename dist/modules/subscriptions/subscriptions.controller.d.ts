@@ -1,5 +1,6 @@
 import type { RawBodyRequest } from '@nestjs/common';
 import type { Request } from 'express';
+import { AddSubscriptionSeatsDto } from './dto/add-subscription-seats.dto';
 import { CheckoutDto } from './dto/checkout.dto';
 import { SoftPaySubscriptionDto } from './dto/softpay-subscription.dto';
 import { SubscribeDto } from './dto/subscribe.dto';
@@ -105,6 +106,33 @@ export declare class SubscriptionsController {
         message: string;
         slug: string;
     };
+    addSeats(user: {
+        userId: string;
+    }, dto: AddSubscriptionSeatsDto): Promise<{
+        paidImmediately: true;
+        amountFcfa: number;
+        additionalSeats: number;
+        newSeatsTotal: number | null;
+        pricePerSeat: number;
+        currency: string;
+        offerSlug: string;
+        billingType: import("@prisma/client").$Enums.OfferBillingType;
+        checkoutUrl: null;
+        invoiceToken: null;
+        lines?: undefined;
+    } | {
+        paidImmediately: false;
+        amountFcfa: number;
+        additionalSeats: number;
+        newSeatsTotal: number;
+        pricePerSeat: number;
+        currency: string;
+        lines: import("./invoices.service").InvoiceLine[];
+        offerSlug: string;
+        billingType: import("@prisma/client").$Enums.OfferBillingType;
+        checkoutUrl: string;
+        invoiceToken: string;
+    }>;
     createCheckout(user: {
         userId: string;
     }, dto: CheckoutDto): Promise<{

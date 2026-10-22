@@ -9,6 +9,8 @@ export declare class EspaceController {
         userId: string;
     }): Promise<{
         espacePath: string;
+        id: string;
+        name: string;
         name: string;
         id: string;
         slug: string;
@@ -20,15 +22,20 @@ export declare class EspaceController {
     }, slug: string): Promise<{
         team: {
             createdAt: string;
+            id: string;
+            name: string;
+            slug: string;
+            ownerId: string;
             name: string;
             id: string;
             slug: string;
             description: string | null;
             logoUrl: string | null;
+            description: string | null;
             brandColor: string | null;
             ownerId: string;
         };
-        myRole: "ADMIN" | "OWNER";
+        myRole: "OWNER" | "ADMIN";
         seats: import("../subscriptions/entitlements.types").TeamSeatsQuota;
         subscription: {
             id: string;
@@ -62,9 +69,9 @@ export declare class EspaceController {
             joinedAt: string;
             user: {
                 id: string;
-                email: string;
                 firstName: string;
                 lastName: string;
+                email: string;
                 avatarUrl: string | null;
             };
             stats: {
@@ -99,9 +106,9 @@ export declare class EspaceController {
         members: ({
             user: {
                 id: string;
-                email: string;
                 firstName: string;
                 lastName: string;
+                email: string;
                 avatarUrl: string | null;
             };
         } & {
@@ -110,6 +117,7 @@ export declare class EspaceController {
             userId: string;
             teamId: string;
             updatedAt: Date;
+            role: import("@prisma/client").$Enums.TeamMemberRole;
             joinedAt: Date;
         })[];
         pendingInvites: {
@@ -118,12 +126,17 @@ export declare class EspaceController {
             id: string;
             teamId: string;
             createdAt: Date;
+            teamId: string;
+            status: import("@prisma/client").$Enums.TeamInviteStatus;
+            updatedAt: Date;
             updatedAt: Date;
             email: string;
             firstName: string | null;
             lastName: string | null;
-            avatarUrl: string | null;
             jobTitle: string | null;
+            email: string;
+            avatarUrl: string | null;
+            role: import("@prisma/client").$Enums.TeamMemberRole;
             invitedById: string;
             inviteeUserId: string | null;
             expiresAt: Date | null;
@@ -138,10 +151,12 @@ export declare class EspaceController {
         amountFcfa: number;
         additionalSeats: number;
         newSeatsTotal: number | null;
+        pricePerSeat: number;
+        currency: string;
+        offerSlug: string;
+        billingType: import("@prisma/client").$Enums.OfferBillingType;
         checkoutUrl: null;
         invoiceToken: null;
-        pricePerSeat?: undefined;
-        currency?: undefined;
         lines?: undefined;
     } | {
         paidImmediately: false;
@@ -151,6 +166,8 @@ export declare class EspaceController {
         pricePerSeat: number;
         currency: string;
         lines: import("../subscriptions/invoices.service").InvoiceLine[];
+        offerSlug: string;
+        billingType: import("@prisma/client").$Enums.OfferBillingType;
         checkoutUrl: string;
         invoiceToken: string;
     }>;
@@ -322,9 +339,9 @@ export declare class EspaceController {
             joinedAt: string;
             user: {
                 id: string;
-                email: string;
                 firstName: string;
                 lastName: string;
+                email: string;
                 avatarUrl: string | null;
             };
         };
@@ -377,12 +394,17 @@ export declare class EspaceController {
         id: string;
         teamId: string;
         createdAt: Date;
+        teamId: string;
+        status: import("@prisma/client").$Enums.TeamInviteStatus;
+        updatedAt: Date;
         updatedAt: Date;
         email: string;
         firstName: string | null;
         lastName: string | null;
-        avatarUrl: string | null;
         jobTitle: string | null;
+        email: string;
+        avatarUrl: string | null;
+        role: import("@prisma/client").$Enums.TeamMemberRole;
         invitedById: string;
         inviteeUserId: string | null;
         expiresAt: Date | null;
@@ -396,6 +418,7 @@ export declare class EspaceController {
         userId: string;
         teamId: string;
         updatedAt: Date;
+        role: import("@prisma/client").$Enums.TeamMemberRole;
         joinedAt: Date;
     }>;
     cancelInvitation(user: {
@@ -406,12 +429,17 @@ export declare class EspaceController {
         id: string;
         teamId: string;
         createdAt: Date;
+        teamId: string;
+        status: import("@prisma/client").$Enums.TeamInviteStatus;
+        updatedAt: Date;
         updatedAt: Date;
         email: string;
         firstName: string | null;
         lastName: string | null;
-        avatarUrl: string | null;
         jobTitle: string | null;
+        email: string;
+        avatarUrl: string | null;
+        role: import("@prisma/client").$Enums.TeamMemberRole;
         invitedById: string;
         inviteeUserId: string | null;
         expiresAt: Date | null;

@@ -140,6 +140,16 @@ export class SharingController {
     return this.sharingService.getShareQuota(user.userId);
   }
 
+  @Get('portfolio-access')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Indique si le portfolio peut être partagé (abonnement valide)',
+  })
+  getPortfolioShareAccess(@CurrentUser() user: { userId: string }) {
+    return this.sharingService.getPortfolioShareAccess(user.userId);
+  }
+
   @Get('cards/:id/qr')
   @ApiOperation({ summary: 'Générer le QR code de partage' })
   getQrCode(@Param('id') id: string) {

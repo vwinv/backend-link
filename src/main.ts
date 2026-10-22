@@ -9,6 +9,7 @@ import { urlencoded } from 'express';
 import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { AppModule } from './app.module';
+import { PortfoliosService } from './modules/portfolios/portfolios.service';
 import { SharingService } from './modules/sharing/sharing.service';
 import { TeamsService } from './modules/teams/teams.service';
 import { AuthService } from './modules/auth/auth.service';
@@ -36,6 +37,7 @@ async function bootstrap() {
   app.setGlobalPrefix(apiPrefix);
 
   const sharingService = app.get(SharingService);
+  const portfoliosService = app.get(PortfoliosService);
   const teamsService = app.get(TeamsService);
   const authService = app.get(AuthService);
   const jwtService = app.get(JwtService);
@@ -86,7 +88,7 @@ async function bootstrap() {
       details: [
         {
           appIDs: [appleAppId],
-          paths: ['/cards/*'],
+          paths: ['/cards/*', '/portfolios/*'],
         },
       ],
     },
@@ -230,6 +232,28 @@ async function bootstrap() {
     res.status(200).type('text/html; charset=utf-8').send(html);
   });
 
+  expressApp.get('/portfolios/:slug', async (req: Request, res: Response) => {
+    const slug = String(req.params.slug);
+    const embed = req.query.embed === '1' || req.query.embed === 'true';
+    const layout = typeof req.query.layout === 'string' ? req.query.layout : undefined;
+    const color = typeof req.query.color === 'string' ? req.query.color : undefined;
+    const html = await portfoliosService.renderPublicPage(
+      slug,
+      resolveViewerUserId(req),
+      embed,
+      { layout, color },
+    );
+    if (!html) {
+      res
+        .status(404)
+        .type('text/html; charset=utf-8')
+        .send(portfoliosService.notFoundPage());
+      return;
+    }
+
+    res.status(200).type('text/html; charset=utf-8').send(html);
+  });
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -285,6 +309,7 @@ async function bootstrap() {
 
   console.log(`🚀 DropOne API running on http://localhost:${port}/${apiPrefix}`);
   console.log(`🃏 Public cards: http://localhost:${port}/cards/{slug}`);
+  console.log(`🗂️ Public portfolios: http://localhost:${port}/portfolios/{slug}`);
   console.log(`🔒 Privacy policy: http://localhost:${port}/privacy`);
   console.log(`✉️ Team invites: http://localhost:${port}/team-invites/{inviteId}`);
   if (swaggerEnabled) {

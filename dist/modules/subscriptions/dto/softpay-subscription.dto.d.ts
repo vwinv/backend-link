@@ -12,4 +12,5 @@ export declare class SoftPaySubscriptionDto {
     email?: string;
     teamId?: string;
     seats?: number;
+    purpose?: 'subscription' | 'seat_upgrade';
 }

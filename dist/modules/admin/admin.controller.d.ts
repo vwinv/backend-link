@@ -115,6 +115,7 @@ export declare class AdminController {
     updateAppUpdateConfig(dto: UpdateAppUpdateConfigDto): Promise<import("../app-update/app-update.service").AppUpdateConfigDto>;
     listPermissions(): {
         modules: {
+            key: "subscriptions" | "notifications" | "dashboard" | "backoffice_users" | "roles" | "clients" | "support" | "app_update";
             key: "subscriptions" | "notifications" | "roles" | "dashboard" | "backoffice_users" | "clients" | "support" | "app_update";
             label: "Tableau de bord" | "Utilisateurs backoffice" | "Rôles & permissions" | "Clients" | "Abonnements & offres" | "Notifications" | "Support" | "Mise à jour app";
             permissions: ({
@@ -335,6 +336,10 @@ export declare class AdminController {
             createdAt: Date;
             firstName: string;
             lastName: string;
+            isActive: boolean;
+            slug: string;
+            isPublic: boolean;
+            kind: import("@prisma/client").$Enums.CardKind;
             slug: string;
             jobTitle: string | null;
             company: string | null;
@@ -352,12 +357,17 @@ export declare class AdminController {
                 audience: import("@prisma/client").$Enums.OfferAudience;
             } | null;
             plan: {
+                id: string;
+                name: string;
                 name: string;
                 id: string;
                 slug: string;
             };
         }[];
         teams: {
+            id: string;
+            isActive: boolean;
+            name: string;
             name: string;
             isActive: boolean;
             id: string;
@@ -494,7 +504,6 @@ export declare class AdminController {
             currentPeriodEnd: Date | null;
             cancelledAt: Date | null;
             purchasedSeats: number | null;
-            countsInRevenue: boolean;
             createdAt: Date;
             updatedAt: Date;
             paymentProvider: string | null;
@@ -516,6 +525,7 @@ export declare class AdminController {
                 title: string;
                 slug: string;
                 audience: import("@prisma/client").OfferAudience;
+                maxTeamMembers: number;
             } | null;
             plan: {
                 id: string;
@@ -544,7 +554,6 @@ export declare class AdminController {
         currentPeriodEnd: Date | null;
         cancelledAt: Date | null;
         purchasedSeats: number | null;
-        countsInRevenue: boolean;
         createdAt: Date;
         updatedAt: Date;
         paymentProvider: string | null;
@@ -566,6 +575,7 @@ export declare class AdminController {
             title: string;
             slug: string;
             audience: import("@prisma/client").OfferAudience;
+            maxTeamMembers: number;
         } | null;
         plan: {
             id: string;
@@ -587,7 +597,6 @@ export declare class AdminController {
         currentPeriodEnd: Date | null;
         cancelledAt: Date | null;
         purchasedSeats: number | null;
-        countsInRevenue: boolean;
         createdAt: Date;
         updatedAt: Date;
         paymentProvider: string | null;
@@ -609,6 +618,7 @@ export declare class AdminController {
             title: string;
             slug: string;
             audience: import("@prisma/client").OfferAudience;
+            maxTeamMembers: number;
         } | null;
         plan: {
             id: string;
@@ -630,7 +640,6 @@ export declare class AdminController {
         currentPeriodEnd: Date | null;
         cancelledAt: Date | null;
         purchasedSeats: number | null;
-        countsInRevenue: boolean;
         createdAt: Date;
         updatedAt: Date;
         paymentProvider: string | null;
@@ -652,6 +661,7 @@ export declare class AdminController {
             title: string;
             slug: string;
             audience: import("@prisma/client").OfferAudience;
+            maxTeamMembers: number;
         } | null;
         plan: {
             id: string;

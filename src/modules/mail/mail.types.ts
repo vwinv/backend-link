@@ -23,13 +23,6 @@ export type ResetPasswordEmailPayload = {
   resetUrl: string;
 };
 
-export type TeamDashboardEmailPayload = {
-  to: string;
-  firstName?: string | null;
-  teamName: string;
-  dashboardUrl: string;
-};
-
 export type SubscriptionSignupNoticePayload = {
   to: string;
   firstName: string;

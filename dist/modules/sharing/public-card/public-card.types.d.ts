@@ -23,4 +23,5 @@ export type PublicCardPageParams = {
     vcardUrl: string;
     downloadUrl?: string | null;
     appleAppId?: string | null;
+    showPortfolioLink?: boolean;
 };

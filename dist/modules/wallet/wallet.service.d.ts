@@ -25,6 +25,7 @@ export declare class WalletService {
     findAll(userId: string): Promise<({
         card: {
             id: string;
+            slug: string;
             firstName: string;
             lastName: string;
             slug: string;

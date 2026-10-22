@@ -19,6 +19,7 @@ import type { RawBodyRequest } from '@nestjs/common';
 import type { Request } from 'express';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { AddSubscriptionSeatsDto } from './dto/add-subscription-seats.dto';
 import { CheckoutDto } from './dto/checkout.dto';
 import {
   CheckoutSessionResponseDto,
@@ -73,6 +74,22 @@ export class SubscriptionsController {
   @ApiOperation({ summary: 'Récupérer un forfait par slug' })
   getPlan(@Param('slug') slug: string) {
     return this.subscriptionsService.getPlan(slug);
+  }
+
+  @Post('seats')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Payer des places en plus de celles incluses dans l’offre équipe',
+  })
+  addSeats(
+    @CurrentUser() user: { userId: string },
+    @Body() dto: AddSubscriptionSeatsDto,
+  ) {
+    return this.subscriptionsService.createSeatUpgradeCheckout(user.userId, {
+      teamId: dto.teamId,
+      additionalSeats: dto.additionalSeats,
+    });
   }
 
   @Post('checkout')

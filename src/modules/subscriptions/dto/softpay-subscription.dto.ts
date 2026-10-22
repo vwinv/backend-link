@@ -82,4 +82,12 @@ export class SoftPaySubscriptionDto {
   @IsInt()
   @Min(1)
   seats?: number;
+
+  @ApiPropertyOptional({
+    enum: ['subscription', 'seat_upgrade'],
+    description: 'seat_upgrade facture uniquement les places en plus',
+  })
+  @IsOptional()
+  @IsIn(['subscription', 'seat_upgrade'])
+  purpose?: 'subscription' | 'seat_upgrade';
 }

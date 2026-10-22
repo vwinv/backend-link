@@ -21,6 +21,18 @@ export class SharingService {
     return this.entitlementsService.getShareQuota(userId);
   }
 
+  async getPortfolioShareAccess(userId: string) {
+    const quota = await this.entitlementsService.getPortfolioShareQuota(userId);
+    const active = await this.entitlementsService.hasActivePortfolioPlan(userId);
+    return {
+      allowed: quota.canShare,
+      canShare: quota.canShare,
+      canCustomize: active,
+      hasAnalytics: active,
+      quota,
+    };
+  }
+
   private get appPublicUrl(): string {
     return this.configService.get<string>(
       'wallet.appPublicUrl',
@@ -95,6 +107,9 @@ export class SharingService {
     const teamLogoSource = card.logoUrl?.trim() || card.team?.logoUrl?.trim();
     const socialLinks = this.toPublicSocialLinks(card);
     const embed = options?.embed === true;
+    const showPortfolioLink = await this.entitlementsService.canPublishPortfolio(
+      card.ownerId,
+    );
 
     return buildPublicCardHtml({
       fullName,
@@ -117,6 +132,7 @@ export class SharingService {
       vcardUrl: this.vcardUrl(card.slug),
       downloadUrl: embed ? null : this.resolveDownloadUrl(options?.userAgent),
       appleAppId: embed ? null : this.appleAppStoreId(),
+      showPortfolioLink,
     });
   }
 
@@ -181,7 +197,11 @@ export class SharingService {
       throw new NotFoundException('Carte introuvable');
     }
 
-    await this.entitlementsService.assertCanShareCard(userId, card.id);
+    if (dto.scope === 'portfolio') {
+      await this.entitlementsService.assertCanSharePortfolio(userId);
+    } else {
+      await this.entitlementsService.assertCanShareCard(userId, card.id);
+    }
 
     const event = await this.prisma.shareEvent.create({
       data: {
@@ -191,7 +211,10 @@ export class SharingService {
       },
     });
 
-    const quota = await this.entitlementsService.getShareQuota(userId);
+    const quota =
+      dto.scope === 'portfolio'
+        ? await this.entitlementsService.getPortfolioShareQuota(userId)
+        : await this.entitlementsService.getShareQuota(userId);
 
     return {
       id: event.id,

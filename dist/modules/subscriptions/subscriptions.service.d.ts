@@ -222,10 +222,12 @@ export declare class SubscriptionsService {
         amountFcfa: number;
         additionalSeats: number;
         newSeatsTotal: number | null;
+        pricePerSeat: number;
+        currency: string;
+        offerSlug: string;
+        billingType: import("@prisma/client").$Enums.OfferBillingType;
         checkoutUrl: null;
         invoiceToken: null;
-        pricePerSeat?: undefined;
-        currency?: undefined;
         lines?: undefined;
     } | {
         paidImmediately: false;
@@ -235,6 +237,8 @@ export declare class SubscriptionsService {
         pricePerSeat: number;
         currency: string;
         lines: InvoiceLine[];
+        offerSlug: string;
+        billingType: import("@prisma/client").$Enums.OfferBillingType;
         checkoutUrl: string;
         invoiceToken: string;
     }>;
@@ -621,6 +625,7 @@ export declare class SubscriptionsService {
     private toNumber;
     private isPerSeatPrice;
     private resolveSeats;
+    private seatUpgradeAmount;
     private resolveCheckoutPricing;
     private activateSubscription;
     private generateInvoiceNumber;
@@ -637,6 +642,7 @@ export declare class SubscriptionsService {
     private mapBillingPeriod;
     private computePeriodEnd;
     private toSubscriptionResponse;
+    private displayedSeats;
     private toEntitlementsResponse;
     private toOfferResponse;
     private toOfferPriceResponse;

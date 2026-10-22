@@ -188,8 +188,11 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
         if (!this.paydunyaService.isConfigured()) {
             throw new common_1.ServiceUnavailableException('Paiement PayDunya non configuré sur le serveur');
         }
+        const seatUpgrade = dto.purpose === 'seat_upgrade';
         const { offer, price, billingMultiplier } = await this.resolveOfferPrice(dto.offerSlug, dto.billingType);
-        const { amount } = this.resolveCheckoutPricing(offer, price, dto.seats, billingMultiplier);
+        const amount = seatUpgrade
+            ? await this.seatUpgradeAmount(userId, dto.teamId, dto.seats ?? 1)
+            : this.resolveCheckoutPricing(offer, price, dto.seats, billingMultiplier).amount;
         if (!Number.isFinite(amount) || amount <= 0) {
             throw new common_1.BadRequestException('Montant invalide pour SoftPay');
         }
@@ -422,10 +425,13 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
         if (!Number.isFinite(perSeat) || perSeat <= 0) {
             throw new common_1.BadRequestException('Tarif au siège indisponible pour cette offre');
         }
-        const currentSeats = Math.max((0, team_seats_1.includedTeamSeats)(subscription.offer), subscription.purchasedSeats ?? 0);
+        if (subscription.offer.maxTeamMembers < 0) {
+            throw new common_1.BadRequestException('Cette offre inclut un nombre illimité de places');
+        }
+        const currentSeats = (0, team_seats_1.effectiveTeamSeats)(subscription.offer.maxTeamMembers, subscription.purchasedSeats);
         const newTotal = currentSeats + additionalSeats;
-        if (newTotal > team_seats_1.MAX_PURCHASABLE_SEATS) {
-            throw new common_1.BadRequestException(`Maximum ${team_seats_1.MAX_PURCHASABLE_SEATS} utilisateurs`);
+        if (newTotal > team_seats_1.TEAM_SEAT_ORDER_CAP) {
+            throw new common_1.BadRequestException(`Maximum ${team_seats_1.TEAM_SEAT_ORDER_CAP} utilisateurs`);
         }
         const amount = Math.round(perSeat * additionalSeats);
         const currency = subscription.offerPrice.currency || 'FCFA';
@@ -452,6 +458,10 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
                 amountFcfa: amount,
                 additionalSeats,
                 newSeatsTotal: result.purchasedSeats,
+                pricePerSeat: perSeat,
+                currency,
+                offerSlug: subscription.offer.slug,
+                billingType: subscription.offerPrice.billingType,
                 checkoutUrl: null,
                 invoiceToken: null,
             };
@@ -486,6 +496,8 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
             pricePerSeat: perSeat,
             currency,
             lines,
+            offerSlug: subscription.offer.slug,
+            billingType: subscription.offerPrice.billingType,
             checkoutUrl: inv.checkoutUrl,
             invoiceToken: inv.invoiceToken,
         };
@@ -524,7 +536,7 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
             Math.abs(input.paidAmount - expected) > 1) {
             throw new common_1.BadRequestException('Montant de paiement incorrect pour les sièges');
         }
-        const currentSeats = Math.max((0, team_seats_1.includedTeamSeats)(subscription.offer), subscription.purchasedSeats ?? 0);
+        const currentSeats = (0, team_seats_1.effectiveTeamSeats)(subscription.offer.maxTeamMembers, subscription.purchasedSeats);
         const newTotal = currentSeats + input.additionalSeats;
         const lines = input.lines ?? [
             {
@@ -1090,28 +1102,52 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
         return Number.isFinite(perSeat) && perSeat > 0;
     }
     resolveSeats(offer, requested) {
-        const included = (0, team_seats_1.includedTeamSeats)(offer);
-        const seats = Math.max(included, requested ?? included);
-        if (seats > team_seats_1.MAX_PURCHASABLE_SEATS) {
-            throw new common_1.BadRequestException(`Maximum ${team_seats_1.MAX_PURCHASABLE_SEATS} utilisateurs par commande`);
+        const included = offer.maxTeamMembers > 0 ? offer.maxTeamMembers : 0;
+        const min = Math.max(1, offer.minSeats ?? 1);
+        const floor = Math.max(included, min);
+        const seats = Math.max(floor, requested ?? floor);
+        if (seats > team_seats_1.TEAM_SEAT_ORDER_CAP) {
+            throw new common_1.BadRequestException(`Maximum ${team_seats_1.TEAM_SEAT_ORDER_CAP} utilisateurs par commande`);
         }
         return seats;
+    }
+    async seatUpgradeAmount(userId, teamId, additionalSeats) {
+        const subscription = await this.prisma.subscription.findFirst({
+            where: (0, subscription_validity_1.validSubscriptionWhere)({
+                OR: [
+                    ...(teamId ? [{ teamId }] : []),
+                    { userId },
+                ],
+            }),
+            include: { offerPrice: true },
+            orderBy: { createdAt: 'desc' },
+        });
+        const perSeat = this.toNumber(subscription?.offerPrice?.pricePerSeat);
+        if (!Number.isFinite(perSeat) || perSeat <= 0) {
+            throw new common_1.BadRequestException('Tarif au siège indisponible pour cette offre');
+        }
+        return Math.round(perSeat * Math.max(1, additionalSeats));
     }
     resolveCheckoutPricing(offer, price, requestedSeats, billingMultiplier = 1) {
         const factor = Number.isFinite(billingMultiplier) && billingMultiplier > 0
             ? billingMultiplier
             : 1;
-        if (offer.audience === client_1.OfferAudience.TEAM &&
-            this.isPerSeatPrice(price)) {
-            const seats = this.resolveSeats(offer, requestedSeats);
-            const baseSeats = (0, team_seats_1.includedTeamSeats)(offer);
+        if (offer.audience === client_1.OfferAudience.TEAM && offer.maxTeamMembers > 0) {
+            const included = offer.maxTeamMembers;
             const baseAmount = this.toNumber(price.priceAmount);
-            const perSeat = this.toNumber(price.pricePerSeat);
-            const extraSeats = Math.max(0, seats - baseSeats);
-            const amount = Math.round(((Number.isFinite(baseAmount) ? baseAmount : 0) +
-                perSeat * extraSeats) *
-                factor);
-            return { amount, seats };
+            if (this.isPerSeatPrice(price)) {
+                const seats = this.resolveSeats(offer, requestedSeats);
+                const extraSeats = (0, team_seats_1.paidExtraSeats)(included, seats);
+                const perSeat = this.toNumber(price.pricePerSeat);
+                const amount = Math.round(((Number.isFinite(baseAmount) ? baseAmount : 0) +
+                    perSeat * extraSeats) *
+                    factor);
+                return { amount, seats };
+            }
+            return {
+                amount: Math.round((Number.isFinite(baseAmount) ? baseAmount : 0) * factor),
+                seats: included,
+            };
         }
         return {
             amount: Math.round(this.toNumber(price.priceAmount) * factor),
@@ -1503,13 +1539,20 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
             offerSlug: offer?.slug ?? subscription.plan.slug,
             billingType: subscription.offerPrice?.billingType ?? null,
             entitlements: this.toEntitlementsResponse(offer, subscription.purchasedSeats),
-            purchasedSeats: subscription.purchasedSeats ?? null,
+            purchasedSeats: this.displayedSeats(offer, subscription.purchasedSeats),
             currentPeriodEnd: subscription.currentPeriodEnd?.toISOString() ?? null,
         };
     }
+    displayedSeats(offer, purchasedSeats) {
+        if (!offer || offer.audience !== client_1.OfferAudience.TEAM) {
+            return purchasedSeats ?? null;
+        }
+        const seats = (0, team_seats_1.effectiveTeamSeats)(offer.maxTeamMembers, purchasedSeats);
+        return seats < 0 ? purchasedSeats ?? null : seats;
+    }
     toEntitlementsResponse(offer, purchasedSeats) {
         const maxTeamMembers = offer
-            ? (0, team_seats_1.teamSeatQuota)(offer, purchasedSeats)
+            ? (0, team_seats_1.effectiveTeamSeats)(offer.maxTeamMembers, purchasedSeats)
             : 0;
         return {
             audience: offer?.audience ?? client_1.OfferAudience.PERSONAL,

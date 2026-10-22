@@ -61,6 +61,8 @@ export declare class AuthService {
     }>;
     getValidResetToken(rawToken: string): Promise<{
         id: string;
+        createdAt: Date;
+        tokenHash: string;
         userId: string;
         createdAt: Date;
         expiresAt: Date;

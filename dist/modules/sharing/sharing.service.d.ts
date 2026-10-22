@@ -8,6 +8,13 @@ export declare class SharingService {
     private readonly entitlementsService;
     constructor(prisma: PrismaService, configService: ConfigService, entitlementsService: EntitlementsService);
     getShareQuota(userId: string): Promise<import("../subscriptions/entitlements.types").ShareQuota>;
+    getPortfolioShareAccess(userId: string): Promise<{
+        allowed: boolean;
+        canShare: boolean;
+        canCustomize: boolean;
+        hasAnalytics: boolean;
+        quota: import("../subscriptions/entitlements.types").ShareQuota;
+    }>;
     private get appPublicUrl();
     getPublicCard(slug: string, viewerUserId?: string, meta?: {
         source?: string;

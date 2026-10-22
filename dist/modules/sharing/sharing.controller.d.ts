@@ -42,6 +42,15 @@ export declare class SharingController {
     getShareQuota(user: {
         userId: string;
     }): Promise<import("../subscriptions/entitlements.types").ShareQuota>;
+    getPortfolioShareAccess(user: {
+        userId: string;
+    }): Promise<{
+        allowed: boolean;
+        canShare: boolean;
+        canCustomize: boolean;
+        hasAnalytics: boolean;
+        quota: import("../subscriptions/entitlements.types").ShareQuota;
+    }>;
     getQrCode(id: string): {
         message: string;
         id: string;

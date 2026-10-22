@@ -172,6 +172,7 @@ function renderActions(params: PublicCardPageParams): string {
   const downloadUrl = params.downloadUrl?.trim() ?? '';
 
   const skins = resolveButtonSkins(params.design.layout);
+  const slug = params.pageUrl.split('/').filter(Boolean).pop() ?? '';
 
   return `
     <div class="actions">
@@ -215,12 +216,15 @@ function renderActions(params: PublicCardPageParams): string {
             attrs: emailHref,
           })
         : ''}
-      ${renderActionButton({
-        skin: skins.secondary,
-        icon: 'portfolio',
-        label: 'Consulter mon portfolio',
-        disabled: true,
-      })}
+      ${params.showPortfolioLink
+        ? renderActionButton({
+            skin: skins.secondary,
+            icon: 'portfolio',
+            label: 'Consulter mon portfolio',
+            tag: 'a',
+            attrs: `href="/portfolios/${escapeAttr(slug)}" data-portfolio-click`,
+          })
+        : ''}
       ${downloadUrl
         ? renderActionButton({
             skin: skins.secondary,
@@ -504,6 +508,20 @@ export function buildInlineScript(pageUrl: string): string {
               if (label) label.textContent = 'Lien copié';
             }).catch(function () {});
           }
+        });
+      }
+
+      var portfolioButton = document.querySelector('[data-portfolio-click]');
+      if (portfolioButton) {
+        portfolioButton.addEventListener('click', function () {
+          var slug = ${safeSlug};
+          if (!slug) return;
+          var endpoint = '/api/v1/portfolios/public/' + encodeURIComponent(slug) + '/click';
+          if (navigator.sendBeacon) {
+            navigator.sendBeacon(endpoint, new Blob([], { type: 'application/json' }));
+            return;
+          }
+          fetch(endpoint, { method: 'POST', keepalive: true }).catch(function () {});
         });
       }
 
