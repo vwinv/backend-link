@@ -11,7 +11,7 @@ export declare class AdminRolesService implements OnModuleInit {
     syncPermissionsCatalog(): Promise<void>;
     listPermissions(): {
         modules: {
-            key: "subscriptions" | "notifications" | "dashboard" | "backoffice_users" | "roles" | "clients" | "support" | "app_update";
+            key: "subscriptions" | "notifications" | "roles" | "dashboard" | "backoffice_users" | "clients" | "support" | "app_update";
             label: "Tableau de bord" | "Utilisateurs backoffice" | "Rôles & permissions" | "Clients" | "Abonnements & offres" | "Notifications" | "Support" | "Mise à jour app";
             permissions: ({
                 readonly key: "dashboard.view";

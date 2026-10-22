@@ -9,9 +9,9 @@ export declare class EspaceController {
         userId: string;
     }): Promise<{
         espacePath: string;
-        slug: string;
-        id: string;
         name: string;
+        id: string;
+        slug: string;
         logoUrl: string | null;
         brandColor: string | null;
     }[]>;
@@ -20,13 +20,13 @@ export declare class EspaceController {
     }, slug: string): Promise<{
         team: {
             createdAt: string;
-            description: string | null;
-            slug: string;
-            id: string;
             name: string;
-            ownerId: string;
+            id: string;
+            slug: string;
+            description: string | null;
             logoUrl: string | null;
             brandColor: string | null;
+            ownerId: string;
         };
         myRole: "ADMIN" | "OWNER";
         seats: import("../subscriptions/entitlements.types").TeamSeatsQuota;
@@ -37,8 +37,8 @@ export declare class EspaceController {
             purchasedSeats: number | null;
             currentPeriodEnd: string | null;
             offer: {
-                title: string;
                 slug: string;
+                title: string;
                 audience: import("@prisma/client").$Enums.OfferAudience;
             } | null;
             offerPrice: {
@@ -105,28 +105,28 @@ export declare class EspaceController {
                 avatarUrl: string | null;
             };
         } & {
+            role: import("@prisma/client").$Enums.TeamMemberRole;
             id: string;
-            updatedAt: Date;
             userId: string;
             teamId: string;
-            role: import("@prisma/client").$Enums.TeamMemberRole;
+            updatedAt: Date;
             joinedAt: Date;
         })[];
         pendingInvites: {
+            role: import("@prisma/client").$Enums.TeamMemberRole;
+            status: import("@prisma/client").$Enums.TeamInviteStatus;
             id: string;
+            teamId: string;
             createdAt: Date;
             updatedAt: Date;
-            status: import("@prisma/client").$Enums.TeamInviteStatus;
-            teamId: string;
-            role: import("@prisma/client").$Enums.TeamMemberRole;
             email: string;
             firstName: string | null;
             lastName: string | null;
             avatarUrl: string | null;
             jobTitle: string | null;
-            expiresAt: Date | null;
             invitedById: string;
             inviteeUserId: string | null;
+            expiresAt: Date | null;
             respondedAt: Date | null;
         }[];
         seats: import("../subscriptions/entitlements.types").TeamSeatsQuota;
@@ -366,55 +366,55 @@ export declare class EspaceController {
         userId: string;
     }, slug: string, dto: AddMemberDto): Promise<{
         team: {
-            id: string;
             name: string;
+            id: string;
             logoUrl: string | null;
             brandColor: string | null;
         };
     } & {
+        role: import("@prisma/client").$Enums.TeamMemberRole;
+        status: import("@prisma/client").$Enums.TeamInviteStatus;
         id: string;
+        teamId: string;
         createdAt: Date;
         updatedAt: Date;
-        status: import("@prisma/client").$Enums.TeamInviteStatus;
-        teamId: string;
-        role: import("@prisma/client").$Enums.TeamMemberRole;
         email: string;
         firstName: string | null;
         lastName: string | null;
         avatarUrl: string | null;
         jobTitle: string | null;
-        expiresAt: Date | null;
         invitedById: string;
         inviteeUserId: string | null;
+        expiresAt: Date | null;
         respondedAt: Date | null;
     }>;
     removeMember(user: {
         userId: string;
     }, slug: string, memberId: string): Promise<{
+        role: import("@prisma/client").$Enums.TeamMemberRole;
         id: string;
-        updatedAt: Date;
         userId: string;
         teamId: string;
-        role: import("@prisma/client").$Enums.TeamMemberRole;
+        updatedAt: Date;
         joinedAt: Date;
     }>;
     cancelInvitation(user: {
         userId: string;
     }, slug: string, inviteId: string): Promise<{
+        role: import("@prisma/client").$Enums.TeamMemberRole;
+        status: import("@prisma/client").$Enums.TeamInviteStatus;
         id: string;
+        teamId: string;
         createdAt: Date;
         updatedAt: Date;
-        status: import("@prisma/client").$Enums.TeamInviteStatus;
-        teamId: string;
-        role: import("@prisma/client").$Enums.TeamMemberRole;
         email: string;
         firstName: string | null;
         lastName: string | null;
         avatarUrl: string | null;
         jobTitle: string | null;
-        expiresAt: Date | null;
         invitedById: string;
         inviteeUserId: string | null;
+        expiresAt: Date | null;
         respondedAt: Date | null;
     }>;
     getInvoices(user: {

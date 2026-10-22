@@ -24,10 +24,10 @@ export declare class WalletService {
     }>;
     findAll(userId: string): Promise<({
         card: {
-            slug: string;
             id: string;
             firstName: string;
             lastName: string;
+            slug: string;
             jobTitle: string | null;
             company: string | null;
         };

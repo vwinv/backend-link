@@ -15,8 +15,8 @@ export declare class NotificationsController {
             createdAt: Date;
             title: string;
             isRead: boolean;
-            body: string;
             campaignId: string | null;
+            body: string;
             readAt: Date | null;
         }[];
         meta: {
@@ -36,8 +36,8 @@ export declare class NotificationsController {
         createdAt: Date;
         title: string;
         isRead: boolean;
-        body: string;
         campaignId: string | null;
+        body: string;
         readAt: Date | null;
     }>;
     markAllRead(user: AuthUserPayload): Promise<{

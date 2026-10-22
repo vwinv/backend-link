@@ -605,9 +605,9 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
          ) AS active,
          MAX(i.currency) AS currency
        FROM payment_invoices i
-       LEFT JOIN subscriptions s ON s.id = i."subscriptionId"
+       INNER JOIN subscriptions s ON s.id = i."subscriptionId"
        WHERE i.status = 'PAID'
-         AND (s.id IS NULL OR s."countsInRevenue" = true)`);
+         AND s."countsInRevenue" = true`);
         const totals = rows[0];
         const toAmount = (value) => Math.round(Number(value ?? 0));
         return {

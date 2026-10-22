@@ -41,6 +41,7 @@ var __importStar = (this && this.__importStar) || (function () {
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var TeamsService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TeamsService = void 0;
 const common_1 = require("@nestjs/common");
@@ -55,13 +56,14 @@ const entitlements_service_1 = require("../subscriptions/entitlements.service");
 const uploads_service_1 = require("../uploads/uploads.service");
 const team_invite_page_1 = require("./team-invite-page");
 const safe_url_1 = require("../../common/safe-url");
-let TeamsService = class TeamsService {
+let TeamsService = TeamsService_1 = class TeamsService {
     prisma;
     entitlementsService;
     mailService;
     cardsService;
     configService;
     uploadsService;
+    logger = new common_1.Logger(TeamsService_1.name);
     constructor(prisma, entitlementsService, mailService, cardsService, configService, uploadsService) {
         this.prisma = prisma;
         this.entitlementsService = entitlementsService;
@@ -110,8 +112,8 @@ let TeamsService = class TeamsService {
             return updated;
         }
         const slug = await this.generateUniqueSlug(dto.name);
-        return this.prisma.$transaction(async (tx) => {
-            const team = await tx.team.create({
+        const team = await this.prisma.$transaction(async (tx) => {
+            const created = await tx.team.create({
                 data: {
                     name: dto.name.trim(),
                     slug,
@@ -123,13 +125,38 @@ let TeamsService = class TeamsService {
             });
             await tx.teamMember.create({
                 data: {
-                    teamId: team.id,
+                    teamId: created.id,
                     userId,
                     role: client_1.TeamMemberRole.OWNER,
                 },
             });
-            return team;
+            return created;
         });
+        await this.notifyOwnerDashboardReady(userId, team.name, team.slug);
+        return team;
+    }
+    async notifyOwnerDashboardReady(userId, teamName, slug) {
+        const owner = await this.prisma.user.findUnique({
+            where: { id: userId },
+            select: { email: true, firstName: true },
+        });
+        const email = owner?.email?.trim();
+        if (!email)
+            return;
+        const landing = (this.configService.get('landingPublicUrl') ?? 'https://dropone.pro').replace(/\/$/, '');
+        const dashboardUrl = `${landing}/espace_${slug}`;
+        try {
+            await this.mailService.sendTeamDashboardEmail({
+                to: email,
+                firstName: owner?.firstName,
+                teamName,
+                dashboardUrl,
+            });
+        }
+        catch (error) {
+            const message = error instanceof Error ? error.message : 'envoi impossible';
+            this.logger.error(`E-mail tableau de bord non envoyé à ${email} : ${message}`);
+        }
     }
     async findAllForUser(userId) {
         const teams = await this.prisma.team.findMany({
@@ -642,7 +669,7 @@ let TeamsService = class TeamsService {
     }
 };
 exports.TeamsService = TeamsService;
-exports.TeamsService = TeamsService = __decorate([
+exports.TeamsService = TeamsService = TeamsService_1 = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
         entitlements_service_1.EntitlementsService,

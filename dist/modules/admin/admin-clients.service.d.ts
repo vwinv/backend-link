@@ -40,16 +40,16 @@ export declare class AdminClientsService {
     findOne(id: string): Promise<{
         stripeCustomerId: string | null;
         cards: {
+            isActive: boolean;
+            isPublic: boolean;
+            kind: import("@prisma/client").$Enums.CardKind;
             id: string;
             createdAt: Date;
-            slug: string;
-            lastName: string;
             firstName: string;
-            isActive: boolean;
-            kind: import("@prisma/client").$Enums.CardKind;
+            lastName: string;
+            slug: string;
             jobTitle: string | null;
             company: string | null;
-            isPublic: boolean;
         }[];
         subscriptions: {
             id: string;
@@ -71,9 +71,9 @@ export declare class AdminClientsService {
         }[];
         teams: {
             name: string;
+            isActive: boolean;
             id: string;
             slug: string;
-            isActive: boolean;
             role: import("@prisma/client").$Enums.TeamMemberRole;
         }[];
         ownedTeams: {

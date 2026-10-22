@@ -16,18 +16,19 @@ export declare class CardsService {
     create(userId: string, dto: CreateCardDto): Promise<BusinessCard>;
     findAll(userId: string): Promise<{
         isActive: boolean;
-        slug: string;
-        id: string;
-        createdAt: Date;
-        updatedAt: Date;
-        teamId: string | null;
         isPublic: boolean;
         kind: import("@prisma/client").$Enums.CardKind;
+        id: string;
+        teamId: string | null;
+        createdAt: Date;
+        updatedAt: Date;
         email: string | null;
         firstName: string;
         lastName: string;
         phone: string | null;
         avatarUrl: string | null;
+        slug: string;
+        logoUrl: string | null;
         ownerId: string;
         jobTitle: string | null;
         company: string | null;
@@ -35,7 +36,6 @@ export declare class CardsService {
         address: string | null;
         website: string | null;
         coverImageUrl: string | null;
-        logoUrl: string | null;
         theme: import("@prisma/client/runtime/client").JsonValue;
     }[]>;
     findOne(userId: string, id: string): Promise<BusinessCard>;
@@ -48,22 +48,22 @@ export declare class CardsService {
         id: string;
     };
     syncSocialLinks(userId: string, cardId: string, links: SocialLinkItemDto[]): Promise<{
+        url: string;
         id: string;
         createdAt: Date;
         label: string | null;
         platform: import("@prisma/client").$Enums.SocialPlatform;
-        url: string;
-        cardId: string;
         order: number;
+        cardId: string;
     }[]>;
     getSocialLinks(userId: string, cardId: string): Promise<{
+        url: string;
         id: string;
         createdAt: Date;
         label: string | null;
         platform: import("@prisma/client").$Enums.SocialPlatform;
-        url: string;
-        cardId: string;
         order: number;
+        cardId: string;
     }[]>;
     addSocialLink(id: string): {
         message: string;
@@ -93,7 +93,7 @@ export declare class CardsService {
             count: number;
         }[];
         sources: {
-            key: "link" | "qr" | "share" | "app" | "other";
+            key: "link" | "app" | "other" | "qr" | "share";
             count: number;
             percent: number;
         }[];
