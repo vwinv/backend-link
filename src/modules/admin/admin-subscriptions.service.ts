@@ -28,6 +28,7 @@ export class AdminSubscriptionsService {
     cancelledAt: true,
     purchasedSeats: true,
     totalAmount: true,
+    countsInRevenue: true,
     createdAt: true,
     updatedAt: true,
     stripeSubscriptionId: true,
@@ -386,6 +387,7 @@ export class AdminSubscriptionsService {
         billingPeriod,
         currentPeriodEnd,
         totalAmount,
+        countsInRevenue: dto.countsInRevenue ?? true,
       },
       select: this.adminSelect,
     });
@@ -565,6 +567,9 @@ export class AdminSubscriptionsService {
         billingPeriod,
         currentPeriodEnd,
         totalAmount,
+        ...(dto.countsInRevenue !== undefined && {
+          countsInRevenue: dto.countsInRevenue,
+        }),
         cancelledAt,
       },
       select: this.adminSelect,
@@ -594,6 +599,7 @@ export class AdminSubscriptionsService {
     cancelledAt: Date | null;
     purchasedSeats: number | null;
     totalAmount: { toString(): string } | number | null;
+    countsInRevenue: boolean;
     createdAt: Date;
     updatedAt: Date;
     stripeSubscriptionId: string | null;
@@ -631,6 +637,7 @@ export class AdminSubscriptionsService {
       purchasedSeats: this.displayedPurchasedSeats(row),
       totalAmount:
         row.totalAmount == null ? null : Math.round(Number(row.totalAmount)),
+      countsInRevenue: row.countsInRevenue,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       paymentProvider: row.stripeSubscriptionId
@@ -846,7 +853,8 @@ export class AdminSubscriptionsService {
        FROM subscriptions s
        INNER JOIN premium_offer_prices p ON p.id = s."offerPriceId"
        WHERE s.status <> 'TRIAL'
-         AND s."offerPriceId" IS NOT NULL`,
+         AND s."offerPriceId" IS NOT NULL
+         AND s."countsInRevenue" = true`,
     );
 
     const totals = rows[0];
@@ -882,7 +890,9 @@ export class AdminSubscriptionsService {
          COALESCE(
            SUM(
              CASE
-               WHEN s.status <> 'TRIAL' AND s."offerPriceId" IS NOT NULL
+               WHEN s.status <> 'TRIAL'
+                 AND s."offerPriceId" IS NOT NULL
+                 AND s."countsInRevenue" = true
                THEN COALESCE(s."totalAmount", p."priceAmount")
                ELSE 0
              END
