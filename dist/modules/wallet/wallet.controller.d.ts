@@ -23,11 +23,10 @@ export declare class WalletController {
     }): Promise<({
         card: {
             id: string;
-            slug: string;
             firstName: string;
             lastName: string;
-            slug: string;
             jobTitle: string | null;
+            slug: string;
             company: string | null;
         };
     } & {

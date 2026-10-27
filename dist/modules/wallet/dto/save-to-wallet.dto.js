@@ -8,6 +8,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SaveToWalletDto = void 0;
 const swagger_1 = require("@nestjs/swagger");
@@ -20,6 +21,6 @@ exports.SaveToWalletDto = SaveToWalletDto;
 __decorate([
     (0, swagger_1.ApiProperty)({ enum: client_1.WalletType, example: client_1.WalletType.APPLE_WALLET }),
     (0, class_validator_1.IsEnum)(client_1.WalletType),
-    __metadata("design:type", String)
+    __metadata("design:type", typeof (_a = typeof client_1.WalletType !== "undefined" && client_1.WalletType) === "function" ? _a : Object)
 ], SaveToWalletDto.prototype, "walletType", void 0);
 //# sourceMappingURL=save-to-wallet.dto.js.map

@@ -19,7 +19,6 @@ const config_1 = require("@nestjs/config");
 const nodemailer_1 = __importDefault(require("nodemailer"));
 const reset_password_email_template_1 = require("./reset-password-email.template");
 const support_ticket_reply_email_template_1 = require("./support-ticket-reply-email.template");
-const team_dashboard_email_template_1 = require("./team-dashboard-email.template");
 const team_invite_email_template_1 = require("./team-invite-email.template");
 const subscription_signup_email_1 = require("./subscription-signup-email");
 let MailService = MailService_1 = class MailService {
@@ -36,10 +35,6 @@ let MailService = MailService_1 = class MailService {
             mail.from?.trim() &&
             mail.user?.trim() &&
             mail.password?.trim());
-    }
-    async sendTeamDashboardEmail(payload) {
-        const { subject, text, html } = (0, team_dashboard_email_template_1.buildTeamDashboardEmail)(payload);
-        await this.send({ to: payload.to, subject, text, html });
     }
     async sendTeamInviteEmail(payload) {
         const { subject, text, html } = (0, team_invite_email_template_1.buildTeamInviteEmail)(payload);

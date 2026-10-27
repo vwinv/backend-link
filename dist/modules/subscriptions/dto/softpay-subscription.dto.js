@@ -8,6 +8,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SoftPaySubscriptionDto = exports.SUBSCRIPTION_SOFTPAY_METHODS = void 0;
 const class_transformer_1 = require("class-transformer");
@@ -43,7 +44,7 @@ __decorate([
 __decorate([
     (0, swagger_1.ApiProperty)({ enum: client_1.OfferBillingType }),
     (0, class_validator_1.IsEnum)(client_1.OfferBillingType),
-    __metadata("design:type", String)
+    __metadata("design:type", typeof (_a = typeof client_1.OfferBillingType !== "undefined" && client_1.OfferBillingType) === "function" ? _a : Object)
 ], SoftPaySubscriptionDto.prototype, "billingType", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({ description: 'Token facture PayDunya' }),

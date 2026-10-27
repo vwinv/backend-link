@@ -8,6 +8,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var _a, _b, _c;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SubscriptionResponseDto = void 0;
 const swagger_1 = require("@nestjs/swagger");
@@ -33,11 +34,11 @@ __decorate([
 ], SubscriptionResponseDto.prototype, "id", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({ enum: client_1.SubscriptionStatus }),
-    __metadata("design:type", String)
+    __metadata("design:type", typeof (_a = typeof client_1.SubscriptionStatus !== "undefined" && client_1.SubscriptionStatus) === "function" ? _a : Object)
 ], SubscriptionResponseDto.prototype, "status", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({ enum: client_1.BillingPeriod }),
-    __metadata("design:type", String)
+    __metadata("design:type", typeof (_b = typeof client_1.BillingPeriod !== "undefined" && client_1.BillingPeriod) === "function" ? _b : Object)
 ], SubscriptionResponseDto.prototype, "billingPeriod", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)(),

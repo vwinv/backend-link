@@ -8,6 +8,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UpdateCardThemeDto = void 0;
 const swagger_1 = require("@nestjs/swagger");
@@ -26,6 +27,6 @@ __decorate([
         },
     }),
     (0, class_validator_1.IsObject)(),
-    __metadata("design:type", Object)
+    __metadata("design:type", typeof (_a = typeof client_1.Prisma !== "undefined" && client_1.Prisma.InputJsonValue) === "function" ? _a : Object)
 ], UpdateCardThemeDto.prototype, "theme", void 0);
 //# sourceMappingURL=update-card-theme.dto.js.map

@@ -43,8 +43,8 @@ export declare class NotificationsService {
     registerPushToken(userId: string, token: string, platform: PushPlatform): Promise<{
         id: string;
         updatedAt: Date;
-        platform: import("@prisma/client").$Enums.PushPlatform;
         token: string;
+        platform: import("@prisma/client").$Enums.PushPlatform;
     }>;
     unregisterPushToken(userId: string, token: string): Promise<{
         ok: boolean;

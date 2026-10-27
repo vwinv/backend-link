@@ -174,7 +174,7 @@ export declare class PortfoliosController {
         id: string;
         title: string;
         layout: "classique" | "couverture" | "editorial" | "galerie" | "minimal" | "bento" | "portrait" | "cartes";
-        color: "bleu" | "ivoire" | "noir" | "foret" | "neon" | "corail" | "lagon" | "lilas" | "terre" | "sable" | "soleil" | "minuit";
+        color: "noir" | "bleu" | "ivoire" | "foret" | "neon" | "corail" | "lagon" | "lilas" | "terre" | "sable" | "soleil" | "minuit";
     }>;
     findOne(id: string): {
         message: string;

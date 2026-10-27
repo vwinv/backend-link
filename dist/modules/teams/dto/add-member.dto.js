@@ -8,6 +8,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AddMemberDto = void 0;
 const swagger_1 = require("@nestjs/swagger");
@@ -59,6 +60,6 @@ __decorate([
     (0, swagger_1.ApiPropertyOptional)({ enum: client_1.TeamMemberRole, default: client_1.TeamMemberRole.MEMBER }),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsEnum)(client_1.TeamMemberRole),
-    __metadata("design:type", String)
+    __metadata("design:type", typeof (_a = typeof client_1.TeamMemberRole !== "undefined" && client_1.TeamMemberRole) === "function" ? _a : Object)
 ], AddMemberDto.prototype, "role", void 0);
 //# sourceMappingURL=add-member.dto.js.map

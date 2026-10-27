@@ -35,7 +35,7 @@ export declare class PortfoliosService {
         id: string;
         title: string;
         layout: "classique" | "couverture" | "editorial" | "galerie" | "minimal" | "bento" | "portrait" | "cartes";
-        color: "bleu" | "ivoire" | "noir" | "foret" | "neon" | "corail" | "lagon" | "lilas" | "terre" | "sable" | "soleil" | "minuit";
+        color: "noir" | "bleu" | "ivoire" | "foret" | "neon" | "corail" | "lagon" | "lilas" | "terre" | "sable" | "soleil" | "minuit";
     }>;
     getEditor(userId: string, cardId: string): Promise<{
         exists: boolean;
