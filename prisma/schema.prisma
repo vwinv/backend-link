@@ -474,6 +474,8 @@ model Subscription {
   appleOriginalTransactionId String? @unique
   /** Abonnements de test : exclus du chiffre d'affaires, les accès restent actifs. */
   countsInRevenue  Boolean            @default(true)
+  /** Montant de la période choisie (tarif × durée). Null = tarif catalogue. */
+  totalAmount      Decimal?           @db.Decimal(12, 2)
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
 

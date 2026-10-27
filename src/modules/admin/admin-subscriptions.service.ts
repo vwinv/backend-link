@@ -14,7 +14,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AdminSubscriptionsQueryDto } from './dto/admin-subscriptions-query.dto';
 import { CreateAdminSubscriptionDto } from './dto/create-admin-subscription.dto';
 import { UpdateAdminSubscriptionDto } from './dto/update-admin-subscription.dto';
-import { effectiveTeamSeats } from '../subscriptions/team-seats';
+import { effectiveTeamSeats, paidExtraSeats } from '../subscriptions/team-seats';
 
 @Injectable()
 export class AdminSubscriptionsService {
@@ -27,6 +27,7 @@ export class AdminSubscriptionsService {
     currentPeriodEnd: true,
     cancelledAt: true,
     purchasedSeats: true,
+    totalAmount: true,
     createdAt: true,
     updatedAt: true,
     stripeSubscriptionId: true,
@@ -344,6 +345,18 @@ export class AdminSubscriptionsService {
       throw new BadRequestException('Date de fin invalide');
     }
 
+    const periodStart = new Date();
+    this.assertPeriodCovers(billingType, periodStart, currentPeriodEnd);
+    const totalAmount = price
+      ? this.computeTotalAmount(
+          offer,
+          price,
+          purchasedSeats,
+          periodStart,
+          currentPeriodEnd,
+        )
+      : null;
+
     await this.prisma.subscription.updateMany({
       where: {
         userId: user.id,
@@ -372,6 +385,7 @@ export class AdminSubscriptionsService {
         status: dto.status ?? SubscriptionStatus.ACTIVE,
         billingPeriod,
         currentPeriodEnd,
+        totalAmount,
       },
       select: this.adminSelect,
     });
@@ -402,8 +416,10 @@ export class AdminSubscriptionsService {
         status: true,
         billingPeriod: true,
         purchasedSeats: true,
+        totalAmount: true,
         currentPeriodEnd: true,
         cancelledAt: true,
+        createdAt: true,
       },
     });
     if (!existing) {
@@ -483,6 +499,24 @@ export class AdminSubscriptionsService {
     if (currentPeriodEnd && Number.isNaN(currentPeriodEnd.getTime())) {
       throw new BadRequestException('Date de fin invalide');
     }
+    const pricedBillingType = price?.billingType ?? OfferBillingType.MONTHLY;
+    if (currentPeriodEnd) {
+      this.assertPeriodCovers(
+        pricedBillingType,
+        existing.createdAt,
+        currentPeriodEnd,
+      );
+    }
+    const totalAmount =
+      existing.totalAmount != null && price && currentPeriodEnd
+        ? this.computeTotalAmount(
+            offer,
+            price,
+            purchasedSeats,
+            existing.createdAt,
+            currentPeriodEnd,
+          )
+        : existing.totalAmount;
 
     const nextStatus = dto.status ?? existing.status;
     const becomingActive = (
@@ -530,6 +564,7 @@ export class AdminSubscriptionsService {
         status: nextStatus,
         billingPeriod,
         currentPeriodEnd,
+        totalAmount,
         cancelledAt,
       },
       select: this.adminSelect,
@@ -558,6 +593,7 @@ export class AdminSubscriptionsService {
     currentPeriodEnd: Date | null;
     cancelledAt: Date | null;
     purchasedSeats: number | null;
+    totalAmount: { toString(): string } | number | null;
     createdAt: Date;
     updatedAt: Date;
     stripeSubscriptionId: string | null;
@@ -593,6 +629,8 @@ export class AdminSubscriptionsService {
       currentPeriodEnd: row.currentPeriodEnd,
       cancelledAt: row.cancelledAt,
       purchasedSeats: this.displayedPurchasedSeats(row),
+      totalAmount:
+        row.totalAmount == null ? null : Math.round(Number(row.totalAmount)),
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       paymentProvider: row.stripeSubscriptionId
@@ -707,6 +745,83 @@ export class AdminSubscriptionsService {
     }
   }
 
+  private calendarDay(date: Date): Date {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  }
+
+  /** Mois entamés entre deux dates. Le jour anniversaire compte pour un mois plein. */
+  private monthsCovered(start: Date, end: Date): number {
+    const startDay = this.calendarDay(start);
+    const endDay = this.calendarDay(end);
+    if (endDay.getTime() <= startDay.getTime()) return 0;
+    let months =
+      (endDay.getFullYear() - startDay.getFullYear()) * 12 +
+      (endDay.getMonth() - startDay.getMonth());
+    if (endDay.getDate() > startDay.getDate()) months += 1;
+    return Math.max(months, 1);
+  }
+
+  private assertPeriodCovers(
+    billingType: OfferBillingType,
+    start: Date,
+    end: Date,
+  ) {
+    if (billingType === OfferBillingType.LIFETIME) return;
+    const endDay = this.calendarDay(end);
+    const min = this.calendarDay(start);
+    if (billingType === OfferBillingType.YEARLY) {
+      min.setFullYear(min.getFullYear() + 1);
+      if (endDay < min) {
+        throw new BadRequestException('Un tarif annuel dure au moins 1 an');
+      }
+      return;
+    }
+    min.setMonth(min.getMonth() + 1);
+    if (endDay < min) {
+      throw new BadRequestException('Un tarif mensuel dure au moins 1 mois');
+    }
+  }
+
+  private billingUnits(
+    billingType: OfferBillingType,
+    start: Date,
+    end: Date,
+  ): number {
+    if (billingType === OfferBillingType.LIFETIME) return 1;
+    const months = this.monthsCovered(start, end);
+    if (billingType === OfferBillingType.YEARLY) {
+      return Math.max(1, Math.ceil(months / 12));
+    }
+    return Math.max(1, months);
+  }
+
+  private computeTotalAmount(
+    offer: { audience: OfferAudience; maxTeamMembers: number },
+    price: {
+      billingType: OfferBillingType;
+      priceAmount: { toString(): string } | number;
+      pricePerSeat?: { toString(): string } | number | null;
+    },
+    purchasedSeats: number | null,
+    start: Date,
+    end: Date,
+  ): number {
+    const base = Number(price.priceAmount);
+    const perSeat =
+      price.pricePerSeat == null ? NaN : Number(price.pricePerSeat);
+    let periodAmount = Number.isFinite(base) ? base : 0;
+    if (
+      offer.audience === OfferAudience.TEAM &&
+      offer.maxTeamMembers > 0 &&
+      Number.isFinite(perSeat) &&
+      perSeat > 0
+    ) {
+      periodAmount += perSeat * paidExtraSeats(offer.maxTeamMembers, purchasedSeats);
+    }
+    const units = this.billingUnits(price.billingType, start, end);
+    return Math.round(periodAmount * units);
+  }
+
   private async buildRevenueTotals() {
     type TotalsRow = {
       total: number | string;
@@ -716,11 +831,12 @@ export class AdminSubscriptionsService {
 
     const rows = await this.prisma.$queryRawUnsafe<TotalsRow[]>(
       `SELECT
-         COALESCE(SUM(p."priceAmount"), 0) AS total,
+         COALESCE(SUM(COALESCE(s."totalAmount", p."priceAmount")), 0) AS total,
          COALESCE(
            SUM(
              CASE
-               WHEN s.status IN ('ACTIVE', 'PAST_DUE') THEN p."priceAmount"
+               WHEN s.status IN ('ACTIVE', 'PAST_DUE')
+               THEN COALESCE(s."totalAmount", p."priceAmount")
                ELSE 0
              END
            ),
@@ -767,7 +883,7 @@ export class AdminSubscriptionsService {
            SUM(
              CASE
                WHEN s.status <> 'TRIAL' AND s."offerPriceId" IS NOT NULL
-               THEN p."priceAmount"
+               THEN COALESCE(s."totalAmount", p."priceAmount")
                ELSE 0
              END
            ),

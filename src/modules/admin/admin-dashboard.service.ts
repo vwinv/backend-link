@@ -184,11 +184,12 @@ export class AdminDashboardService {
     const [totalsRows, offerRows] = await Promise.all([
       this.prisma.$queryRawUnsafe<TotalsRow[]>(
         `SELECT
-           COALESCE(SUM(p."priceAmount"), 0) AS total,
+           COALESCE(SUM(COALESCE(s."totalAmount", p."priceAmount")), 0) AS total,
            COALESCE(
              SUM(
                CASE
-                 WHEN s.status IN ('ACTIVE', 'PAST_DUE') THEN p."priceAmount"
+                 WHEN s.status IN ('ACTIVE', 'PAST_DUE')
+                 THEN COALESCE(s."totalAmount", p."priceAmount")
                  ELSE 0
                END
              ),
@@ -206,11 +207,12 @@ export class AdminDashboardService {
            o.title,
            o.slug,
            COUNT(s.id)::int AS subscriptions_count,
-           COALESCE(SUM(p."priceAmount"), 0) AS revenue,
+           COALESCE(SUM(COALESCE(s."totalAmount", p."priceAmount")), 0) AS revenue,
            COALESCE(
              SUM(
                CASE
-                 WHEN s.status IN ('ACTIVE', 'PAST_DUE') THEN p."priceAmount"
+                 WHEN s.status IN ('ACTIVE', 'PAST_DUE')
+                 THEN COALESCE(s."totalAmount", p."priceAmount")
                  ELSE 0
                END
              ),
