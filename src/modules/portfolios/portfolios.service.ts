@@ -559,39 +559,35 @@ export class PortfoliosService {
       interests: profile ? content.interests : [],
     };
 
+    let html: string;
     if (theme.layout === 'couverture') {
-      return buildCoverPortfolioHtml(pageInput);
-    }
-    if (theme.layout === 'classique') {
-      return buildClassicPortfolioHtml(pageInput);
-    }
-    if (theme.layout === 'editorial') {
-      return buildEditorialPortfolioHtml(pageInput);
-    }
-    if (theme.layout === 'galerie') {
-      return buildGalleryPortfolioHtml(pageInput);
-    }
-    if (theme.layout === 'minimal') {
-      return buildMinimalPortfolioHtml(pageInput);
-    }
-    if (theme.layout === 'bento') {
-      return buildBentoPortfolioHtml(pageInput);
-    }
-    if (theme.layout === 'portrait') {
-      return buildPortraitPortfolioHtml(pageInput);
-    }
-    if (theme.layout === 'cartes') {
-      return buildCartesPortfolioHtml(pageInput);
+      html = buildCoverPortfolioHtml(pageInput);
+    } else if (theme.layout === 'classique') {
+      html = buildClassicPortfolioHtml(pageInput);
+    } else if (theme.layout === 'editorial') {
+      html = buildEditorialPortfolioHtml(pageInput);
+    } else if (theme.layout === 'galerie') {
+      html = buildGalleryPortfolioHtml(pageInput);
+    } else if (theme.layout === 'minimal') {
+      html = buildMinimalPortfolioHtml(pageInput);
+    } else if (theme.layout === 'bento') {
+      html = buildBentoPortfolioHtml(pageInput);
+    } else if (theme.layout === 'portrait') {
+      html = buildPortraitPortfolioHtml(pageInput);
+    } else if (theme.layout === 'cartes') {
+      html = buildCartesPortfolioHtml(pageInput);
+    } else {
+      html = buildPublicPortfolioHtml({
+        fullName,
+        initials: this.initials(firstName, lastName),
+        jobTitle,
+        company,
+        avatarUrl: photoUrl,
+        pageUrl,
+      });
     }
 
-    return buildPublicPortfolioHtml({
-      fullName,
-      initials: this.initials(firstName, lastName),
-      jobTitle,
-      company,
-      avatarUrl: photoUrl,
-      pageUrl,
-    });
+    return embed ? withEmbedPortfolioTopSpace(html) : html;
   }
 
   private initials(firstName: string, lastName: string): string {
@@ -635,4 +631,16 @@ export class PortfoliosService {
   removeProject(id: string, projectId: string) {
     return { message: 'removeProject', id, projectId };
   }
+}
+
+/** Espace au-dessus de la ligne « Me contacter » dans l’aperçu in-app. */
+function withEmbedPortfolioTopSpace(html: string): string {
+  const style = `<style>
+    html.embed .top,
+    html.embed .head { margin-top: 82px; }
+    html.embed .hero-top { top: 104px; }
+  </style>`;
+  return html
+    .replace('<html lang="fr">', '<html lang="fr" class="embed">')
+    .replace('</head>', `${style}</head>`);
 }
