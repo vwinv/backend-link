@@ -518,6 +518,28 @@ export const PUBLIC_CARD_STYLES = `
     min-height: 100%;
     display: flex;
     flex-direction: column;
+    padding-top: 104px;
+  }
+
+  html.embed .layout-bubble .bubble-header,
+  html.embed .layout-bubble .bubble-header-shape {
+    height: 152px;
+  }
+
+  html.embed .layout-bubble .bubble-avatar-slot {
+    top: 96px;
+  }
+
+  html.embed .layout-bubble .bubble-body {
+    margin-top: 144px;
+  }
+
+  html.embed .layout-arc .arc-avatar-wrap {
+    top: 126px;
+  }
+
+  html.embed .layout-arc .arc-sheet {
+    top: 196px;
   }
 
   html.embed .layout-arc .arc-stage,

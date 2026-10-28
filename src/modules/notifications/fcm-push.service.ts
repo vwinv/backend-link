@@ -152,13 +152,22 @@ export class FcmPushService implements OnModuleInit {
               },
               android: {
                 priority: 'HIGH',
+                notification: {
+                  channelId: 'dropone_default',
+                  sound: 'default',
+                },
               },
               apns: {
                 headers: {
                   'apns-priority': '10',
+                  'apns-push-type': 'alert',
                 },
                 payload: {
                   aps: {
+                    alert: {
+                      title: input.title,
+                      body: input.body,
+                    },
                     sound: 'default',
                     badge: 1,
                   },
