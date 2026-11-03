@@ -21,20 +21,20 @@ export declare class InvoicesService implements OnModuleInit {
     ensureUpcomingForOwner(ownerId: string, teamId?: string | null): Promise<{
         number: string;
         id: string;
-        description: string | null;
-        provider: string | null;
+        teamId: string | null;
         createdAt: Date;
         updatedAt: Date;
         userId: string;
+        description: string | null;
         status: import("@prisma/client").$Enums.InvoiceStatus;
-        teamId: string | null;
         billingType: string | null;
         currency: string;
+        providerInvoiceId: string | null;
+        subscriptionId: string | null;
+        amount: Prisma.Decimal;
         offerSlug: string | null;
         seats: number | null;
-        subscriptionId: string | null;
-        providerInvoiceId: string | null;
-        amount: Prisma.Decimal;
+        provider: string | null;
         lines: Prisma.JsonValue;
         dueAt: Date | null;
         paidAt: Date | null;

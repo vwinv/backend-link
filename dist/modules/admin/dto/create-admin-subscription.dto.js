@@ -8,7 +8,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreateAdminSubscriptionDto = void 0;
 const swagger_1 = require("@nestjs/swagger");
@@ -23,6 +22,7 @@ class CreateAdminSubscriptionDto {
     teamId;
     purchasedSeats;
     currentPeriodEnd;
+    countsInRevenue;
 }
 exports.CreateAdminSubscriptionDto = CreateAdminSubscriptionDto;
 __decorate([
@@ -51,7 +51,7 @@ __decorate([
     }),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsIn)([client_1.SubscriptionStatus.ACTIVE, client_1.SubscriptionStatus.TRIAL]),
-    __metadata("design:type", typeof (_a = typeof client_1.SubscriptionStatus !== "undefined" && client_1.SubscriptionStatus) === "function" ? _a : Object)
+    __metadata("design:type", String)
 ], CreateAdminSubscriptionDto.prototype, "status", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)({ description: 'ID d’équipe (offres pro)' }),
@@ -75,4 +75,13 @@ __decorate([
     (0, class_validator_1.IsDateString)(),
     __metadata("design:type", String)
 ], CreateAdminSubscriptionDto.prototype, "currentPeriodEnd", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        description: 'false = abonnement de test, exclu du chiffre d’affaires.',
+        default: true,
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], CreateAdminSubscriptionDto.prototype, "countsInRevenue", void 0);
 //# sourceMappingURL=create-admin-subscription.dto.js.map

@@ -14,6 +14,7 @@ exports.AdminNotificationsService = void 0;
 const common_1 = require("@nestjs/common");
 const client_1 = require("@prisma/client");
 const fcm_push_service_1 = require("../notifications/fcm-push.service");
+const notification_i18n_1 = require("../notifications/notification-i18n");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const subscription_validity_1 = require("../subscriptions/subscription-validity");
 let AdminNotificationsService = AdminNotificationsService_1 = class AdminNotificationsService {
@@ -111,8 +112,13 @@ let AdminNotificationsService = AdminNotificationsService_1 = class AdminNotific
     async createAndSend(dto, actorUserId) {
         const title = dto.title.trim();
         const body = dto.body.trim();
+        const titleEn = dto.titleEn?.trim() || null;
+        const bodyEn = dto.bodyEn?.trim() || null;
         if (!title || !body) {
             throw new common_1.BadRequestException('Titre et message requis');
+        }
+        if ((titleEn && !bodyEn) || (!titleEn && bodyEn)) {
+            throw new common_1.BadRequestException('Pour l’anglais, renseignez le titre et le message ensemble');
         }
         if (dto.audience === client_1.NotificationAudience.USER_IDS &&
             (!dto.userIds || dto.userIds.length === 0)) {
@@ -123,6 +129,8 @@ let AdminNotificationsService = AdminNotificationsService_1 = class AdminNotific
             data: {
                 title,
                 body,
+                titleEn,
+                bodyEn,
                 audience: dto.audience,
                 userIds: dto.audience === client_1.NotificationAudience.USER_IDS
                     ? dto.userIds ?? []
@@ -154,39 +162,80 @@ let AdminNotificationsService = AdminNotificationsService_1 = class AdminNotific
                 });
                 return this.toCampaignDto(updated);
             }
+            const targetUsers = await this.prisma.user.findMany({
+                where: { id: { in: targetUserIds } },
+                select: { id: true, preferredLocale: true },
+            });
+            const localeByUserId = new Map(targetUsers.map((user) => [user.id, (0, notification_i18n_1.normalizeAppLocale)(user.preferredLocale)]));
             await this.prisma.userNotification.createMany({
-                data: targetUserIds.map((userId) => ({
-                    userId,
-                    campaignId: campaign.id,
-                    title,
-                    body,
-                })),
+                data: targetUserIds.map((userId) => {
+                    const locale = localeByUserId.get(userId) ?? 'fr';
+                    return {
+                        userId,
+                        campaignId: campaign.id,
+                        title: (0, notification_i18n_1.pickLocalizedText)({ locale, fr: title, en: titleEn }),
+                        body: (0, notification_i18n_1.pickLocalizedText)({ locale, fr: body, en: bodyEn }),
+                    };
+                }),
             });
-            const pushTokens = await this.prisma.devicePushToken.findMany({
-                where: { userId: { in: targetUserIds } },
-                select: { token: true },
-            });
-            const tokens = pushTokens.map((row) => row.token);
-            const pushResult = await this.fcmPushService.sendToTokens({
-                tokens,
-                title,
-                body,
-                data: {
-                    type: 'campaign',
-                    campaignId: campaign.id,
-                },
-            });
-            if (pushResult.invalidTokens.length > 0) {
+            const [pushTokens, unreadRows] = await Promise.all([
+                this.prisma.devicePushToken.findMany({
+                    where: { userId: { in: targetUserIds } },
+                    select: { token: true, userId: true },
+                }),
+                this.prisma.userNotification.groupBy({
+                    by: ['userId'],
+                    where: { userId: { in: targetUserIds }, isRead: false },
+                    _count: { _all: true },
+                }),
+            ]);
+            const unreadByUserId = new Map(unreadRows.map((row) => [row.userId, row._count._all]));
+            const tokensByUserId = new Map();
+            for (const row of pushTokens) {
+                const list = tokensByUserId.get(row.userId) ?? [];
+                list.push(row.token);
+                tokensByUserId.set(row.userId, list);
+            }
+            let attempted = 0;
+            let success = 0;
+            let failure = 0;
+            let configured = false;
+            let lastError = null;
+            const invalidTokens = [];
+            for (const userId of targetUserIds) {
+                const tokens = tokensByUserId.get(userId);
+                if (!tokens || tokens.length === 0)
+                    continue;
+                const locale = localeByUserId.get(userId) ?? 'fr';
+                const pushResult = await this.fcmPushService.sendToTokens({
+                    tokens,
+                    title: (0, notification_i18n_1.pickLocalizedText)({ locale, fr: title, en: titleEn }),
+                    body: (0, notification_i18n_1.pickLocalizedText)({ locale, fr: body, en: bodyEn }),
+                    data: {
+                        type: 'campaign',
+                        campaignId: campaign.id,
+                    },
+                    badge: unreadByUserId.get(userId) ?? 1,
+                });
+                configured = configured || pushResult.configured;
+                attempted += pushResult.attempted;
+                success += pushResult.success;
+                failure += pushResult.failure;
+                if (pushResult.lastError)
+                    lastError = pushResult.lastError;
+                invalidTokens.push(...pushResult.invalidTokens);
+            }
+            if (invalidTokens.length > 0) {
                 await this.prisma.devicePushToken.deleteMany({
-                    where: { token: { in: pushResult.invalidTokens } },
+                    where: { token: { in: invalidTokens } },
                 });
             }
-            if (!pushResult.configured && tokens.length > 0) {
-                this.logger.warn(`Campagne ${campaign.id}: inbox livrée, FCM non configuré (${tokens.length} token(s))`);
+            if (!configured && pushTokens.length > 0) {
+                this.logger.warn(`Campagne ${campaign.id}: inbox livrée, FCM non configuré (${pushTokens.length} token(s))`);
             }
-            else if (pushResult.configured) {
-                this.logger.log(`Campagne ${campaign.id}: push ${pushResult.success}/${pushResult.attempted} (échecs: ${pushResult.failure})`);
-                if (pushResult.attempted > 0 && pushResult.success === 0) {
+            else if (configured) {
+                this.logger.log(`Campagne ${campaign.id}: push ${success}/${attempted} (échecs: ${failure})`);
+                if (attempted > 0 && success === 0) {
                     this.logger.warn(`Campagne ${campaign.id}: aucun push livré. Vérifier Firebase Cloud Messaging API et le token appareil.`);
                 }
             }
@@ -195,12 +244,12 @@ let AdminNotificationsService = AdminNotificationsService_1 = class AdminNotific
                 data: {
                     status: client_1.NotificationCampaignStatus.SENT,
                     deliveredCount: targetUserIds.length,
-                    pushAttempted: pushResult.attempted,
+                    pushAttempted: attempted,
                     sentAt: new Date(),
-                    errorMessage: tokens.length === 0
+                    errorMessage: pushTokens.length === 0
                         ? 'Inbox livrée, aucun token push enregistré'
-                        : pushResult.success === 0
-                            ? pushResult.lastError ??
+                        : success === 0
+                            ? lastError ??
                                 'Inbox livrée, mais le push FCM a échoué'
                             : null,
                 },
@@ -281,6 +330,8 @@ let AdminNotificationsService = AdminNotificationsService_1 = class AdminNotific
             id: campaign.id,
             title: campaign.title,
             body: campaign.body,
+            titleEn: campaign.titleEn ?? null,
+            bodyEn: campaign.bodyEn ?? null,
             audience: campaign.audience,
             userIds,
             status: campaign.status,

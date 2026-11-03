@@ -22,5 +22,6 @@ export declare class FcmPushService implements OnModuleInit {
         title: string;
         body: string;
         data?: Record<string, string>;
+        badge?: number;
     }): Promise<FcmSendResult>;
 }

@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.UsersService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
+const notification_i18n_1 = require("../notifications/notification-i18n");
 let UsersService = class UsersService {
     prisma;
     constructor(prisma) {
@@ -25,6 +26,26 @@ let UsersService = class UsersService {
     }
     findOne(id) {
         return { message: 'findOne', id };
+    }
+    async updatePreferredLocale(userId, locale) {
+        const preferredLocale = (0, notification_i18n_1.normalizeAppLocale)(locale);
+        const user = await this.prisma.user.findUnique({
+            where: { id: userId },
+            select: { id: true },
+        });
+        if (!user) {
+            throw new common_1.NotFoundException('Utilisateur introuvable');
+        }
+        const updated = await this.prisma.user.update({
+            where: { id: userId },
+            data: { preferredLocale },
+            select: {
+                id: true,
+                preferredLocale: true,
+                updatedAt: true,
+            },
+        });
+        return updated;
     }
     async deleteMe(userId) {
         const user = await this.prisma.user.findUnique({ where: { id: userId } });

@@ -65,6 +65,12 @@ let CardsService = class CardsService {
         }
         let theme = { cardBadge: 'personalTag' };
         let teamLogoUrl = null;
+        let teamAddress = this.isTeamCardKind(kind)
+            ? this.optionalString(dto.address)
+            : null;
+        let teamWebsite = this.isTeamCardKind(kind)
+            ? this.normalizeWebsiteUrl(dto.website)
+            : null;
         if ((kind === client_1.CardKind.PROFESSIONAL || kind === client_1.CardKind.MEMBER) &&
             dto.teamId) {
             const team = await this.prisma.team.findFirst({
@@ -98,11 +104,13 @@ let CardsService = class CardsService {
                 if (professionalTemplate) {
                     theme = (0, card_theme_util_1.normalizeCardThemeForStorage)(professionalTemplate.theme);
                     teamLogoUrl = professionalTemplate.logoUrl ?? teamLogoUrl;
+                    teamAddress = professionalTemplate.address;
+                    teamWebsite = professionalTemplate.website;
                 }
             }
         }
         const slug = await this.generateUniqueSlug(dto.firstName, dto.lastName, kind);
-        return this.prisma.businessCard.create({
+        const created = await this.prisma.businessCard.create({
             data: {
                 slug,
                 ownerId: userId,
@@ -113,24 +121,25 @@ let CardsService = class CardsService {
                 company: this.optionalString(dto.company),
                 email: this.optionalString(dto.email),
                 phone: this.optionalString(dto.phone),
-                address: this.isTeamCardKind(kind)
-                    ? this.optionalString(dto.address)
-                    : null,
-                website: this.isTeamCardKind(kind)
-                    ? this.normalizeWebsiteUrl(dto.website)
-                    : null,
+                address: teamAddress,
+                website: teamWebsite,
                 teamId: dto.teamId ?? null,
                 logoUrl: teamLogoUrl,
                 isPublic: dto.isPublic ?? true,
                 theme,
             },
         });
+        if (kind === client_1.CardKind.MEMBER && dto.teamId) {
+            await this.copyTeamSocialLinksToCard(dto.teamId, created.id);
+        }
+        return this.withTeamSharedFields(created);
     }
     async findAll(userId) {
-        return this.prisma.businessCard.findMany({
+        const cards = await this.prisma.businessCard.findMany({
             where: { ownerId: userId },
             orderBy: [{ kind: 'asc' }, { createdAt: 'desc' }],
         });
+        return Promise.all(cards.map((card) => this.withTeamSharedFields(card)));
     }
     async findOne(userId, id) {
         const card = await this.prisma.businessCard.findFirst({
@@ -139,12 +148,17 @@ let CardsService = class CardsService {
         if (!card) {
             throw new common_1.NotFoundException('Carte introuvable');
         }
-        return card;
+        return this.withTeamSharedFields(card);
     }
     async update(userId, id, dto) {
         const card = await this.findOne(userId, id);
         if (dto.logoUrl !== undefined) {
             await this.assertCanEditTeamLogo(userId, card);
+        }
+        const updatesTeamSharedFields = this.isTeamCardKind(card.kind) &&
+            (dto.address !== undefined || dto.website !== undefined);
+        if (updatesTeamSharedFields) {
+            await this.assertCanEditTeamSharedFields(userId, card);
         }
         const updated = await this.prisma.businessCard.update({
             where: { id },
@@ -186,6 +200,12 @@ let CardsService = class CardsService {
                 ...(dto.isPublic !== undefined && { isPublic: dto.isPublic }),
             },
         });
+        if (updatesTeamSharedFields && card.teamId) {
+            await this.applyTeamSharedFieldsToCards(card.teamId, {
+                ...(dto.address !== undefined && { address: updated.address }),
+                ...(dto.website !== undefined && { website: updated.website }),
+            });
+        }
         if (card.kind === client_1.CardKind.PROFESSIONAL &&
             card.teamId &&
             dto.logoUrl !== undefined) {
@@ -204,7 +224,7 @@ let CardsService = class CardsService {
         if (dto.logoUrl !== undefined) {
             await this.uploadsService.replaceImage(card.logoUrl, updated.logoUrl);
         }
-        return updated;
+        return this.withTeamSharedFields(updated);
     }
     async updateTheme(userId, id, dto) {
         const card = await this.findOne(userId, id);
@@ -261,9 +281,11 @@ let CardsService = class CardsService {
     async syncSocialLinks(userId, cardId, links) {
         const card = await this.findOne(userId, cardId);
         const isTeamCard = this.isTeamCardKind(card.kind);
+        if (isTeamCard) {
+            await this.assertCanEditTeamSharedFields(userId, card);
+        }
         const sanitized = links
             .map((link, index) => ({
-            cardId,
             platform: link.platform,
             url: this.normalizeSocialUrl(link.url) ?? '',
             label: link.label?.trim() || null,
@@ -274,23 +296,25 @@ let CardsService = class CardsService {
         if (sanitized.length > 0) {
             await this.entitlementsService.assertCanEditSocialLinks(userId, cardId);
         }
+        const websiteUrl = sanitized.find((link) => link.platform === client_1.SocialPlatform.WEBSITE)?.url ??
+            null;
+        if (isTeamCard && card.teamId) {
+            await this.applyTeamSocialLinks(card.teamId, sanitized, websiteUrl);
+            return this.getSocialLinks(userId, cardId);
+        }
         await this.prisma.socialLink.deleteMany({ where: { cardId } });
         if (sanitized.length > 0) {
-            await this.prisma.socialLink.createMany({ data: sanitized });
-        }
-        if (isTeamCard) {
-            const websiteLink = sanitized.find((link) => link.platform === client_1.SocialPlatform.WEBSITE);
-            await this.prisma.businessCard.update({
-                where: { id: cardId },
-                data: { website: websiteLink?.url ?? null },
+            await this.prisma.socialLink.createMany({
+                data: sanitized.map((link) => ({ ...link, cardId })),
             });
         }
         return this.getSocialLinks(userId, cardId);
     }
     async getSocialLinks(userId, cardId) {
-        await this.findOne(userId, cardId);
+        const card = await this.findOne(userId, cardId);
+        const sourceCardId = await this.resolveTeamSocialSourceCardId(card);
         return this.prisma.socialLink.findMany({
-            where: { cardId },
+            where: { cardId: sourceCardId },
             orderBy: { order: 'asc' },
         });
     }
@@ -671,12 +695,115 @@ let CardsService = class CardsService {
     isTeamCardKind(kind) {
         return kind === client_1.CardKind.PROFESSIONAL || kind === client_1.CardKind.MEMBER;
     }
-    async assertCanEditTeamLogo(userId, card) {
-        if (card.kind === client_1.CardKind.MEMBER) {
-            throw new common_1.ForbiddenException('Le logo d’équipe ne peut être modifié que par un administrateur');
+    async withTeamSharedFields(card) {
+        if (!card.teamId || card.kind !== client_1.CardKind.MEMBER) {
+            return card;
         }
-        if (card.kind !== client_1.CardKind.PROFESSIONAL || !card.teamId) {
-            throw new common_1.BadRequestException('Le logo d’équipe n’est disponible que sur la carte professionnelle');
+        const professional = await this.prisma.businessCard.findFirst({
+            where: {
+                teamId: card.teamId,
+                kind: client_1.CardKind.PROFESSIONAL,
+                isActive: true,
+            },
+            select: { address: true, website: true },
+        });
+        if (!professional)
+            return card;
+        return {
+            ...card,
+            address: professional.address,
+            website: professional.website,
+        };
+    }
+    async resolveTeamSocialSourceCardId(card) {
+        if (!card.teamId || !this.isTeamCardKind(card.kind)) {
+            return card.id;
+        }
+        const professional = await this.prisma.businessCard.findFirst({
+            where: {
+                teamId: card.teamId,
+                kind: client_1.CardKind.PROFESSIONAL,
+                isActive: true,
+            },
+            select: { id: true },
+        });
+        return professional?.id ?? card.id;
+    }
+    async applyTeamSharedFieldsToCards(teamId, fields) {
+        const data = {};
+        if (fields.address !== undefined)
+            data.address = fields.address;
+        if (fields.website !== undefined)
+            data.website = fields.website;
+        if (Object.keys(data).length === 0)
+            return;
+        await this.prisma.businessCard.updateMany({
+            where: {
+                teamId,
+                isActive: true,
+                kind: { in: [client_1.CardKind.PROFESSIONAL, client_1.CardKind.MEMBER] },
+            },
+            data,
+        });
+    }
+    async applyTeamSocialLinks(teamId, links, websiteUrl) {
+        const cards = await this.prisma.businessCard.findMany({
+            where: {
+                teamId,
+                isActive: true,
+                kind: { in: [client_1.CardKind.PROFESSIONAL, client_1.CardKind.MEMBER] },
+            },
+            select: { id: true },
+        });
+        if (cards.length === 0)
+            return;
+        const cardIds = cards.map((c) => c.id);
+        await this.prisma.$transaction(async (tx) => {
+            await tx.socialLink.deleteMany({ where: { cardId: { in: cardIds } } });
+            if (links.length > 0) {
+                await tx.socialLink.createMany({
+                    data: cardIds.flatMap((id) => links.map((link) => ({
+                        cardId: id,
+                        platform: link.platform,
+                        url: link.url,
+                        label: link.label,
+                        order: link.order,
+                    }))),
+                });
+            }
+            await tx.businessCard.updateMany({
+                where: { id: { in: cardIds } },
+                data: { website: websiteUrl },
+            });
+        });
+    }
+    async copyTeamSocialLinksToCard(teamId, targetCardId) {
+        const sourceCardId = await this.resolveTeamSocialSourceCardId({
+            id: targetCardId,
+            teamId,
+            kind: client_1.CardKind.MEMBER,
+        });
+        if (sourceCardId === targetCardId)
+            return;
+        const links = await this.prisma.socialLink.findMany({
+            where: { cardId: sourceCardId },
+            orderBy: { order: 'asc' },
+        });
+        if (links.length === 0)
+            return;
+        await this.prisma.socialLink.createMany({
+            data: links.map((link) => ({
+                cardId: targetCardId,
+                platform: link.platform,
+                url: link.url,
+                label: link.label,
+                order: link.order,
+            })),
+        });
+    }
+    async assertCanEditTeamSharedFields(userId, card) {
+        if (!this.isTeamCardKind(card.kind) || !card.teamId) {
+            throw new common_1.BadRequestException('Adresse et réseaux d’équipe disponibles uniquement sur une carte liée à une équipe');
         }
         const team = await this.prisma.team.findFirst({
             where: { id: card.teamId, isActive: true },
@@ -693,8 +820,17 @@ let CardsService = class CardsService {
         });
         if (membership?.role !== client_1.TeamMemberRole.ADMIN &&
             membership?.role !== client_1.TeamMemberRole.OWNER) {
+            throw new common_1.ForbiddenException('Seuls le propriétaire et les administrateurs peuvent modifier l’adresse et les réseaux de l’équipe');
+        }
+    }
+    async assertCanEditTeamLogo(userId, card) {
+        if (card.kind === client_1.CardKind.MEMBER) {
             throw new common_1.ForbiddenException('Le logo d’équipe ne peut être modifié que par un administrateur');
         }
+        if (card.kind !== client_1.CardKind.PROFESSIONAL || !card.teamId) {
+            throw new common_1.BadRequestException('Le logo d’équipe n’est disponible que sur la carte professionnelle');
+        }
+        await this.assertCanEditTeamSharedFields(userId, card);
     }
     optionalString(value) {
         if (value == null)

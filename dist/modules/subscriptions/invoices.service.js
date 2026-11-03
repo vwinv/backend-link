@@ -16,6 +16,7 @@ const schedule_1 = require("@nestjs/schedule");
 const client_1 = require("@prisma/client");
 const crypto_1 = require("crypto");
 const prisma_service_1 = require("../../prisma/prisma.service");
+const notification_i18n_1 = require("../notifications/notification-i18n");
 const notifications_service_1 = require("../notifications/notifications.service");
 const subscription_validity_1 = require("./subscription-validity");
 const team_seats_1 = require("./team-seats");
@@ -65,16 +66,29 @@ let InvoicesService = InvoicesService_1 = class InvoicesService {
             where: { id: { in: due.map((item) => item.id) } },
             data: { status: client_1.SubscriptionStatus.EXPIRED },
         });
+        const userIds = [
+            ...new Set(due
+                .map((item) => item.userId ?? item.team?.ownerId)
+                .filter((id) => Boolean(id))),
+        ];
+        const users = userIds.length === 0
+            ? []
+            : await this.prisma.user.findMany({
+                where: { id: { in: userIds } },
+                select: { id: true, preferredLocale: true },
+            });
+        const localeByUserId = new Map(users.map((user) => [user.id, user.preferredLocale]));
         for (const subscription of due) {
             const userId = subscription.userId ?? subscription.team?.ownerId;
             if (!userId)
                 continue;
             const offerTitle = subscription.offer?.title?.trim() || 'Premium';
+            const copy = (0, notification_i18n_1.subscriptionExpiredCopy)(localeByUserId.get(userId), offerTitle);
             try {
                 await this.notificationsService.notifyUser({
                     userId,
-                    title: 'Votre abonnement a expiré',
-                    body: `Votre offre ${offerTitle} n’est plus active. Renouvelez-la pour retrouver vos avantages.`,
+                    title: copy.title,
+                    body: copy.body,
                     data: {
                         type: 'subscription_expired',
                         subscriptionId: subscription.id,

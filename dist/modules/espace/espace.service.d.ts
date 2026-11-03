@@ -18,12 +18,12 @@ export declare class EspaceService {
         team: {
             createdAt: string;
             id: string;
+            slug: string;
+            ownerId: string;
+            logoUrl: string | null;
             name: string;
             description: string | null;
-            slug: string;
-            logoUrl: string | null;
             brandColor: string | null;
-            ownerId: string;
         };
         myRole: "ADMIN" | "OWNER";
         seats: import("../subscriptions/entitlements.types").TeamSeatsQuota;
@@ -34,9 +34,9 @@ export declare class EspaceService {
             purchasedSeats: number | null;
             currentPeriodEnd: string | null;
             offer: {
+                slug: string;
                 title: string;
                 audience: import("@prisma/client").$Enums.OfferAudience;
-                slug: string;
             } | null;
             offerPrice: {
                 billingType: import("@prisma/client").$Enums.OfferBillingType;
@@ -59,9 +59,9 @@ export declare class EspaceService {
             joinedAt: string;
             user: {
                 id: string;
-                email: string;
                 firstName: string;
                 lastName: string;
+                email: string;
                 avatarUrl: string | null;
             };
             stats: {
@@ -94,35 +94,35 @@ export declare class EspaceService {
         members: ({
             user: {
                 id: string;
-                email: string;
                 firstName: string;
                 lastName: string;
+                email: string;
                 avatarUrl: string | null;
             };
         } & {
             id: string;
-            role: import("@prisma/client").$Enums.TeamMemberRole;
-            updatedAt: Date;
-            userId: string;
             teamId: string;
+            updatedAt: Date;
+            role: import("@prisma/client").$Enums.TeamMemberRole;
+            userId: string;
             joinedAt: Date;
         })[];
         pendingInvites: {
             id: string;
-            email: string;
+            teamId: string;
             firstName: string | null;
             lastName: string | null;
+            jobTitle: string | null;
+            email: string;
             avatarUrl: string | null;
-            role: import("@prisma/client").$Enums.TeamMemberRole;
             createdAt: Date;
             updatedAt: Date;
-            expiresAt: Date | null;
-            status: import("@prisma/client").$Enums.TeamInviteStatus;
-            inviteeUserId: string | null;
-            jobTitle: string | null;
-            respondedAt: Date | null;
-            teamId: string;
+            role: import("@prisma/client").$Enums.TeamMemberRole;
             invitedById: string;
+            inviteeUserId: string | null;
+            status: import("@prisma/client").$Enums.TeamInviteStatus;
+            expiresAt: Date | null;
+            respondedAt: Date | null;
         }[];
         seats: import("../subscriptions/entitlements.types").TeamSeatsQuota;
     }>;
@@ -307,50 +307,50 @@ export declare class EspaceService {
     addMember(userId: string, slug: string, dto: AddMemberDto): Promise<{
         team: {
             id: string;
-            name: string;
             logoUrl: string | null;
+            name: string;
             brandColor: string | null;
         };
     } & {
         id: string;
-        email: string;
+        teamId: string;
         firstName: string | null;
         lastName: string | null;
+        jobTitle: string | null;
+        email: string;
         avatarUrl: string | null;
-        role: import("@prisma/client").$Enums.TeamMemberRole;
         createdAt: Date;
         updatedAt: Date;
-        expiresAt: Date | null;
-        status: import("@prisma/client").$Enums.TeamInviteStatus;
-        inviteeUserId: string | null;
-        jobTitle: string | null;
-        respondedAt: Date | null;
-        teamId: string;
+        role: import("@prisma/client").$Enums.TeamMemberRole;
         invitedById: string;
+        inviteeUserId: string | null;
+        status: import("@prisma/client").$Enums.TeamInviteStatus;
+        expiresAt: Date | null;
+        respondedAt: Date | null;
     }>;
     cancelInvitation(userId: string, slug: string, inviteId: string): Promise<{
         id: string;
-        email: string;
+        teamId: string;
         firstName: string | null;
         lastName: string | null;
+        jobTitle: string | null;
+        email: string;
         avatarUrl: string | null;
-        role: import("@prisma/client").$Enums.TeamMemberRole;
         createdAt: Date;
         updatedAt: Date;
-        expiresAt: Date | null;
-        status: import("@prisma/client").$Enums.TeamInviteStatus;
-        inviteeUserId: string | null;
-        jobTitle: string | null;
-        respondedAt: Date | null;
-        teamId: string;
+        role: import("@prisma/client").$Enums.TeamMemberRole;
         invitedById: string;
+        inviteeUserId: string | null;
+        status: import("@prisma/client").$Enums.TeamInviteStatus;
+        expiresAt: Date | null;
+        respondedAt: Date | null;
     }>;
     removeMember(userId: string, slug: string, memberId: string): Promise<{
         id: string;
-        role: import("@prisma/client").$Enums.TeamMemberRole;
-        updatedAt: Date;
-        userId: string;
         teamId: string;
+        updatedAt: Date;
+        role: import("@prisma/client").$Enums.TeamMemberRole;
+        userId: string;
         joinedAt: Date;
     }>;
     getMemberAnalytics(userId: string, slug: string, memberId: string, days?: number): Promise<{
@@ -360,9 +360,9 @@ export declare class EspaceService {
             joinedAt: string;
             user: {
                 id: string;
-                email: string;
                 firstName: string;
                 lastName: string;
+                email: string;
                 avatarUrl: string | null;
             };
         };
@@ -463,9 +463,9 @@ export declare class EspaceService {
     listMyEspaces(userId: string): Promise<{
         espacePath: string;
         id: string;
-        name: string;
         slug: string;
         logoUrl: string | null;
+        name: string;
         brandColor: string | null;
     }[]>;
 }

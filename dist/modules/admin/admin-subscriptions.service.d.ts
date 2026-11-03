@@ -50,6 +50,8 @@ export declare class AdminSubscriptionsService {
             currentPeriodEnd: Date | null;
             cancelledAt: Date | null;
             purchasedSeats: number | null;
+            totalAmount: number | null;
+            countsInRevenue: boolean;
             createdAt: Date;
             updatedAt: Date;
             paymentProvider: string | null;
@@ -104,9 +106,9 @@ export declare class AdminSubscriptionsService {
             isActive: boolean;
         }[];
         id: string;
+        slug: string;
         title: string;
         audience: import("@prisma/client").$Enums.OfferAudience;
-        slug: string;
         maxTeamMembers: number;
         minSeats: number;
         listedInApp: boolean;
@@ -118,6 +120,8 @@ export declare class AdminSubscriptionsService {
         currentPeriodEnd: Date | null;
         cancelledAt: Date | null;
         purchasedSeats: number | null;
+        totalAmount: number | null;
+        countsInRevenue: boolean;
         createdAt: Date;
         updatedAt: Date;
         paymentProvider: string | null;
@@ -161,6 +165,8 @@ export declare class AdminSubscriptionsService {
         currentPeriodEnd: Date | null;
         cancelledAt: Date | null;
         purchasedSeats: number | null;
+        totalAmount: number | null;
+        countsInRevenue: boolean;
         createdAt: Date;
         updatedAt: Date;
         paymentProvider: string | null;
@@ -204,6 +210,8 @@ export declare class AdminSubscriptionsService {
         currentPeriodEnd: Date | null;
         cancelledAt: Date | null;
         purchasedSeats: number | null;
+        totalAmount: number | null;
+        countsInRevenue: boolean;
         createdAt: Date;
         updatedAt: Date;
         paymentProvider: string | null;
@@ -250,6 +258,11 @@ export declare class AdminSubscriptionsService {
     private ensurePremiumPlan;
     private mapBillingPeriod;
     private computePeriodEnd;
+    private calendarDay;
+    private monthsCovered;
+    private assertPeriodCovers;
+    private billingUnits;
+    private computeTotalAmount;
     private buildRevenueTotals;
     private buildOfferBreakdown;
 }

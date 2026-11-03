@@ -25,16 +25,16 @@ export declare class WalletService {
     findAll(userId: string): Promise<({
         card: {
             id: string;
+            slug: string;
             firstName: string;
             lastName: string;
             jobTitle: string | null;
-            slug: string;
             company: string | null;
         };
     } & {
         id: string;
-        userId: string;
         cardId: string;
+        userId: string;
         savedAt: Date;
         walletType: import("@prisma/client").$Enums.WalletType;
         passId: string | null;

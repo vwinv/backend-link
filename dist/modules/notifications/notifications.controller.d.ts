@@ -12,11 +12,11 @@ export declare class NotificationsController {
     listMine(user: AuthUserPayload, query: NotificationsQueryDto): Promise<{
         data: {
             id: string;
-            title: string;
             createdAt: Date;
+            title: string;
             isRead: boolean;
-            campaignId: string | null;
             body: string;
+            campaignId: string | null;
             readAt: Date | null;
         }[];
         meta: {
@@ -32,12 +32,12 @@ export declare class NotificationsController {
     }>;
     markRead(user: AuthUserPayload, id: string): Promise<{
         id: string;
-        title: string;
         createdAt: Date;
         userId: string;
+        title: string;
         isRead: boolean;
-        campaignId: string | null;
         body: string;
+        campaignId: string | null;
         readAt: Date | null;
     }>;
     markAllRead(user: AuthUserPayload): Promise<{
@@ -46,8 +46,8 @@ export declare class NotificationsController {
     registerToken(user: AuthUserPayload, dto: RegisterPushTokenDto): Promise<{
         id: string;
         updatedAt: Date;
-        token: string;
         platform: import("@prisma/client").$Enums.PushPlatform;
+        token: string;
     }>;
     unregisterToken(user: AuthUserPayload, dto: UnregisterPushTokenDto): Promise<{
         ok: boolean;

@@ -103,6 +103,8 @@ export class FcmPushService implements OnModuleInit {
     title: string;
     body: string;
     data?: Record<string, string>;
+    /** Badge icône = non lus. 0 pour effacer. */
+    badge?: number;
   }): Promise<FcmSendResult> {
     const tokens = [
       ...new Set(input.tokens.map((t) => t.trim()).filter(Boolean)),
@@ -127,6 +129,10 @@ export class FcmPushService implements OnModuleInit {
       };
     }
 
+    const badge =
+      typeof input.badge === 'number' && Number.isFinite(input.badge)
+        ? Math.max(0, Math.floor(input.badge))
+        : 1;
     const invalidTokens: string[] = [];
     let success = 0;
     let failure = 0;
@@ -148,6 +154,7 @@ export class FcmPushService implements OnModuleInit {
               data: {
                 title: input.title,
                 body: input.body,
+                unreadCount: String(badge),
                 ...(input.data ?? {}),
               },
               android: {
@@ -155,6 +162,7 @@ export class FcmPushService implements OnModuleInit {
                 notification: {
                   channelId: 'dropone_default',
                   sound: 'default',
+                  notificationCount: badge,
                 },
               },
               apns: {
@@ -169,7 +177,7 @@ export class FcmPushService implements OnModuleInit {
                       body: input.body,
                     },
                     sound: 'default',
-                    badge: 1,
+                    badge,
                   },
                 },
               },
@@ -199,6 +207,17 @@ export class FcmPushService implements OnModuleInit {
               ? error.message
               : 'Envoi FCM impossible';
         this.logger.warn(`FCM échec (${status ?? 'n/a'}): ${lastError}`);
+        if (
+          lastError.includes('THIRD_PARTY_AUTH_ERROR') ||
+          lastError.includes('InvalidApnsCredential') ||
+          lastError.includes('AuthError')
+        ) {
+          this.logger.error(
+            'FCM iOS: clé APNs invalide ou absente dans Firebase Console '
+              + '(Project Settings → Cloud Messaging → Apple app '
+              + 'com.mega.dropone2 → APNs Authentication Key .p8).',
+          );
+        }
 
         if (
           status === 404 ||

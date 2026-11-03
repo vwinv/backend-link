@@ -8,7 +8,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreateNotificationCampaignDto = void 0;
 const swagger_1 = require("@nestjs/swagger");
@@ -17,6 +16,8 @@ const class_validator_1 = require("class-validator");
 class CreateNotificationCampaignDto {
     title;
     body;
+    titleEn;
+    bodyEn;
     audience;
     userIds;
 }
@@ -36,9 +37,31 @@ __decorate([
     __metadata("design:type", String)
 ], CreateNotificationCampaignDto.prototype, "body", void 0);
 __decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        example: 'New Premium offer',
+        description: 'Titre anglais (utilisé si la langue app est en)',
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(2),
+    (0, class_validator_1.MaxLength)(120),
+    __metadata("design:type", String)
+], CreateNotificationCampaignDto.prototype, "titleEn", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        example: 'Discover the new card design.',
+        description: 'Message anglais (utilisé si la langue app est en)',
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(2),
+    (0, class_validator_1.MaxLength)(1000),
+    __metadata("design:type", String)
+], CreateNotificationCampaignDto.prototype, "bodyEn", void 0);
+__decorate([
     (0, swagger_1.ApiProperty)({ enum: client_1.NotificationAudience }),
     (0, class_validator_1.IsEnum)(client_1.NotificationAudience),
-    __metadata("design:type", typeof (_a = typeof client_1.NotificationAudience !== "undefined" && client_1.NotificationAudience) === "function" ? _a : Object)
+    __metadata("design:type", String)
 ], CreateNotificationCampaignDto.prototype, "audience", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)({

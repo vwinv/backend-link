@@ -17,6 +17,7 @@ const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
 const current_user_decorator_1 = require("../auth/decorators/current-user.decorator");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
+const update_preferred_locale_dto_1 = require("./dto/update-preferred-locale.dto");
 const update_user_dto_1 = require("./dto/update-user.dto");
 const users_service_1 = require("./users.service");
 let UsersController = class UsersController {
@@ -29,6 +30,9 @@ let UsersController = class UsersController {
     }
     updateMe(dto) {
         return this.usersService.updateMe(dto);
+    }
+    updatePreferredLocale(user, dto) {
+        return this.usersService.updatePreferredLocale(user.userId, dto.locale);
     }
     findOne(id) {
         return this.usersService.findOne(id);
@@ -53,6 +57,19 @@ __decorate([
     __metadata("design:paramtypes", [update_user_dto_1.UpdateUserDto]),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "updateMe", null);
+__decorate([
+    (0, common_1.Put)('me/locale'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Enregistrer la langue de l’app (notifications in-app et push)',
+    }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, update_preferred_locale_dto_1.UpdatePreferredLocaleDto]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "updatePreferredLocale", null);
 __decorate([
     (0, common_1.Get)(':id'),
     (0, swagger_1.ApiOperation)({ summary: 'Récupérer un utilisateur par ID' }),

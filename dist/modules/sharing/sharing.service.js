@@ -234,7 +234,7 @@ let SharingService = class SharingService {
         return { ok: true };
     }
     async findPublicCard(slug) {
-        return this.prisma.businessCard.findFirst({
+        const card = await this.prisma.businessCard.findFirst({
             where: {
                 slug,
                 isPublic: true,
@@ -249,6 +249,29 @@ let SharingService = class SharingService {
                 },
             },
         });
+        if (!card || card.kind !== client_1.CardKind.MEMBER || !card.teamId) {
+            return card;
+        }
+        const professional = await this.prisma.businessCard.findFirst({
+            where: {
+                teamId: card.teamId,
+                kind: client_1.CardKind.PROFESSIONAL,
+                isActive: true,
+            },
+            include: {
+                socialLinks: {
+                    orderBy: { order: 'asc' },
+                },
+            },
+        });
+        if (!professional)
+            return card;
+        return {
+            ...card,
+            address: professional.address,
+            website: professional.website,
+            socialLinks: professional.socialLinks,
+        };
     }
     toPublicCardPayload(card) {
         const fullName = `${card.firstName} ${card.lastName}`.trim();

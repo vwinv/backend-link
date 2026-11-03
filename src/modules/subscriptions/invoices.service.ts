@@ -9,6 +9,7 @@ import {
 } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
+import { subscriptionExpiredCopy } from '../notifications/notification-i18n';
 import { NotificationsService } from '../notifications/notifications.service';
 import { LIVE_SUBSCRIPTION_STATUSES } from './subscription-validity';
 import { effectiveTeamSeats, paidExtraSeats } from './team-seats';
@@ -76,15 +77,37 @@ export class InvoicesService implements OnModuleInit {
       data: { status: SubscriptionStatus.EXPIRED },
     });
 
+    const userIds = [
+      ...new Set(
+        due
+          .map((item) => item.userId ?? item.team?.ownerId)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+    const users =
+      userIds.length === 0
+        ? []
+        : await this.prisma.user.findMany({
+            where: { id: { in: userIds } },
+            select: { id: true, preferredLocale: true },
+          });
+    const localeByUserId = new Map(
+      users.map((user) => [user.id, user.preferredLocale] as const),
+    );
+
     for (const subscription of due) {
       const userId = subscription.userId ?? subscription.team?.ownerId;
       if (!userId) continue;
       const offerTitle = subscription.offer?.title?.trim() || 'Premium';
+      const copy = subscriptionExpiredCopy(
+        localeByUserId.get(userId),
+        offerTitle,
+      );
       try {
         await this.notificationsService.notifyUser({
           userId,
-          title: 'Votre abonnement a expiré',
-          body: `Votre offre ${offerTitle} n’est plus active. Renouvelez-la pour retrouver vos avantages.`,
+          title: copy.title,
+          body: copy.body,
           data: {
             type: 'subscription_expired',
             subscriptionId: subscription.id,

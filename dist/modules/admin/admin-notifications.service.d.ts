@@ -20,6 +20,8 @@ export declare class AdminNotificationsService {
             id: string;
             title: string;
             body: string;
+            titleEn: string | null;
+            bodyEn: string | null;
             audience: import("@prisma/client").$Enums.NotificationAudience;
             userIds: string[];
             status: import("@prisma/client").$Enums.NotificationCampaignStatus;
@@ -48,6 +50,8 @@ export declare class AdminNotificationsService {
         id: string;
         title: string;
         body: string;
+        titleEn: string | null;
+        bodyEn: string | null;
         audience: import("@prisma/client").$Enums.NotificationAudience;
         userIds: string[];
         status: import("@prisma/client").$Enums.NotificationCampaignStatus;
@@ -69,6 +73,8 @@ export declare class AdminNotificationsService {
         id: string;
         title: string;
         body: string;
+        titleEn: string | null;
+        bodyEn: string | null;
         audience: import("@prisma/client").$Enums.NotificationAudience;
         userIds: string[];
         status: import("@prisma/client").$Enums.NotificationCampaignStatus;

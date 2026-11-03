@@ -139,11 +139,12 @@ let AdminDashboardService = class AdminDashboardService {
     async buildRevenueStats() {
         const [totalsRows, offerRows] = await Promise.all([
             this.prisma.$queryRawUnsafe(`SELECT
-           COALESCE(SUM(p."priceAmount"), 0) AS total,
+           COALESCE(SUM(COALESCE(s."totalAmount", p."priceAmount")), 0) AS total,
            COALESCE(
              SUM(
                CASE
-                 WHEN s.status IN ('ACTIVE', 'PAST_DUE') THEN p."priceAmount"
+                 WHEN s.status IN ('ACTIVE', 'PAST_DUE')
+                 THEN COALESCE(s."totalAmount", p."priceAmount")
                  ELSE 0
                END
              ),
@@ -153,17 +154,19 @@ let AdminDashboardService = class AdminDashboardService {
          FROM subscriptions s
          INNER JOIN premium_offer_prices p ON p.id = s."offerPriceId"
          WHERE s.status <> 'TRIAL'
-           AND s."offerPriceId" IS NOT NULL`),
+           AND s."offerPriceId" IS NOT NULL
+           AND s."countsInRevenue" = true`),
             this.prisma.$queryRawUnsafe(`SELECT
            o.id,
            o.title,
            o.slug,
            COUNT(s.id)::int AS subscriptions_count,
-           COALESCE(SUM(p."priceAmount"), 0) AS revenue,
+           COALESCE(SUM(COALESCE(s."totalAmount", p."priceAmount")), 0) AS revenue,
            COALESCE(
              SUM(
                CASE
-                 WHEN s.status IN ('ACTIVE', 'PAST_DUE') THEN p."priceAmount"
+                 WHEN s.status IN ('ACTIVE', 'PAST_DUE')
+                 THEN COALESCE(s."totalAmount", p."priceAmount")
                  ELSE 0
                END
              ),
@@ -174,6 +177,7 @@ let AdminDashboardService = class AdminDashboardService {
          INNER JOIN premium_offers o ON o.id = s."offerId"
          WHERE s.status <> 'TRIAL'
            AND s."offerPriceId" IS NOT NULL
+           AND s."countsInRevenue" = true
          GROUP BY o.id, o.title, o.slug
          ORDER BY revenue DESC, subscriptions_count DESC`),
         ]);

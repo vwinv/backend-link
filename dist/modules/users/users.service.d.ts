@@ -14,5 +14,10 @@ export declare class UsersService {
         message: string;
         id: string;
     };
+    updatePreferredLocale(userId: string, locale: string): Promise<{
+        id: string;
+        updatedAt: Date;
+        preferredLocale: string;
+    }>;
     deleteMe(userId: string): Promise<void>;
 }

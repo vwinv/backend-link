@@ -23,6 +23,26 @@ export class CreateNotificationCampaignDto {
   @MaxLength(1000)
   body!: string;
 
+  @ApiPropertyOptional({
+    example: 'New Premium offer',
+    description: 'Titre anglais (utilisé si la langue app est en)',
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(120)
+  titleEn?: string;
+
+  @ApiPropertyOptional({
+    example: 'Discover the new card design.',
+    description: 'Message anglais (utilisé si la langue app est en)',
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(1000)
+  bodyEn?: string;
+
   @ApiProperty({ enum: NotificationAudience })
   @IsEnum(NotificationAudience)
   audience!: NotificationAudience;

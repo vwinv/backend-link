@@ -106,6 +106,9 @@ let FcmPushService = FcmPushService_1 = class FcmPushService {
                 invalidTokens: [],
             };
         }
+        const badge = typeof input.badge === 'number' && Number.isFinite(input.badge)
+            ? Math.max(0, Math.floor(input.badge))
+            : 1;
         const invalidTokens = [];
         let success = 0;
         let failure = 0;
@@ -126,19 +129,30 @@ let FcmPushService = FcmPushService_1 = class FcmPushService {
                             data: {
                                 title: input.title,
                                 body: input.body,
+                                unreadCount: String(badge),
                                 ...(input.data ?? {}),
                             },
                             android: {
                                 priority: 'HIGH',
+                                notification: {
+                                    channelId: 'dropone_default',
+                                    sound: 'default',
+                                    notificationCount: badge,
+                                },
                             },
                             apns: {
                                 headers: {
                                     'apns-priority': '10',
+                                    'apns-push-type': 'alert',
                                 },
                                 payload: {
                                     aps: {
+                                        alert: {
+                                            title: input.title,
+                                            body: input.body,
+                                        },
                                         sound: 'default',
-                                        badge: 1,
+                                        badge,
                                     },
                                 },
                             },
@@ -168,6 +182,13 @@ let FcmPushService = FcmPushService_1 = class FcmPushService {
                             ? error.message
                             : 'Envoi FCM impossible';
                 this.logger.warn(`FCM échec (${status ?? 'n/a'}): ${lastError}`);
+                if (lastError.includes('THIRD_PARTY_AUTH_ERROR') ||
+                    lastError.includes('InvalidApnsCredential') ||
+                    lastError.includes('AuthError')) {
+                    this.logger.error('FCM iOS: clé APNs invalide ou absente dans Firebase Console '
+                        + '(Project Settings → Cloud Messaging → Apple app '
+                        + 'com.mega.dropone2 → APNs Authentication Key .p8).');
+                }
                 if (status === 404 ||
                     lastError.includes('UNREGISTERED') ||
                     lastError.includes('INVALID_ARGUMENT') ||

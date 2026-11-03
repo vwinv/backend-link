@@ -150,6 +150,8 @@ model User {
   lastName     String
   phone        String?
   avatarUrl    String?
+  /** Langue de l’app (fr|en) pour notifications in-app et push. */
+  preferredLocale String      @default("fr")
   stripeCustomerId String?      @unique
   role         UserRole     @default(USER)
   isActive     Boolean      @default(true)
@@ -719,6 +721,9 @@ model NotificationCampaign {
   id             String                     @id @default(cuid())
   title          String
   body           String
+  /** Variante anglaise ; si absente, title/body (FR) sont utilisés. */
+  titleEn        String?
+  bodyEn         String?
   audience       NotificationAudience
   userIds        Json                       @default("[]")
   status         NotificationCampaignStatus @default(DRAFT)

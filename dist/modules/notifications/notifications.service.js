@@ -138,10 +138,15 @@ let NotificationsService = NotificationsService_1 = class NotificationsService {
                 body: input.body,
             },
         });
-        const pushTokens = await this.prisma.devicePushToken.findMany({
-            where: { userId },
-            select: { token: true },
-        });
+        const [unreadCount, pushTokens] = await Promise.all([
+            this.prisma.userNotification.count({
+                where: { userId, isRead: false },
+            }),
+            this.prisma.devicePushToken.findMany({
+                where: { userId },
+                select: { token: true },
+            }),
+        ]);
         const tokens = pushTokens.map((row) => row.token);
         if (tokens.length === 0)
             return;
@@ -150,6 +155,7 @@ let NotificationsService = NotificationsService_1 = class NotificationsService {
             title: input.title,
             body: input.body,
             data: input.data,
+            badge: unreadCount,
         });
         if (pushResult.invalidTokens.length > 0) {
             await this.prisma.devicePushToken.deleteMany({

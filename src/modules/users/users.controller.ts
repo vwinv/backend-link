@@ -1,7 +1,19 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Put,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { UpdatePreferredLocaleDto } from './dto/update-preferred-locale.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UsersService } from './users.service';
 
@@ -20,6 +32,19 @@ export class UsersController {
   @ApiOperation({ summary: 'Mettre à jour le profil utilisateur' })
   updateMe(@Body() dto: UpdateUserDto) {
     return this.usersService.updateMe(dto);
+  }
+
+  @Put('me/locale')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Enregistrer la langue de l’app (notifications in-app et push)',
+  })
+  updatePreferredLocale(
+    @CurrentUser() user: { userId: string },
+    @Body() dto: UpdatePreferredLocaleDto,
+  ) {
+    return this.usersService.updatePreferredLocale(user.userId, dto.locale);
   }
 
   @Get(':id')

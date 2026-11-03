@@ -108,7 +108,7 @@ export class TeamsService {
         },
       });
 
-      return team;
+      return { ...team, myRole: TeamMemberRole.OWNER };
     });
   }
 
@@ -126,9 +126,20 @@ export class TeamsService {
 
     return Promise.all(
       teams.map(async (team) => {
-        const entitlements =
-          await this.entitlementsService.getUserEntitlements(team.ownerId);
-        return { ...team, entitlements };
+        const [entitlements, membership] = await Promise.all([
+          this.entitlementsService.getUserEntitlements(team.ownerId),
+          team.ownerId === userId
+            ? Promise.resolve(null)
+            : this.prisma.teamMember.findUnique({
+                where: { teamId_userId: { teamId: team.id, userId } },
+                select: { role: true },
+              }),
+        ]);
+        const myRole =
+          team.ownerId === userId
+            ? TeamMemberRole.OWNER
+            : (membership?.role ?? TeamMemberRole.MEMBER);
+        return { ...team, entitlements, myRole };
       }),
     );
   }

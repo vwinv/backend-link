@@ -16,27 +16,27 @@ export declare class CardsService {
     create(userId: string, dto: CreateCardDto): Promise<BusinessCard>;
     findAll(userId: string): Promise<{
         id: string;
-        email: string | null;
+        slug: string;
+        ownerId: string;
+        teamId: string | null;
+        kind: import("@prisma/client").$Enums.CardKind;
         firstName: string;
         lastName: string;
+        jobTitle: string | null;
+        company: string | null;
+        bio: string | null;
+        email: string | null;
         phone: string | null;
+        address: string | null;
+        website: string | null;
         avatarUrl: string | null;
+        coverImageUrl: string | null;
+        logoUrl: string | null;
+        theme: import("@prisma/client/runtime/client").JsonValue;
+        isPublic: boolean;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
-        jobTitle: string | null;
-        teamId: string | null;
-        slug: string;
-        logoUrl: string | null;
-        ownerId: string;
-        kind: import("@prisma/client").$Enums.CardKind;
-        company: string | null;
-        bio: string | null;
-        address: string | null;
-        website: string | null;
-        coverImageUrl: string | null;
-        theme: import("@prisma/client/runtime/client").JsonValue;
-        isPublic: boolean;
     }[]>;
     findOne(userId: string, id: string): Promise<BusinessCard>;
     update(userId: string, id: string, dto: UpdateCardDto): Promise<BusinessCard>;
@@ -50,20 +50,20 @@ export declare class CardsService {
     syncSocialLinks(userId: string, cardId: string, links: SocialLinkItemDto[]): Promise<{
         id: string;
         createdAt: Date;
-        label: string | null;
+        cardId: string;
         platform: import("@prisma/client").$Enums.SocialPlatform;
+        label: string | null;
         url: string;
         order: number;
-        cardId: string;
     }[]>;
     getSocialLinks(userId: string, cardId: string): Promise<{
         id: string;
         createdAt: Date;
-        label: string | null;
+        cardId: string;
         platform: import("@prisma/client").$Enums.SocialPlatform;
+        label: string | null;
         url: string;
         order: number;
-        cardId: string;
     }[]>;
     addSocialLink(id: string): {
         message: string;
@@ -93,7 +93,7 @@ export declare class CardsService {
             count: number;
         }[];
         sources: {
-            key: "link" | "app" | "other" | "qr" | "share";
+            key: "link" | "qr" | "share" | "app" | "other";
             count: number;
             percent: number;
         }[];
@@ -156,6 +156,12 @@ export declare class CardsService {
         createdAt: string;
     }[]>;
     private isTeamCardKind;
+    private withTeamSharedFields;
+    private resolveTeamSocialSourceCardId;
+    private applyTeamSharedFieldsToCards;
+    private applyTeamSocialLinks;
+    private copyTeamSocialLinksToCard;
+    private assertCanEditTeamSharedFields;
     private assertCanEditTeamLogo;
     private optionalString;
     private normalizeWebsiteUrl;

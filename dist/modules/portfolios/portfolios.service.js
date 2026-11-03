@@ -494,38 +494,42 @@ let PortfoliosService = class PortfoliosService {
             strengths: profile ? content.strengths : [],
             interests: profile ? content.interests : [],
         };
+        let html;
         if (theme.layout === 'couverture') {
-            return (0, public_portfolio_cover_1.buildCoverPortfolioHtml)(pageInput);
+            html = (0, public_portfolio_cover_1.buildCoverPortfolioHtml)(pageInput);
         }
-        if (theme.layout === 'classique') {
-            return (0, public_portfolio_classic_1.buildClassicPortfolioHtml)(pageInput);
+        else if (theme.layout === 'classique') {
+            html = (0, public_portfolio_classic_1.buildClassicPortfolioHtml)(pageInput);
         }
-        if (theme.layout === 'editorial') {
-            return (0, public_portfolio_editorial_1.buildEditorialPortfolioHtml)(pageInput);
+        else if (theme.layout === 'editorial') {
+            html = (0, public_portfolio_editorial_1.buildEditorialPortfolioHtml)(pageInput);
         }
-        if (theme.layout === 'galerie') {
-            return (0, public_portfolio_gallery_1.buildGalleryPortfolioHtml)(pageInput);
+        else if (theme.layout === 'galerie') {
+            html = (0, public_portfolio_gallery_1.buildGalleryPortfolioHtml)(pageInput);
         }
-        if (theme.layout === 'minimal') {
-            return (0, public_portfolio_minimal_1.buildMinimalPortfolioHtml)(pageInput);
+        else if (theme.layout === 'minimal') {
+            html = (0, public_portfolio_minimal_1.buildMinimalPortfolioHtml)(pageInput);
         }
-        if (theme.layout === 'bento') {
-            return (0, public_portfolio_bento_1.buildBentoPortfolioHtml)(pageInput);
+        else if (theme.layout === 'bento') {
+            html = (0, public_portfolio_bento_1.buildBentoPortfolioHtml)(pageInput);
         }
-        if (theme.layout === 'portrait') {
-            return (0, public_portfolio_portrait_1.buildPortraitPortfolioHtml)(pageInput);
+        else if (theme.layout === 'portrait') {
+            html = (0, public_portfolio_portrait_1.buildPortraitPortfolioHtml)(pageInput);
         }
-        if (theme.layout === 'cartes') {
-            return (0, public_portfolio_cartes_1.buildCartesPortfolioHtml)(pageInput);
+        else if (theme.layout === 'cartes') {
+            html = (0, public_portfolio_cartes_1.buildCartesPortfolioHtml)(pageInput);
         }
-        return (0, public_portfolio_page_1.buildPublicPortfolioHtml)({
-            fullName,
-            initials: this.initials(firstName, lastName),
-            jobTitle,
-            company,
-            avatarUrl: photoUrl,
-            pageUrl,
-        });
+        else {
+            html = (0, public_portfolio_page_1.buildPublicPortfolioHtml)({
+                fullName,
+                initials: this.initials(firstName, lastName),
+                jobTitle,
+                company,
+                avatarUrl: photoUrl,
+                pageUrl,
+            });
+        }
+        return embed ? withEmbedPortfolioTopSpace(html) : html;
     }
     initials(firstName, lastName) {
         const first = firstName.trim();
@@ -572,4 +576,14 @@ exports.PortfoliosService = PortfoliosService = __decorate([
         config_1.ConfigService,
         entitlements_service_1.EntitlementsService])
 ], PortfoliosService);
+function withEmbedPortfolioTopSpace(html) {
+    const style = `<style>
+    html.embed .top,
+    html.embed .head { margin-top: 82px; }
+    html.embed .hero-top { top: 104px; }
+  </style>`;
+    return html
+        .replace('<html lang="fr">', '<html lang="fr" class="embed">')
+        .replace('</head>', `${style}</head>`);
+}
 //# sourceMappingURL=portfolios.service.js.map

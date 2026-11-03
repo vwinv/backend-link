@@ -1,3 +1,4 @@
+import { UpdatePreferredLocaleDto } from './dto/update-preferred-locale.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UsersService } from './users.service';
 export declare class UsersController {
@@ -10,6 +11,13 @@ export declare class UsersController {
         message: string;
         dto: UpdateUserDto;
     };
+    updatePreferredLocale(user: {
+        userId: string;
+    }, dto: UpdatePreferredLocaleDto): Promise<{
+        id: string;
+        updatedAt: Date;
+        preferredLocale: string;
+    }>;
     findOne(id: string): {
         message: string;
         id: string;

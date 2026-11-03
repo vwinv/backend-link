@@ -11,6 +11,10 @@ import {
   UserRole,
 } from '@prisma/client';
 import { FcmPushService } from '../notifications/fcm-push.service';
+import {
+  normalizeAppLocale,
+  pickLocalizedText,
+} from '../notifications/notification-i18n';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AdminNotificationsQueryDto } from './dto/admin-notifications-query.dto';
 import { CreateNotificationCampaignDto } from './dto/create-notification-campaign.dto';
@@ -123,8 +127,15 @@ export class AdminNotificationsService {
   ) {
     const title = dto.title.trim();
     const body = dto.body.trim();
+    const titleEn = dto.titleEn?.trim() || null;
+    const bodyEn = dto.bodyEn?.trim() || null;
     if (!title || !body) {
       throw new BadRequestException('Titre et message requis');
+    }
+    if ((titleEn && !bodyEn) || (!titleEn && bodyEn)) {
+      throw new BadRequestException(
+        'Pour l’anglais, renseignez le titre et le message ensemble',
+      );
     }
 
     if (
@@ -145,6 +156,8 @@ export class AdminNotificationsService {
       data: {
         title,
         body,
+        titleEn,
+        bodyEn,
         audience: dto.audience,
         userIds: dto.audience === NotificationAudience.USER_IDS
           ? dto.userIds ?? []
@@ -178,45 +191,94 @@ export class AdminNotificationsService {
         return this.toCampaignDto(updated);
       }
 
+      const targetUsers = await this.prisma.user.findMany({
+        where: { id: { in: targetUserIds } },
+        select: { id: true, preferredLocale: true },
+      });
+      const localeByUserId = new Map(
+        targetUsers.map(
+          (user) =>
+            [user.id, normalizeAppLocale(user.preferredLocale)] as const,
+        ),
+      );
+
       await this.prisma.userNotification.createMany({
-        data: targetUserIds.map((userId) => ({
-          userId,
-          campaignId: campaign.id,
-          title,
-          body,
-        })),
+        data: targetUserIds.map((userId) => {
+          const locale = localeByUserId.get(userId) ?? 'fr';
+          return {
+            userId,
+            campaignId: campaign.id,
+            title: pickLocalizedText({ locale, fr: title, en: titleEn }),
+            body: pickLocalizedText({ locale, fr: body, en: bodyEn }),
+          };
+        }),
       });
 
-      const pushTokens = await this.prisma.devicePushToken.findMany({
-        where: { userId: { in: targetUserIds } },
-        select: { token: true },
-      });
-      const tokens = pushTokens.map((row) => row.token);
-      const pushResult = await this.fcmPushService.sendToTokens({
-        tokens,
-        title,
-        body,
-        data: {
-          type: 'campaign',
-          campaignId: campaign.id,
-        },
-      });
+      const [pushTokens, unreadRows] = await Promise.all([
+        this.prisma.devicePushToken.findMany({
+          where: { userId: { in: targetUserIds } },
+          select: { token: true, userId: true },
+        }),
+        this.prisma.userNotification.groupBy({
+          by: ['userId'],
+          where: { userId: { in: targetUserIds }, isRead: false },
+          _count: { _all: true },
+        }),
+      ]);
+      const unreadByUserId = new Map(
+        unreadRows.map((row) => [row.userId, row._count._all] as const),
+      );
+      const tokensByUserId = new Map<string, string[]>();
+      for (const row of pushTokens) {
+        const list = tokensByUserId.get(row.userId) ?? [];
+        list.push(row.token);
+        tokensByUserId.set(row.userId, list);
+      }
 
-      if (pushResult.invalidTokens.length > 0) {
+      let attempted = 0;
+      let success = 0;
+      let failure = 0;
+      let configured = false;
+      let lastError: string | null = null;
+      const invalidTokens: string[] = [];
+
+      for (const userId of targetUserIds) {
+        const tokens = tokensByUserId.get(userId);
+        if (!tokens || tokens.length === 0) continue;
+        const locale = localeByUserId.get(userId) ?? 'fr';
+        const pushResult = await this.fcmPushService.sendToTokens({
+          tokens,
+          title: pickLocalizedText({ locale, fr: title, en: titleEn }),
+          body: pickLocalizedText({ locale, fr: body, en: bodyEn }),
+          data: {
+            type: 'campaign',
+            campaignId: campaign.id,
+          },
+          badge: unreadByUserId.get(userId) ?? 1,
+        });
+        configured = configured || pushResult.configured;
+        attempted += pushResult.attempted;
+        success += pushResult.success;
+        failure += pushResult.failure;
+        if (pushResult.lastError) lastError = pushResult.lastError;
+        invalidTokens.push(...pushResult.invalidTokens);
+      }
+
+      if (invalidTokens.length > 0) {
         await this.prisma.devicePushToken.deleteMany({
-          where: { token: { in: pushResult.invalidTokens } },
+          where: { token: { in: invalidTokens } },
         });
       }
 
-      if (!pushResult.configured && tokens.length > 0) {
+      if (!configured && pushTokens.length > 0) {
         this.logger.warn(
-          `Campagne ${campaign.id}: inbox livrée, FCM non configuré (${tokens.length} token(s))`,
+          `Campagne ${campaign.id}: inbox livrée, FCM non configuré (${pushTokens.length} token(s))`,
         );
-      } else if (pushResult.configured) {
+      } else if (configured) {
         this.logger.log(
-          `Campagne ${campaign.id}: push ${pushResult.success}/${pushResult.attempted} (échecs: ${pushResult.failure})`,
+          `Campagne ${campaign.id}: push ${success}/${attempted} (échecs: ${failure})`,
         );
-        if (pushResult.attempted > 0 && pushResult.success === 0) {
+        if (attempted > 0 && success === 0) {
           this.logger.warn(
             `Campagne ${campaign.id}: aucun push livré. Vérifier Firebase Cloud Messaging API et le token appareil.`,
           );
@@ -228,13 +290,13 @@ export class AdminNotificationsService {
         data: {
           status: NotificationCampaignStatus.SENT,
           deliveredCount: targetUserIds.length,
-          pushAttempted: pushResult.attempted,
+          pushAttempted: attempted,
           sentAt: new Date(),
           errorMessage:
-            tokens.length === 0
+            pushTokens.length === 0
               ? 'Inbox livrée, aucun token push enregistré'
-              : pushResult.success === 0
-                ? pushResult.lastError ??
+              : success === 0
+                ? lastError ??
                   'Inbox livrée, mais le push FCM a échoué'
                 : null,
         },
@@ -321,6 +383,8 @@ export class AdminNotificationsService {
     id: string;
     title: string;
     body: string;
+    titleEn?: string | null;
+    bodyEn?: string | null;
     audience: NotificationAudience;
     userIds: Prisma.JsonValue;
     status: NotificationCampaignStatus;
@@ -348,6 +412,8 @@ export class AdminNotificationsService {
       id: campaign.id,
       title: campaign.title,
       body: campaign.body,
+      titleEn: campaign.titleEn ?? null,
+      bodyEn: campaign.bodyEn ?? null,
       audience: campaign.audience,
       userIds,
       status: campaign.status,

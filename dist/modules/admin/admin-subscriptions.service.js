@@ -26,6 +26,8 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
         currentPeriodEnd: true,
         cancelledAt: true,
         purchasedSeats: true,
+        totalAmount: true,
+        countsInRevenue: true,
         createdAt: true,
         updatedAt: true,
         stripeSubscriptionId: true,
@@ -308,6 +310,11 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
         if (Number.isNaN(currentPeriodEnd.getTime())) {
             throw new common_1.BadRequestException('Date de fin invalide');
         }
+        const periodStart = new Date();
+        this.assertPeriodCovers(billingType, periodStart, currentPeriodEnd);
+        const totalAmount = price
+            ? this.computeTotalAmount(offer, price, purchasedSeats, periodStart, currentPeriodEnd)
+            : null;
         await this.prisma.subscription.updateMany({
             where: {
                 userId: user.id,
@@ -335,6 +342,8 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
                 status: dto.status ?? client_1.SubscriptionStatus.ACTIVE,
                 billingPeriod,
                 currentPeriodEnd,
+                totalAmount,
+                countsInRevenue: dto.countsInRevenue ?? true,
             },
             select: this.adminSelect,
         });
@@ -362,8 +371,10 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
                 status: true,
                 billingPeriod: true,
                 purchasedSeats: true,
+                totalAmount: true,
                 currentPeriodEnd: true,
                 cancelledAt: true,
+                createdAt: true,
             },
         });
         if (!existing) {
@@ -432,6 +443,13 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
         if (currentPeriodEnd && Number.isNaN(currentPeriodEnd.getTime())) {
             throw new common_1.BadRequestException('Date de fin invalide');
         }
+        const pricedBillingType = price?.billingType ?? client_1.OfferBillingType.MONTHLY;
+        if (currentPeriodEnd) {
+            this.assertPeriodCovers(pricedBillingType, existing.createdAt, currentPeriodEnd);
+        }
+        const totalAmount = existing.totalAmount != null && price && currentPeriodEnd
+            ? this.computeTotalAmount(offer, price, purchasedSeats, existing.createdAt, currentPeriodEnd)
+            : existing.totalAmount;
         const nextStatus = dto.status ?? existing.status;
         const becomingActive = [
             client_1.SubscriptionStatus.ACTIVE,
@@ -474,6 +492,10 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
                 status: nextStatus,
                 billingPeriod,
                 currentPeriodEnd,
+                totalAmount,
+                ...(dto.countsInRevenue !== undefined && {
+                    countsInRevenue: dto.countsInRevenue,
+                }),
                 cancelledAt,
             },
             select: this.adminSelect,
@@ -499,6 +521,8 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
             currentPeriodEnd: row.currentPeriodEnd,
             cancelledAt: row.cancelledAt,
             purchasedSeats: this.displayedPurchasedSeats(row),
+            totalAmount: row.totalAmount == null ? null : Math.round(Number(row.totalAmount)),
+            countsInRevenue: row.countsInRevenue,
             createdAt: row.createdAt,
             updatedAt: row.updatedAt,
             paymentProvider: row.stripeSubscriptionId
@@ -601,13 +625,67 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
                 return end;
         }
     }
+    calendarDay(date) {
+        return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    }
+    monthsCovered(start, end) {
+        const startDay = this.calendarDay(start);
+        const endDay = this.calendarDay(end);
+        if (endDay.getTime() <= startDay.getTime())
+            return 0;
+        let months = (endDay.getFullYear() - startDay.getFullYear()) * 12 +
+            (endDay.getMonth() - startDay.getMonth());
+        if (endDay.getDate() > startDay.getDate())
+            months += 1;
+        return Math.max(months, 1);
+    }
+    assertPeriodCovers(billingType, start, end) {
+        if (billingType === client_1.OfferBillingType.LIFETIME)
+            return;
+        const endDay = this.calendarDay(end);
+        const min = this.calendarDay(start);
+        if (billingType === client_1.OfferBillingType.YEARLY) {
+            min.setFullYear(min.getFullYear() + 1);
+            if (endDay < min) {
+                throw new common_1.BadRequestException('Un tarif annuel dure au moins 1 an');
+            }
+            return;
+        }
+        min.setMonth(min.getMonth() + 1);
+        if (endDay < min) {
+            throw new common_1.BadRequestException('Un tarif mensuel dure au moins 1 mois');
+        }
+    }
+    billingUnits(billingType, start, end) {
+        if (billingType === client_1.OfferBillingType.LIFETIME)
+            return 1;
+        const months = this.monthsCovered(start, end);
+        if (billingType === client_1.OfferBillingType.YEARLY) {
+            return Math.max(1, Math.ceil(months / 12));
+        }
+        return Math.max(1, months);
+    }
+    computeTotalAmount(offer, price, purchasedSeats, start, end) {
+        const base = Number(price.priceAmount);
+        const perSeat = price.pricePerSeat == null ? NaN : Number(price.pricePerSeat);
+        let periodAmount = Number.isFinite(base) ? base : 0;
+        if (offer.audience === client_1.OfferAudience.TEAM &&
+            offer.maxTeamMembers > 0 &&
+            Number.isFinite(perSeat) &&
+            perSeat > 0) {
+            periodAmount += perSeat * (0, team_seats_1.paidExtraSeats)(offer.maxTeamMembers, purchasedSeats);
+        }
+        const units = this.billingUnits(price.billingType, start, end);
+        return Math.round(periodAmount * units);
+    }
     async buildRevenueTotals() {
         const rows = await this.prisma.$queryRawUnsafe(`SELECT
-         COALESCE(SUM(p."priceAmount"), 0) AS total,
+         COALESCE(SUM(COALESCE(s."totalAmount", p."priceAmount")), 0) AS total,
          COALESCE(
            SUM(
              CASE
-               WHEN s.status IN ('ACTIVE', 'PAST_DUE') THEN p."priceAmount"
+               WHEN s.status IN ('ACTIVE', 'PAST_DUE')
+               THEN COALESCE(s."totalAmount", p."priceAmount")
                ELSE 0
              END
            ),
@@ -617,7 +695,8 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
        FROM subscriptions s
        INNER JOIN premium_offer_prices p ON p.id = s."offerPriceId"
        WHERE s.status <> 'TRIAL'
-         AND s."offerPriceId" IS NOT NULL`);
+         AND s."offerPriceId" IS NOT NULL
+         AND s."countsInRevenue" = true`);
         const totals = rows[0];
         const toAmount = (value) => Math.round(Number(value ?? 0));
         return {
@@ -638,8 +717,10 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
          COALESCE(
            SUM(
              CASE
-               WHEN s.status <> 'TRIAL' AND s."offerPriceId" IS NOT NULL
-               THEN p."priceAmount"
+               WHEN s.status <> 'TRIAL'
+                 AND s."offerPriceId" IS NOT NULL
+                 AND s."countsInRevenue" = true
+               THEN COALESCE(s."totalAmount", p."priceAmount")
                ELSE 0
              END
            ),

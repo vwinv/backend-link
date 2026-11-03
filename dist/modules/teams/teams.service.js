@@ -128,7 +128,7 @@ let TeamsService = class TeamsService {
                     role: client_1.TeamMemberRole.OWNER,
                 },
             });
-            return team;
+            return { ...team, myRole: client_1.TeamMemberRole.OWNER };
         });
     }
     async findAllForUser(userId) {
@@ -143,8 +143,19 @@ let TeamsService = class TeamsService {
             orderBy: { createdAt: 'desc' },
         });
         return Promise.all(teams.map(async (team) => {
-            const entitlements = await this.entitlementsService.getUserEntitlements(team.ownerId);
-            return { ...team, entitlements };
+            const [entitlements, membership] = await Promise.all([
+                this.entitlementsService.getUserEntitlements(team.ownerId),
+                team.ownerId === userId
+                    ? Promise.resolve(null)
+                    : this.prisma.teamMember.findUnique({
+                        where: { teamId_userId: { teamId: team.id, userId } },
+                        select: { role: true },
+                    }),
+            ]);
+            const myRole = team.ownerId === userId
+                ? client_1.TeamMemberRole.OWNER
+                : (membership?.role ?? client_1.TeamMemberRole.MEMBER);
+            return { ...team, entitlements, myRole };
         }));
     }
     async findOneForUser(userId, id) {
