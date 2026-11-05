@@ -26,7 +26,10 @@ import { SubscribeDto } from './dto/subscribe.dto';
 import { StripeService } from './stripe.service';
 import { InvoicesService } from './invoices.service';
 import type { InvoiceLine } from './invoices.service';
-import { validSubscriptionWhere } from './subscription-validity';
+import {
+  sameSubscriptionFamilyWhere,
+  validSubscriptionWhere,
+} from './subscription-validity';
 import {
   effectiveTeamSeats,
   paidExtraSeats,
@@ -1493,6 +1496,7 @@ export class SubscriptionsService {
   ): Promise<number> {
     const subscription = await this.prisma.subscription.findFirst({
       where: validSubscriptionWhere({
+        offer: { audience: OfferAudience.TEAM },
         OR: [
           ...(teamId ? [{ teamId }] : []),
           { userId },
@@ -1574,6 +1578,7 @@ export class SubscriptionsService {
       teamId = ownedTeam?.id ?? null;
     }
 
+    // Carte et portfolio coexistent : on n’annule que la même famille d’offre.
     await this.prisma.subscription.updateMany({
       where: {
         userId: input.userId,
@@ -1584,6 +1589,7 @@ export class SubscriptionsService {
             SubscriptionStatus.PAST_DUE,
           ],
         },
+        ...sameSubscriptionFamilyWhere(offer.audience),
       },
       data: {
         status: SubscriptionStatus.CANCELLED,
@@ -1972,7 +1978,10 @@ export class SubscriptionsService {
 
   private async findActiveSubscription(userId: string) {
     return this.prisma.subscription.findFirst({
-      where: validSubscriptionWhere({ userId }),
+      where: validSubscriptionWhere({
+        userId,
+        ...sameSubscriptionFamilyWhere(OfferAudience.PERSONAL),
+      }),
       include: { plan: true, offer: true, offerPrice: true },
       orderBy: { createdAt: 'desc' },
     });

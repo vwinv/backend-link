@@ -21,7 +21,10 @@ import {
   UserEntitlements,
 } from './entitlements.types';
 import { FREE_OFFER_SLUG } from './free-offer.constants';
-import { validSubscriptionWhere } from './subscription-validity';
+import {
+  sameSubscriptionFamilyWhere,
+  validSubscriptionWhere,
+} from './subscription-validity';
 import { effectiveTeamSeats } from './team-seats';
 
 @Injectable()
@@ -560,7 +563,11 @@ export class EntitlementsService {
 
   private async findActiveSubscription(userId: string) {
     return this.prisma.subscription.findFirst({
-      where: validSubscriptionWhere({ userId }),
+      where: validSubscriptionWhere({
+        userId,
+        // Droits carte : ignore un abonnement portfolio coexistant.
+        ...sameSubscriptionFamilyWhere(OfferAudience.PERSONAL),
+      }),
       include: {
         offer: true,
         plan: true,

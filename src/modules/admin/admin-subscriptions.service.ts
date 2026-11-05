@@ -14,6 +14,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AdminSubscriptionsQueryDto } from './dto/admin-subscriptions-query.dto';
 import { CreateAdminSubscriptionDto } from './dto/create-admin-subscription.dto';
 import { UpdateAdminSubscriptionDto } from './dto/update-admin-subscription.dto';
+import { sameSubscriptionFamilyWhere } from '../subscriptions/subscription-validity';
 import { effectiveTeamSeats, paidExtraSeats } from '../subscriptions/team-seats';
 
 @Injectable()
@@ -368,6 +369,7 @@ export class AdminSubscriptionsService {
             SubscriptionStatus.PAST_DUE,
           ],
         },
+        ...sameSubscriptionFamilyWhere(offer.audience),
       },
       data: {
         status: SubscriptionStatus.CANCELLED,
@@ -547,6 +549,7 @@ export class AdminSubscriptionsService {
               SubscriptionStatus.PAST_DUE,
             ],
           },
+          ...sameSubscriptionFamilyWhere(offer.audience),
         },
         data: {
           status: SubscriptionStatus.CANCELLED,
