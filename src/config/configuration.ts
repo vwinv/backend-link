@@ -34,7 +34,21 @@ export default () => ({
         .filter(Boolean),
     },
     apple: {
+      /** Bundle app iOS (historique). */
       clientId: process.env.APPLE_CLIENT_ID ?? '',
+      /**
+       * Audiences acceptées (app + Services ID web).
+       * Ex. APPLE_CLIENT_IDS=com.mega.dropone2,com.mega.dropone.web
+       * Sinon fallback sur APPLE_CLIENT_ID seul.
+       */
+      clientIds: (
+        process.env.APPLE_CLIENT_IDS ??
+        process.env.APPLE_CLIENT_ID ??
+        ''
+      )
+        .split(',')
+        .map((id) => id.trim())
+        .filter(Boolean),
     },
   },
   mail: {

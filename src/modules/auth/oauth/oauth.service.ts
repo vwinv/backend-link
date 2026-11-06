@@ -61,15 +61,28 @@ export class OAuthService {
     firstName?: string,
     lastName?: string,
   ): Promise<OAuthProfile> {
-    const clientId = this.configService.get<string>('oauth.apple.clientId');
+    const clientIds = this.configService.get<string[]>(
+      'oauth.apple.clientIds',
+      [],
+    );
+    const legacyClientId = this.configService.get<string>(
+      'oauth.apple.clientId',
+      '',
+    );
+    const audiences = [
+      ...new Set(
+        [...clientIds, legacyClientId].map((id) => id.trim()).filter(Boolean),
+      ),
+    ];
 
-    if (!clientId) {
+    if (audiences.length === 0) {
       throw new UnauthorizedException('Apple OAuth non configuré');
     }
 
     const payload = await appleSignin
       .verifyIdToken(idToken, {
-        audience: clientId,
+        // App iOS + Services ID web (Sign in with Apple JS).
+        audience: audiences.length === 1 ? audiences[0] : audiences,
         ignoreExpiration: false,
       })
       .catch(() => {
