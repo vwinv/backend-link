@@ -47,6 +47,17 @@ export class AuthController {
     return this.authService.login(dto);
   }
 
+  @Post('espace/login')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @ApiOperation({
+    summary:
+      'Connexion espace équipe (email / mot de passe, owner/admin uniquement)',
+  })
+  @ApiResponse({ status: 200, type: AuthResponseDto })
+  loginEspace(@Body() dto: LoginDto) {
+    return this.authService.loginEspace(dto);
+  }
+
   @Post('admin/login')
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiOperation({
@@ -97,6 +108,17 @@ export class AuthController {
     return this.authService.loginWithGoogle(dto.idToken);
   }
 
+  @Post('espace/oauth/google')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @ApiOperation({
+    summary:
+      'Connexion espace équipe via Google (compte existant, même méthode)',
+  })
+  @ApiResponse({ status: 200, type: AuthResponseDto })
+  loginEspaceWithGoogle(@Body() dto: OAuthGoogleDto) {
+    return this.authService.loginEspaceWithGoogle(dto.idToken);
+  }
+
   @Post('oauth/apple')
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiOperation({
@@ -105,6 +127,21 @@ export class AuthController {
   @ApiResponse({ status: 200, type: AuthResponseDto })
   loginWithApple(@Body() dto: OAuthAppleDto) {
     return this.authService.loginWithApple(
+      dto.idToken,
+      dto.firstName,
+      dto.lastName,
+    );
+  }
+
+  @Post('espace/oauth/apple')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @ApiOperation({
+    summary:
+      'Connexion espace équipe via Apple (compte existant, même méthode)',
+  })
+  @ApiResponse({ status: 200, type: AuthResponseDto })
+  loginEspaceWithApple(@Body() dto: OAuthAppleDto) {
+    return this.authService.loginEspaceWithApple(
       dto.idToken,
       dto.firstName,
       dto.lastName,

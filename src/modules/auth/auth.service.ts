@@ -9,7 +9,13 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { AuthProvider, TeamInviteStatus, User, UserRole } from '@prisma/client';
+import {
+  AuthProvider,
+  TeamInviteStatus,
+  TeamMemberRole,
+  User,
+  UserRole,
+} from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { createHash, randomBytes } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -68,6 +74,16 @@ export class AuthService {
     return this.buildAuthResponse(full!);
   }
 
+  /**
+   * Connexion espace équipe (email/mdp) : compte existant + accès owner/admin.
+   */
+  async loginEspace(dto: LoginDto): Promise<AuthResponseDto> {
+    const user = await this.authenticateLocal(dto);
+    await this.assertHasEspaceAccess(user.id);
+    const full = await this.loadAdminUser(user.id);
+    return this.buildAuthResponse(full!);
+  }
+
   /** Connexion backoffice : rôle backoffice ou ADMIN legacy. */
   async loginAdmin(dto: LoginDto): Promise<AuthResponseDto> {
     const user = await this.authenticateLocal(dto);
@@ -83,6 +99,26 @@ export class AuthService {
   async loginWithGoogle(idToken: string): Promise<AuthResponseDto> {
     const profile = await this.oauthService.verifyGoogleIdToken(idToken);
     return this.authenticateWithOAuth(profile);
+  }
+
+  /** Connexion espace via Google : pas de création de compte. */
+  async loginEspaceWithGoogle(idToken: string): Promise<AuthResponseDto> {
+    const profile = await this.oauthService.verifyGoogleIdToken(idToken);
+    return this.authenticateEspaceWithOAuth(profile);
+  }
+
+  /** Connexion espace via Apple : pas de création de compte. */
+  async loginEspaceWithApple(
+    idToken: string,
+    firstName?: string,
+    lastName?: string,
+  ): Promise<AuthResponseDto> {
+    const profile = await this.oauthService.verifyAppleIdToken(
+      idToken,
+      firstName,
+      lastName,
+    );
+    return this.authenticateEspaceWithOAuth(profile);
   }
 
   /** Connexion Google backoffice : aucun compte n’est créé. */
@@ -374,6 +410,96 @@ export class AuthService {
 
     const full = await this.loadAdminUser(user.id);
     return this.buildAuthResponse(full!);
+  }
+
+  /**
+   * OAuth espace pro : compte déjà créé dans l’app, même provider, accès équipe.
+   */
+  private async authenticateEspaceWithOAuth(
+    profile: OAuthProfile,
+  ): Promise<AuthResponseDto> {
+    let user = await this.prisma.user.findFirst({
+      where: {
+        authProvider: profile.provider,
+        providerId: profile.providerId,
+      },
+    });
+
+    if (!user) {
+      const existingEmail = await this.prisma.user.findUnique({
+        where: { email: profile.email },
+      });
+
+      if (existingEmail) {
+        throw new ForbiddenException(
+          this.espaceWrongMethodMessage(existingEmail.authProvider, profile.provider),
+        );
+      }
+
+      throw new ForbiddenException(
+        'Aucun compte DropOne trouvé pour cet identifiant. Créez d’abord votre compte dans l’application, puis reconnectez-vous ici avec la même méthode.',
+      );
+    }
+
+    if (!user.isActive) {
+      throw new UnauthorizedException(ACCOUNT_DELETED_ERROR);
+    }
+
+    if (profile.avatarUrl && !user.avatarUrl) {
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { avatarUrl: profile.avatarUrl },
+      });
+    }
+
+    await this.assertHasEspaceAccess(user.id);
+
+    const full = await this.loadAdminUser(user.id);
+    return this.buildAuthResponse(full!);
+  }
+
+  private async assertHasEspaceAccess(userId: string): Promise<void> {
+    const team = await this.prisma.team.findFirst({
+      where: {
+        isActive: true,
+        OR: [
+          { ownerId: userId },
+          {
+            members: {
+              some: {
+                userId,
+                role: { in: [TeamMemberRole.OWNER, TeamMemberRole.ADMIN] },
+              },
+            },
+          },
+        ],
+      },
+      select: { id: true },
+    });
+
+    if (!team) {
+      throw new ForbiddenException(
+        'Aucun espace équipe accessible pour ce compte. Seuls le propriétaire et les administrateurs d’une équipe peuvent se connecter ici.',
+      );
+    }
+  }
+
+  private espaceWrongMethodMessage(
+    accountProvider: AuthProvider,
+    attempted: AuthProvider,
+  ): string {
+    const label = (provider: AuthProvider) => {
+      switch (provider) {
+        case AuthProvider.GOOGLE:
+          return 'Google';
+        case AuthProvider.APPLE:
+          return 'Apple';
+        default:
+          return 'e-mail et mot de passe';
+      }
+    };
+
+    return `Ce compte DropOne a été créé avec ${label(accountProvider)}. Connectez-vous avec ${label(accountProvider)} (comme sur l’application), pas avec ${label(attempted)}.`;
   }
 
   private async linkPendingInvites(userId: string, email: string) {
