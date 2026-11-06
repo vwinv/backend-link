@@ -38,7 +38,7 @@ export default () => ({
       clientId: process.env.APPLE_CLIENT_ID ?? '',
       /**
        * Audiences acceptées (app + Services ID web).
-       * Ex. APPLE_CLIENT_IDS=com.mega.dropone2,com.mega.dropone.web
+       * Ex. APPLE_CLIENT_IDS=com.mega.dropone2,com.mega.dropone2.web
        * Sinon fallback sur APPLE_CLIENT_ID seul.
        */
       clientIds: (
