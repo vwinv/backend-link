@@ -1,12 +1,15 @@
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
+import { PointsService } from '../points/points.service';
 import { EntitlementsService } from '../subscriptions/entitlements.service';
+import { GuestContactDto } from './dto/guest-contact.dto';
 import { ShareCardDto } from './dto/share-card.dto';
 export declare class SharingService {
     private readonly prisma;
     private readonly configService;
     private readonly entitlementsService;
-    constructor(prisma: PrismaService, configService: ConfigService, entitlementsService: EntitlementsService);
+    private readonly pointsService;
+    constructor(prisma: PrismaService, configService: ConfigService, entitlementsService: EntitlementsService, pointsService: PointsService);
     getShareQuota(userId: string): Promise<import("../subscriptions/entitlements.types").ShareQuota>;
     getPortfolioShareAccess(userId: string): Promise<{
         allowed: boolean;
@@ -19,6 +22,7 @@ export declare class SharingService {
     getPublicCard(slug: string, viewerUserId?: string, meta?: {
         source?: string;
         userAgent?: string;
+        ipAddress?: string;
     }): Promise<{
         slug: string;
         fullName: string;
@@ -39,9 +43,11 @@ export declare class SharingService {
     renderPublicCardNotFoundPage(): string;
     renderPublicCardPage(slug: string, options?: {
         embed?: boolean;
+        preview?: boolean;
         viewerUserId?: string;
         source?: string;
         userAgent?: string;
+        ipAddress?: string;
     }): Promise<string | null>;
     renderPublicVCard(slug: string): Promise<string | null>;
     private vcardUrl;
@@ -64,6 +70,10 @@ export declare class SharingService {
     };
     private normalizeViewSource;
     private recordCardView;
+    saveGuestContact(slug: string, dto: GuestContactDto): Promise<{
+        ok: boolean;
+        viewId: string;
+    }>;
     recordCardSave(slug: string, userId?: string): Promise<{
         ok: boolean;
     }>;

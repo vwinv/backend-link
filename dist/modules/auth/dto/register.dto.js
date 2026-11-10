@@ -17,6 +17,7 @@ class RegisterDto {
     password;
     firstName;
     lastName;
+    referralCode;
 }
 exports.RegisterDto = RegisterDto;
 __decorate([
@@ -40,4 +41,13 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], RegisterDto.prototype, "lastName", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        example: 'DROP-XXXX',
+        description: 'Code de parrainage (uniquement à l’inscription)',
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], RegisterDto.prototype, "referralCode", void 0);
 //# sourceMappingURL=register.dto.js.map

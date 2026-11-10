@@ -156,11 +156,46 @@ export class AdminClientsService {
       throw new NotFoundException('Client introuvable');
     }
 
+    const [pointsAccount, pointsLedger] = await Promise.all([
+      this.prisma.userPointsAccount.findUnique({
+        where: { userId: id },
+        select: { balanceTenths: true, updatedAt: true },
+      }),
+      this.prisma.pointsLedgerEntry.findMany({
+        where: { userId: id },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+        select: {
+          id: true,
+          amountTenths: true,
+          reason: true,
+          productType: true,
+          productRef: true,
+          createdAt: true,
+        },
+      }),
+    ]);
+
     const listItem = this.toListItem(user);
+    const balanceTenths = pointsAccount?.balanceTenths ?? 0;
 
     return {
       ...listItem,
       stripeCustomerId: user.stripeCustomerId,
+      points: {
+        balancePoints: balanceTenths / 10,
+        balanceFcfa: (balanceTenths / 10) * 10,
+        balanceTenths,
+        updatedAt: pointsAccount?.updatedAt ?? null,
+        ledger: pointsLedger.map((entry) => ({
+          id: entry.id,
+          amountPoints: entry.amountTenths / 10,
+          reason: entry.reason,
+          productType: entry.productType,
+          productRef: entry.productRef,
+          createdAt: entry.createdAt,
+        })),
+      },
       cards: user.businessCards,
       subscriptions: user.subscriptions.map((sub) => ({
         id: sub.id,

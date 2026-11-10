@@ -51,6 +51,8 @@ export declare class AdminSubscriptionsService {
             cancelledAt: Date | null;
             purchasedSeats: number | null;
             totalAmount: number | null;
+            chargedAmount: number | null;
+            pointsSpent: number | null;
             countsInRevenue: boolean;
             createdAt: Date;
             updatedAt: Date;
@@ -121,6 +123,8 @@ export declare class AdminSubscriptionsService {
         cancelledAt: Date | null;
         purchasedSeats: number | null;
         totalAmount: number | null;
+        chargedAmount: number | null;
+        pointsSpent: number | null;
         countsInRevenue: boolean;
         createdAt: Date;
         updatedAt: Date;
@@ -166,6 +170,8 @@ export declare class AdminSubscriptionsService {
         cancelledAt: Date | null;
         purchasedSeats: number | null;
         totalAmount: number | null;
+        chargedAmount: number | null;
+        pointsSpent: number | null;
         countsInRevenue: boolean;
         createdAt: Date;
         updatedAt: Date;
@@ -211,6 +217,8 @@ export declare class AdminSubscriptionsService {
         cancelledAt: Date | null;
         purchasedSeats: number | null;
         totalAmount: number | null;
+        chargedAmount: number | null;
+        pointsSpent: number | null;
         countsInRevenue: boolean;
         createdAt: Date;
         updatedAt: Date;

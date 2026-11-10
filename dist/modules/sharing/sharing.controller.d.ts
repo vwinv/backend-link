@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import { JwtService } from '@nestjs/jwt';
+import { GuestContactDto } from './dto/guest-contact.dto';
 import { ShareCardDto } from './dto/share-card.dto';
 import { SharingService } from './sharing.service';
 export declare class SharingController {
@@ -29,6 +30,10 @@ export declare class SharingController {
     downloadPublicContact(slug: string, res: Response): Promise<Response<any, Record<string, any>>>;
     recordPublicCardSave(slug: string, req: Request): Promise<{
         ok: boolean;
+    }>;
+    saveGuestContact(slug: string, dto: GuestContactDto): Promise<{
+        ok: boolean;
+        viewId: string;
     }>;
     shareCard(user: {
         userId: string;

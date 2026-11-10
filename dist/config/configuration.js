@@ -36,6 +36,12 @@ exports.default = () => ({
         },
         apple: {
             clientId: process.env.APPLE_CLIENT_ID ?? '',
+            clientIds: (process.env.APPLE_CLIENT_IDS ??
+                process.env.APPLE_CLIENT_ID ??
+                '')
+                .split(',')
+                .map((id) => id.trim())
+                .filter(Boolean),
         },
     },
     mail: {
@@ -109,6 +115,10 @@ exports.default = () => ({
         apiKey: process.env.CLOUDINARY_API_KEY ?? '',
         apiSecret: process.env.CLOUDINARY_API_SECRET ?? '',
         folder: process.env.CLOUDINARY_FOLDER ?? 'dropone',
+    },
+    openai: {
+        apiKey: process.env.OPENAI_API_KEY ?? '',
+        model: process.env.OPENAI_MODEL ?? 'gpt-4o-mini',
     },
     freeMaxShares: Number(process.env.FREE_MAX_SHARES ?? 10),
     landingPublicUrl: process.env.APP_LANDING_URL ??

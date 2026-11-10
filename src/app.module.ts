@@ -21,6 +21,7 @@ import { MailModule } from './modules/mail/mail.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { SupportModule } from './modules/support/support.module';
 import { EspaceModule } from './modules/espace/espace.module';
+import { PointsModule } from './modules/points/points.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
@@ -52,6 +53,7 @@ import { PrismaModule } from './prisma/prisma.module';
     ContactsModule,
     SharingModule,
     WalletModule,
+    PointsModule,
     UploadsModule,
     NotificationsModule,
     SupportModule,

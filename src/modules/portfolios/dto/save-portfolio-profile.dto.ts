@@ -125,6 +125,20 @@ export class PortfolioProfileProjectDto {
   projectUrl?: string;
 }
 
+export class PortfolioSocialLinkDto {
+  @ApiProperty({ example: 'LINKEDIN' })
+  @IsString()
+  @MinLength(2)
+  @MaxLength(32)
+  platform: string;
+
+  @ApiProperty()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(500)
+  url: string;
+}
+
 export class SavePortfolioProfileDto {
   @ApiPropertyOptional({ nullable: true })
   @IsOptional()
@@ -222,4 +236,12 @@ export class SavePortfolioProfileDto {
   @ValidateNested({ each: true })
   @Type(() => PortfolioProfileProjectDto)
   projects: PortfolioProfileProjectDto[];
+
+  @ApiPropertyOptional({ type: [PortfolioSocialLinkDto] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(12)
+  @ValidateNested({ each: true })
+  @Type(() => PortfolioSocialLinkDto)
+  socialLinks?: PortfolioSocialLinkDto[];
 }

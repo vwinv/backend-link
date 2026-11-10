@@ -397,7 +397,10 @@ let EntitlementsService = class EntitlementsService {
     }
     async findActiveSubscription(userId) {
         return this.prisma.subscription.findFirst({
-            where: (0, subscription_validity_1.validSubscriptionWhere)({ userId }),
+            where: (0, subscription_validity_1.validSubscriptionWhere)({
+                userId,
+                ...(0, subscription_validity_1.sameSubscriptionFamilyWhere)(client_1.OfferAudience.PERSONAL),
+            }),
             include: {
                 offer: true,
                 plan: true,

@@ -131,6 +131,11 @@ export default () => ({
     apiSecret: process.env.CLOUDINARY_API_SECRET ?? '',
     folder: process.env.CLOUDINARY_FOLDER ?? 'dropone',
   },
+  /** Analyse CV → préremplissage portfolio (optionnel). */
+  openai: {
+    apiKey: process.env.OPENAI_API_KEY ?? '',
+    model: process.env.OPENAI_MODEL ?? 'gpt-4o-mini',
+  },
   /** Quota de partages sur l’offre gratuite (lifetime). */
   freeMaxShares: Number(process.env.FREE_MAX_SHARES ?? 10),
   /** URL du site / landing (liens cloture tickets, etc.). */

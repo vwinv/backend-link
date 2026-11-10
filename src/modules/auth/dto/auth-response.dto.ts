@@ -44,4 +44,15 @@ export class AuthResponseDto {
 
   @ApiProperty({ type: AuthUserDto })
   user: AuthUserDto;
+
+  @ApiPropertyOptional({
+    description: 'true si le compte vient d’être créé',
+  })
+  isNewUser?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      'true si le compte vient d’être créé sans code de parrainage (proposer la saisie)',
+  })
+  needsReferralPrompt?: boolean;
 }

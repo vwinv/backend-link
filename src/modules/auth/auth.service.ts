@@ -50,6 +50,10 @@ export class AuthService {
       throw new ConflictException('Cet email est déjà utilisé');
     }
 
+    const referredByUserId = await this.resolveReferralSponsorId(
+      dto.referralCode,
+    );
+
     const passwordHash = await bcrypt.hash(dto.password, 10);
 
     const user = await this.prisma.user.create({
@@ -59,13 +63,14 @@ export class AuthService {
         authProvider: AuthProvider.LOCAL,
         firstName: dto.firstName.trim(),
         lastName: dto.lastName.trim(),
+        ...(referredByUserId ? { referredByUserId } : {}),
       },
     });
 
     await this.linkPendingInvites(user.id, email);
 
     const full = await this.loadAdminUser(user.id);
-    return this.buildAuthResponse(full!);
+    return this.buildAuthResponse(full!, { isNewUser: true });
   }
 
   async login(dto: LoginDto): Promise<AuthResponseDto> {
@@ -96,9 +101,12 @@ export class AuthService {
     return this.buildAuthResponse(full);
   }
 
-  async loginWithGoogle(idToken: string): Promise<AuthResponseDto> {
+  async loginWithGoogle(
+    idToken: string,
+    referralCode?: string,
+  ): Promise<AuthResponseDto> {
     const profile = await this.oauthService.verifyGoogleIdToken(idToken);
-    return this.authenticateWithOAuth(profile);
+    return this.authenticateWithOAuth(profile, referralCode);
   }
 
   /** Connexion espace via Google : pas de création de compte. */
@@ -178,13 +186,14 @@ export class AuthService {
     idToken: string,
     firstName?: string,
     lastName?: string,
+    referralCode?: string,
   ): Promise<AuthResponseDto> {
     const profile = await this.oauthService.verifyAppleIdToken(
       idToken,
       firstName,
       lastName,
     );
-    return this.authenticateWithOAuth(profile);
+    return this.authenticateWithOAuth(profile, referralCode);
   }
 
   async getMe(userId: string) {
@@ -366,6 +375,7 @@ export class AuthService {
 
   private async authenticateWithOAuth(
     profile: OAuthProfile,
+    referralCode?: string,
   ): Promise<AuthResponseDto> {
     let user = await this.prisma.user.findFirst({
       where: {
@@ -385,6 +395,9 @@ export class AuthService {
         );
       }
 
+      const referredByUserId =
+        await this.resolveReferralSponsorId(referralCode);
+
       user = await this.prisma.user.create({
         data: {
           email: profile.email,
@@ -393,10 +406,19 @@ export class AuthService {
           firstName: profile.firstName,
           lastName: profile.lastName,
           avatarUrl: profile.avatarUrl,
+          ...(referredByUserId ? { referredByUserId } : {}),
         },
       });
 
       await this.linkPendingInvites(user.id, profile.email);
+      const full = await this.loadAdminUser(user.id);
+      if (!user.isActive) {
+        throw new UnauthorizedException(ACCOUNT_DELETED_ERROR);
+      }
+      return this.buildAuthResponse(full!, {
+        isNewUser: true,
+        needsReferralPrompt: !referredByUserId,
+      });
     } else if (profile.avatarUrl && !user.avatarUrl) {
       user = await this.prisma.user.update({
         where: { id: user.id },
@@ -550,8 +572,25 @@ export class AuthService {
     }
   }
 
+  private async resolveReferralSponsorId(
+    rawCode?: string,
+  ): Promise<string | undefined> {
+    const code = rawCode?.trim().toUpperCase();
+    if (!code) return undefined;
+
+    const sponsor = await this.prisma.user.findFirst({
+      where: { referralCode: code, isActive: true },
+      select: { id: true },
+    });
+    if (!sponsor) {
+      throw new BadRequestException('Code de parrainage invalide');
+    }
+    return sponsor.id;
+  }
+
   private buildAuthResponse(
     user: NonNullable<Awaited<ReturnType<AuthService['loadAdminUser']>>>,
+    options?: { isNewUser?: boolean; needsReferralPrompt?: boolean },
   ): AuthResponseDto {
     const secret = this.configService.get<string>('jwt.secret', 'change-me');
     const expiresIn =
@@ -572,6 +611,8 @@ export class AuthService {
     return {
       accessToken,
       user: this.toPublicUser(user),
+      isNewUser: options?.isNewUser === true,
+      needsReferralPrompt: options?.needsReferralPrompt === true,
     };
   }
 

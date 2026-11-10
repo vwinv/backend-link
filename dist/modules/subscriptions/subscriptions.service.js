@@ -8,6 +8,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
 var SubscriptionsService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SubscriptionsService = void 0;
@@ -17,6 +20,7 @@ const crypto_1 = require("crypto");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const paydunya_callback_util_1 = require("../paydunya/paydunya-callback.util");
 const paydunya_service_1 = require("../paydunya/paydunya.service");
+const points_service_1 = require("../points/points.service");
 const stripe_service_1 = require("./stripe.service");
 const invoices_service_1 = require("./invoices.service");
 const subscription_validity_1 = require("./subscription-validity");
@@ -32,8 +36,9 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
     mailService;
     config;
     appleIapService;
+    pointsService;
     logger = new common_1.Logger(SubscriptionsService_1.name);
-    constructor(prisma, stripeService, paydunyaService, invoicesService, mailService, config, appleIapService) {
+    constructor(prisma, stripeService, paydunyaService, invoicesService, mailService, config, appleIapService, pointsService) {
         this.prisma = prisma;
         this.stripeService = stripeService;
         this.paydunyaService = paydunyaService;
@@ -41,6 +46,35 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
         this.mailService = mailService;
         this.config = config;
         this.appleIapService = appleIapService;
+        this.pointsService = pointsService;
+    }
+    async quoteSubscriptionAmount(input) {
+        const { offer, price, billingMultiplier } = await this.resolveOfferPrice(input.offerSlug, input.billingType);
+        const pricing = this.resolveCheckoutPricing(offer, price, input.seats, billingMultiplier);
+        if (!Number.isFinite(pricing.amount) || pricing.amount <= 0) {
+            throw new common_1.BadRequestException('Montant invalide pour un paiement en points');
+        }
+        return {
+            amountFcfa: pricing.amount,
+            seats: pricing.seats,
+            currency: 'FCFA',
+            offerSlug: offer.slug,
+            billingType: price.billingType,
+        };
+    }
+    async activateSubscriptionWithPoints(input) {
+        const quote = await this.quoteSubscriptionAmount(input);
+        return this.activateSubscription({
+            userId: input.userId,
+            offerSlug: input.offerSlug,
+            billingType: input.billingType,
+            teamId: input.teamId,
+            purchasedSeats: quote.seats,
+            invoiceAmount: input.invoiceAmount,
+            invoiceCurrency: 'FCFA',
+            invoiceProvider: 'points',
+            countsInRevenue: false,
+        });
     }
     isInAppPaymentsHidden() {
         return this.config.get('hideInAppPayments') === true;
@@ -1114,6 +1148,7 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
     async seatUpgradeAmount(userId, teamId, additionalSeats) {
         const subscription = await this.prisma.subscription.findFirst({
             where: (0, subscription_validity_1.validSubscriptionWhere)({
+                offer: { audience: client_1.OfferAudience.TEAM },
                 OR: [
                     ...(teamId ? [{ teamId }] : []),
                     { userId },
@@ -1181,6 +1216,7 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
                         client_1.SubscriptionStatus.PAST_DUE,
                     ],
                 },
+                ...(0, subscription_validity_1.sameSubscriptionFamilyWhere)(offer.audience),
             },
             data: {
                 status: client_1.SubscriptionStatus.CANCELLED,
@@ -1202,6 +1238,8 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
                 stripeCheckoutSessionId: input.stripeCheckoutSessionId ?? null,
                 paydunyaInvoiceToken: input.paydunyaInvoiceToken ?? null,
                 appleOriginalTransactionId: input.appleOriginalTransactionId ?? null,
+                countsInRevenue: input.countsInRevenue ?? true,
+                totalAmount: input.invoiceAmount != null ? input.invoiceAmount : undefined,
             },
             include: {
                 plan: true,
@@ -1311,6 +1349,18 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
                 teamId,
                 paidAmount: amount,
             });
+        }
+        if (amount != null && amount > 0) {
+            try {
+                await this.pointsService.creditReferralOnSubscribe({
+                    subscriberUserId: input.userId,
+                    subscriptionId: subscription.id,
+                    offerSlug: offer.slug,
+                });
+            }
+            catch (error) {
+                this.logger.warn(`Crédit parrainage impossible pour sub ${subscription.id}: ${error instanceof Error ? error.message : String(error)}`);
+            }
         }
         return subscription;
     }
@@ -1497,7 +1547,10 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
     }
     async findActiveSubscription(userId) {
         return this.prisma.subscription.findFirst({
-            where: (0, subscription_validity_1.validSubscriptionWhere)({ userId }),
+            where: (0, subscription_validity_1.validSubscriptionWhere)({
+                userId,
+                ...(0, subscription_validity_1.sameSubscriptionFamilyWhere)(client_1.OfferAudience.PERSONAL),
+            }),
             include: { plan: true, offer: true, offerPrice: true },
             orderBy: { createdAt: 'desc' },
         });
@@ -1618,12 +1671,14 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
 exports.SubscriptionsService = SubscriptionsService;
 exports.SubscriptionsService = SubscriptionsService = SubscriptionsService_1 = __decorate([
     (0, common_1.Injectable)(),
+    __param(7, (0, common_1.Inject)((0, common_1.forwardRef)(() => points_service_1.PointsService))),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
         stripe_service_1.StripeService,
         paydunya_service_1.PaydunyaService,
         invoices_service_1.InvoicesService,
         mail_service_1.MailService,
         config_1.ConfigService,
-        apple_iap_service_1.AppleIapService])
+        apple_iap_service_1.AppleIapService,
+        points_service_1.PointsService])
 ], SubscriptionsService);
 //# sourceMappingURL=subscriptions.service.js.map

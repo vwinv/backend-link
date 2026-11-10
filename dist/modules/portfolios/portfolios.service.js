@@ -14,6 +14,7 @@ const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const entitlements_service_1 = require("../subscriptions/entitlements.service");
+const cv_import_service_1 = require("./cv-import.service");
 const save_portfolio_style_dto_1 = require("./dto/save-portfolio-style.dto");
 const public_portfolio_bento_1 = require("./public-portfolio-bento");
 const public_portfolio_cartes_1 = require("./public-portfolio-cartes");
@@ -28,10 +29,12 @@ let PortfoliosService = class PortfoliosService {
     prisma;
     configService;
     entitlementsService;
-    constructor(prisma, configService, entitlementsService) {
+    cvImportService;
+    constructor(prisma, configService, entitlementsService, cvImportService) {
         this.prisma = prisma;
         this.configService = configService;
         this.entitlementsService = entitlementsService;
+        this.cvImportService = cvImportService;
     }
     get appPublicUrl() {
         return this.configService.get('wallet.appPublicUrl', 'https://api.dropone.pro');
@@ -106,9 +109,7 @@ let PortfoliosService = class PortfoliosService {
         const content = this.readContent(portfolio.content);
         const cardFullName = `${card.firstName} ${card.lastName}`.trim();
         const storedTitle = portfolio.title?.trim() ?? '';
-        const title = storedTitle && storedTitle !== cardFullName
-            ? storedTitle
-            : (card.jobTitle ?? '');
+        const title = storedTitle && storedTitle !== cardFullName ? storedTitle : '';
         return {
             exists: true,
             id: portfolio.id,
@@ -127,12 +128,50 @@ let PortfoliosService = class PortfoliosService {
             competences: content.competences,
             strengths: content.strengths,
             interests: content.interests,
+            socialLinks: content.socialLinks,
             projects: portfolio.projects.map((project) => ({
                 id: project.id,
                 title: project.title,
                 description: project.description ?? '',
                 imageUrl: project.imageUrl,
                 projectUrl: project.projectUrl,
+            })),
+        };
+    }
+    async importCvDraft(userId, cardId, file) {
+        await this.ownedCard(userId, cardId);
+        const portfolio = await this.prisma.portfolio.findUnique({
+            where: { cardId },
+            select: { id: true, photoUrl: true },
+        });
+        if (!portfolio)
+            throw new common_1.NotFoundException('Portfolio introuvable');
+        const draft = await this.cvImportService.extractDraftFromPdf(file);
+        return {
+            exists: true,
+            draft: true,
+            id: portfolio.id,
+            photoUrl: portfolio.photoUrl,
+            firstName: draft.firstName,
+            lastName: draft.lastName,
+            age: draft.age,
+            phone: draft.phone,
+            address: draft.address,
+            hidePersonalDetails: draft.hidePersonalDetails,
+            title: draft.title,
+            description: draft.description,
+            experiences: draft.experiences,
+            teachings: draft.teachings,
+            skills: draft.skills,
+            competences: draft.competences,
+            strengths: draft.strengths,
+            interests: draft.interests,
+            socialLinks: [],
+            projects: draft.projects.map((project) => ({
+                title: project.title,
+                description: project.description,
+                imageUrl: null,
+                projectUrl: project.projectUrl || null,
             })),
         };
     }
@@ -172,6 +211,13 @@ let PortfoliosService = class PortfoliosService {
             competences: chips(dto.competences),
             strengths: chips(dto.strengths),
             interests: chips(dto.interests),
+            socialLinks: (dto.socialLinks ?? [])
+                .map((item) => ({
+                platform: item.platform.trim().toUpperCase(),
+                url: item.url.trim(),
+            }))
+                .filter((item) => item.platform.length > 0 && item.url.length > 0)
+                .slice(0, 12),
         };
         await this.prisma.$transaction(async (tx) => {
             await tx.portfolio.update({
@@ -238,6 +284,7 @@ let PortfoliosService = class PortfoliosService {
             competences: [],
             strengths: [],
             interests: [],
+            socialLinks: [],
         };
         if (!value || typeof value !== 'object' || Array.isArray(value))
             return empty;
@@ -292,6 +339,16 @@ let PortfoliosService = class PortfoliosService {
             competences: rows(source.competences).map(text).map((item) => item.trim()).filter(Boolean),
             strengths: rows(source.strengths).map(text).map((item) => item.trim()).filter(Boolean),
             interests: rows(source.interests).map(text).map((item) => item.trim()).filter(Boolean),
+            socialLinks: rows(source.socialLinks).flatMap((item) => {
+                if (!item || typeof item !== 'object')
+                    return [];
+                const row = item;
+                const platform = text(row.platform).trim().toUpperCase();
+                const url = text(row.url).trim();
+                if (!platform || !url)
+                    return [];
+                return [{ platform, url }];
+            }),
         };
     }
     async ownedCard(userId, cardId) {
@@ -364,7 +421,7 @@ let PortfoliosService = class PortfoliosService {
     notFoundPage() {
         return (0, public_portfolio_page_1.buildPublicPortfolioNotFoundHtml)();
     }
-    async renderPublicPage(slug, viewerUserId, embed = false, preview) {
+    async renderPublicPage(slug, viewerUserId, embed = false, preview, asOwnerPreview = false) {
         const card = await this.prisma.businessCard.findFirst({
             where: { slug, isPublic: true, isActive: true },
             select: {
@@ -412,7 +469,7 @@ let PortfoliosService = class PortfoliosService {
         });
         if (!card)
             return null;
-        const ownerPreview = embed && viewerUserId === card.ownerId;
+        const ownerPreview = (asOwnerPreview || embed) && viewerUserId === card.ownerId;
         if (!ownerPreview) {
             const canShare = await this.entitlementsService.canPublishPortfolio(card.ownerId);
             if (!canShare)
@@ -448,8 +505,11 @@ let PortfoliosService = class PortfoliosService {
             theme.color = preview.color;
         }
         const storedTitle = profile ? portfolio?.title?.trim() ?? '' : '';
-        const jobTitle = experiences[0]?.role ||
-            (storedTitle && storedTitle !== fullName ? storedTitle : card.jobTitle);
+        const jobTitle = profile
+            ? storedTitle && storedTitle !== fullName
+                ? storedTitle
+                : ''
+            : (card.jobTitle ?? '');
         const company = experiences[0]?.company || card.company;
         const bio = profile
             ? portfolio?.description
@@ -474,13 +534,17 @@ let PortfoliosService = class PortfoliosService {
             photoUrl,
             pageUrl,
             vcardUrl: `${this.appPublicUrl}/${prefix}/sharing/public/${encodeURIComponent(card.slug)}/contact.vcf`,
+            cardSlug: card.slug,
+            guestPreview: ownerPreview,
             accentStart: accent.start,
             accentEnd: accent.end,
             colorId: theme.color,
-            socialLinks: card.socialLinks.map((link) => ({
-                platform: link.platform,
-                url: link.url,
-            })),
+            socialLinks: profile
+                ? content.socialLinks
+                : card.socialLinks.map((link) => ({
+                    platform: link.platform,
+                    url: link.url,
+                })),
             projects: (portfolio?.projects ?? []).map((project) => ({
                 title: project.title,
                 description: project.description,
@@ -574,7 +638,8 @@ exports.PortfoliosService = PortfoliosService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
         config_1.ConfigService,
-        entitlements_service_1.EntitlementsService])
+        entitlements_service_1.EntitlementsService,
+        cv_import_service_1.CvImportService])
 ], PortfoliosService);
 function withEmbedPortfolioTopSpace(html) {
     const style = `<style>

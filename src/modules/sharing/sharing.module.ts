@@ -1,11 +1,12 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
+import { PointsModule } from '../points/points.module';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 import { SharingController } from './sharing.controller';
 import { SharingService } from './sharing.service';
 
 @Module({
-  imports: [AuthModule, SubscriptionsModule],
+  imports: [AuthModule, SubscriptionsModule, PointsModule],
   controllers: [SharingController],
   providers: [SharingService],
   exports: [SharingService],

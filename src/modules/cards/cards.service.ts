@@ -805,18 +805,30 @@ export class CardsService {
       const profileCard = viewer?.businessCards[0];
       const firstName = viewer?.firstName?.trim() ?? '';
       const lastName = viewer?.lastName?.trim() ?? '';
+      const guestFirstName = view.guestFirstName?.trim() || '';
+      const guestLastName = view.guestLastName?.trim() || '';
+      const guestEmail = view.guestEmail?.trim() || '';
+      const guestPhone = view.guestPhone?.trim() || '';
+      const guestFullName = `${guestFirstName} ${guestLastName}`.trim();
+      const hasGuestIdentity = Boolean(guestFullName || guestEmail || guestPhone);
       const displayName =
         viewer != null
           ? `${firstName} ${lastName}`.trim() || 'Membre DropOne'
-          : 'Visiteur anonyme';
+          : guestFullName || guestEmail || guestPhone || 'Visiteur anonyme';
       const job = profileCard?.jobTitle?.trim() ?? '';
       const company = profileCard?.company?.trim() ?? '';
-      const subtitle = [job, company].filter(Boolean).join(' - ');
+      const guestSubtitle = [guestEmail, guestPhone].filter(Boolean).join(' · ');
+      const subtitle =
+        viewer != null
+          ? [job, company].filter(Boolean).join(' - ')
+          : guestSubtitle;
       const initials =
         viewer != null
           ? `${firstName[0] ?? ''}${lastName[0] ?? firstName[1] ?? ''}`.toUpperCase() ||
             'DO'
-          : '?';
+          : hasGuestIdentity
+            ? `${guestFirstName[0] ?? ''}${guestLastName[0] ?? guestEmail[0] ?? 'V'}`.toUpperCase()
+            : '?';
 
       return {
         id: view.id,
@@ -829,6 +841,10 @@ export class CardsService {
         initials,
         viewerUserId: view.viewerUserId,
         viewerCardSlug: profileCard?.slug ?? null,
+        guestFirstName: guestFirstName || null,
+        guestLastName: guestLastName || null,
+        guestEmail: guestEmail || null,
+        guestPhone: guestPhone || null,
         hasSaved: view.viewerUserId
           ? savedViewerIds.has(view.viewerUserId)
           : false,

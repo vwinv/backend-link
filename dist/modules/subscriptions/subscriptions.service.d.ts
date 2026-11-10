@@ -1,5 +1,7 @@
+import { OfferBillingType, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PaydunyaService } from '../paydunya/paydunya.service';
+import { PointsService } from '../points/points.service';
 import { CheckoutDto } from './dto/checkout.dto';
 import { SoftPaySubscriptionDto } from './dto/softpay-subscription.dto';
 import { SubscribeDto } from './dto/subscribe.dto';
@@ -18,8 +20,107 @@ export declare class SubscriptionsService {
     private readonly mailService;
     private readonly config;
     private readonly appleIapService;
+    private readonly pointsService;
     private readonly logger;
-    constructor(prisma: PrismaService, stripeService: StripeService, paydunyaService: PaydunyaService, invoicesService: InvoicesService, mailService: MailService, config: ConfigService, appleIapService: AppleIapService);
+    constructor(prisma: PrismaService, stripeService: StripeService, paydunyaService: PaydunyaService, invoicesService: InvoicesService, mailService: MailService, config: ConfigService, appleIapService: AppleIapService, pointsService: PointsService);
+    quoteSubscriptionAmount(input: {
+        userId: string;
+        offerSlug: string;
+        billingType: OfferBillingType;
+        teamId?: string;
+        seats?: number;
+    }): Promise<{
+        amountFcfa: number;
+        seats: number | null;
+        currency: string;
+        offerSlug: string;
+        billingType: import("@prisma/client").$Enums.OfferBillingType;
+    }>;
+    activateSubscriptionWithPoints(input: {
+        userId: string;
+        offerSlug: string;
+        billingType: OfferBillingType;
+        teamId?: string;
+        seats?: number;
+        invoiceAmount: number;
+    }): Promise<{
+        plan: {
+            id: string;
+            isActive: boolean;
+            createdAt: Date;
+            updatedAt: Date;
+            name: string;
+            slug: string;
+            maxTeamMembers: number;
+            hasPortfolio: boolean;
+            hasAnalytics: boolean;
+            description: string | null;
+            priceMonthly: Prisma.Decimal;
+            priceYearly: Prisma.Decimal;
+            maxCards: number;
+            hasCustomDomain: boolean;
+            features: Prisma.JsonValue;
+        };
+        offer: {
+            id: string;
+            isActive: boolean;
+            createdAt: Date;
+            updatedAt: Date;
+            title: string;
+            slug: string;
+            subtitle: string | null;
+            audience: import("@prisma/client").$Enums.OfferAudience;
+            canCustomize: boolean;
+            maxTeamMembers: number;
+            minSeats: number;
+            hasPortfolio: boolean;
+            hasWallet: boolean;
+            hasAnalytics: boolean;
+            hasVisitorInsights: boolean;
+            hasSocialLinks: boolean;
+            maxAiScans: number;
+            maxShares: number;
+            sortOrder: number;
+            listedInApp: boolean;
+        } | null;
+        offerPrice: {
+            id: string;
+            isActive: boolean;
+            createdAt: Date;
+            updatedAt: Date;
+            sortOrder: number;
+            offerId: string;
+            billingType: import("@prisma/client").$Enums.OfferBillingType;
+            priceLabel: string | null;
+            priceAmount: Prisma.Decimal;
+            pricePerSeat: Prisma.Decimal | null;
+            currency: string;
+            discountPercent: number | null;
+            badgeLabel: string | null;
+            isPopular: boolean;
+            stripePriceId: string | null;
+        } | null;
+    } & {
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        userId: string | null;
+        offerId: string | null;
+        purchasedSeats: number | null;
+        status: import("@prisma/client").$Enums.SubscriptionStatus;
+        billingPeriod: import("@prisma/client").$Enums.BillingPeriod;
+        currentPeriodEnd: Date | null;
+        cancelledAt: Date | null;
+        stripeSubscriptionId: string | null;
+        stripeCheckoutSessionId: string | null;
+        paydunyaInvoiceToken: string | null;
+        appleOriginalTransactionId: string | null;
+        countsInRevenue: boolean;
+        totalAmount: Prisma.Decimal | null;
+        teamId: string | null;
+        planId: string;
+        offerPriceId: string | null;
+    }>;
     isInAppPaymentsHidden(): boolean;
     getPaymentConfig(): {
         paymentsEnabled: boolean;

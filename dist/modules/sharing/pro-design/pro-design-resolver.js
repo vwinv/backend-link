@@ -37,6 +37,9 @@ function resolveProDesign(theme) {
     let template = (0, pro_design_catalog_1.getProDesignTemplate)(themeJson.proDesignId);
     const brandColor = themeJson.brandColor?.trim();
     let cardStyleApplied = false;
+    const simpleStyle = !hasChosenDesign && themeJson.style?.trim()
+        ? themeJson.style.trim().toLowerCase()
+        : null;
     if (themeJson.useCompanyColors === true && brandColor) {
         template = (0, pro_design_catalog_1.applyBrandColorToTemplate)(template, brandColor);
     }
@@ -61,7 +64,8 @@ function resolveProDesign(theme) {
     const accentColor = template.accent ?? background;
     const lightSurface = template.layout === 'blancLight' ||
         template.layout === 'bubble' ||
-        template.layout === 'arc';
+        template.layout === 'arc' ||
+        simpleStyle === 'blanc';
     const resolvedTemplate = {
         ...template,
         background: template.layout === 'or'
@@ -75,6 +79,8 @@ function resolveProDesign(theme) {
         textPrimary: lightSurface ? '#0C0D10' : '#FFFFFF',
         textMuted: lightSurface ? 'rgba(12, 13, 16, 0.62)' : 'rgba(255, 255, 255, 0.78)',
         lightSurface,
+        isSimpleTheme: !hasChosenDesign,
+        simpleStyle,
     };
 }
 //# sourceMappingURL=pro-design-resolver.js.map

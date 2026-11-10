@@ -82,11 +82,15 @@ function buildCartesPortfolioHtml(input) {
             : []);
     const teachings = (0, public_portfolio_blocks_1.renderTeachings)(input.teachings ?? []);
     const wash = (0, public_portfolio_wash_1.pageWash)(input.accentStart, input.accentEnd);
-    const contactRows = [
-        email ? `<p class="contact-row">${escapeHtml(email)}</p>` : '',
-        phone ? `<p class="contact-row">${escapeHtml(phone)}</p>` : '',
-        input.address?.trim() ? `<p class="contact-row">${escapeHtml(input.address.trim())}</p>` : '',
-    ].join('');
+    const contactSection = (0, public_portfolio_blocks_1.renderContactLeadSection)({
+        slug: input.cardSlug,
+        preview: input.guestPreview,
+        className: 'contact',
+        email: input.email,
+        phone: input.phone,
+        address: input.address,
+        socialLinks: input.socialLinks,
+    });
     return `<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -120,7 +124,8 @@ function buildCartesPortfolioHtml(input) {
     .hello { font-size: 26px; font-weight: 700; letter-spacing: -0.4px; }
     .pill { display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; font-weight: 700; }
     .ghost { background: var(--btn); color: var(--btn-ink); padding: 10px 16px; font-size: 14px; }
-    .panel, .contact { margin-bottom: 12px; padding: 16px; border-radius: 22px; background: var(--glass); border: 1px solid var(--line); }
+    .panel { margin-bottom: 12px; padding: 16px; border-radius: 22px; background: var(--glass); border: 1px solid var(--line); }
+    .contact { margin-bottom: 12px; padding: 0; border-radius: 0; background: transparent; border: 0; }
     .identity { display: flex; gap: 12px; align-items: center; }
     .avatar { width: 64px; height: 64px; border-radius: 16px; overflow: hidden; flex: none; background: rgba(0,0,0,0.12); display: flex; align-items: center; justify-content: center; font-weight: 800; }
     .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -151,7 +156,7 @@ function buildCartesPortfolioHtml(input) {
     .foot strong { display: block; font-size: 16px; }
     .foot small { display: block; margin-top: 2px; color: var(--muted); font-size: 13px; }
     .arrow { width: 36px; height: 36px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: var(--btn); color: var(--btn-ink); font-size: 16px; flex: none; }
-    .contact { padding: 22px 18px 18px; }
+    .contact { padding: 0; }
     .contact h2 { margin-bottom: 8px; }
     .lead { margin: 0 0 14px; color: var(--muted); line-height: 1.4; }
     .contact-row { margin: 0 0 10px; padding: 14px 16px; border-radius: 14px; background: var(--glass); border: 1px solid var(--line); }
@@ -194,7 +199,6 @@ function buildCartesPortfolioHtml(input) {
       </div>
     </section>
 
-    ${company ? `<div class="infos"><article class="panel info"><span>POSTE</span><strong>${escapeHtml(company)}</strong></article></div>` : ''}
 
     ${experience ? `<section class="panel">
       <p class="section-kicker">PARCOURS</p>
@@ -213,12 +217,7 @@ function buildCartesPortfolioHtml(input) {
     </section>
 
     ${(0, public_portfolio_blocks_1.renderProfileExtras)(input, { panel: true })}
-    <section class="panel contact" id="contact">
-      <h2>Travaillons ensemble</h2>
-      <p class="lead">Un projet, une collaboration, une intervention ? Écrivez-moi.</p>
-      ${contactRows || '<p class="contact-row">Ajoutez un email ou un téléphone</p>'}
-      <a class="pill save" href="${escapeAttr(input.vcardUrl)}">Enregistrer le contact</a>
-    </section>
+    ${contactSection}
     <p class="footer">CRÉÉ AVEC DROP ONE</p>
   </div>
 </body>

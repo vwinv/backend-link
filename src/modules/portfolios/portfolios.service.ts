@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EntitlementsService } from '../subscriptions/entitlements.service';
+import { CvImportService } from './cv-import.service';
 import { SavePortfolioProfileDto } from './dto/save-portfolio-profile.dto';
 import {
   PORTFOLIO_COLORS,
@@ -36,6 +37,7 @@ export class PortfoliosService {
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
     private readonly entitlementsService: EntitlementsService,
+    private readonly cvImportService: CvImportService,
   ) { }
 
   private get appPublicUrl(): string {
@@ -122,9 +124,7 @@ export class PortfoliosService {
     const cardFullName = `${card.firstName} ${card.lastName}`.trim();
     const storedTitle = portfolio.title?.trim() ?? '';
     const title =
-      storedTitle && storedTitle !== cardFullName
-        ? storedTitle
-        : (card.jobTitle ?? '');
+      storedTitle && storedTitle !== cardFullName ? storedTitle : '';
 
     return {
       exists: true,
@@ -144,12 +144,59 @@ export class PortfoliosService {
       competences: content.competences,
       strengths: content.strengths,
       interests: content.interests,
+      socialLinks: content.socialLinks,
       projects: portfolio.projects.map((project) => ({
         id: project.id,
         title: project.title,
         description: project.description ?? '',
         imageUrl: project.imageUrl,
         projectUrl: project.projectUrl,
+      })),
+    };
+  }
+
+  /**
+   * Analyse un CV PDF et renvoie un brouillon éditeur.
+   * Ne persiste rien : l’utilisateur doit valider via saveProfile.
+   */
+  async importCvDraft(
+    userId: string,
+    cardId: string,
+    file: Express.Multer.File,
+  ) {
+    await this.ownedCard(userId, cardId);
+    const portfolio = await this.prisma.portfolio.findUnique({
+      where: { cardId },
+      select: { id: true, photoUrl: true },
+    });
+    if (!portfolio) throw new NotFoundException('Portfolio introuvable');
+
+    const draft = await this.cvImportService.extractDraftFromPdf(file);
+    return {
+      exists: true,
+      draft: true,
+      id: portfolio.id,
+      photoUrl: portfolio.photoUrl,
+      firstName: draft.firstName,
+      lastName: draft.lastName,
+      age: draft.age,
+      phone: draft.phone,
+      address: draft.address,
+      hidePersonalDetails: draft.hidePersonalDetails,
+      title: draft.title,
+      description: draft.description,
+      experiences: draft.experiences,
+      teachings: draft.teachings,
+      skills: draft.skills,
+      competences: draft.competences,
+      strengths: draft.strengths,
+      interests: draft.interests,
+      socialLinks: [],
+      projects: draft.projects.map((project) => ({
+        title: project.title,
+        description: project.description,
+        imageUrl: null,
+        projectUrl: project.projectUrl || null,
       })),
     };
   }
@@ -196,6 +243,13 @@ export class PortfoliosService {
       competences: chips(dto.competences),
       strengths: chips(dto.strengths),
       interests: chips(dto.interests),
+      socialLinks: (dto.socialLinks ?? [])
+        .map((item) => ({
+          platform: item.platform.trim().toUpperCase(),
+          url: item.url.trim(),
+        }))
+        .filter((item) => item.platform.length > 0 && item.url.length > 0)
+        .slice(0, 12),
     };
 
     await this.prisma.$transaction(async (tx) => {
@@ -267,6 +321,7 @@ export class PortfoliosService {
     competences: string[];
     strengths: string[];
     interests: string[];
+    socialLinks: { platform: string; url: string }[];
   } {
     const empty = {
       experiences: [],
@@ -275,6 +330,7 @@ export class PortfoliosService {
       competences: [],
       strengths: [],
       interests: [],
+      socialLinks: [],
     };
     if (!value || typeof value !== 'object' || Array.isArray(value)) return empty;
     const source = value as Record<string, unknown>;
@@ -322,6 +378,14 @@ export class PortfoliosService {
       competences: rows(source.competences).map(text).map((item) => item.trim()).filter(Boolean),
       strengths: rows(source.strengths).map(text).map((item) => item.trim()).filter(Boolean),
       interests: rows(source.interests).map(text).map((item) => item.trim()).filter(Boolean),
+      socialLinks: rows(source.socialLinks).flatMap((item) => {
+        if (!item || typeof item !== 'object') return [];
+        const row = item as Record<string, unknown>;
+        const platform = text(row.platform).trim().toUpperCase();
+        const url = text(row.url).trim();
+        if (!platform || !url) return [];
+        return [{ platform, url }];
+      }),
     };
   }
 
@@ -415,6 +479,7 @@ export class PortfoliosService {
     viewerUserId?: string,
     embed = false,
     preview?: { layout?: string; color?: string },
+    asOwnerPreview = false,
   ): Promise<string | null> {
     const card = await this.prisma.businessCard.findFirst({
       where: { slug, isPublic: true, isActive: true },
@@ -463,7 +528,8 @@ export class PortfoliosService {
     });
     if (!card) return null;
 
-    const ownerPreview = embed && viewerUserId === card.ownerId;
+    const ownerPreview =
+      (asOwnerPreview || embed) && viewerUserId === card.ownerId;
     if (!ownerPreview) {
       const canShare =
         await this.entitlementsService.canPublishPortfolio(card.ownerId);
@@ -509,9 +575,12 @@ export class PortfoliosService {
       theme.color = preview.color;
     }
     const storedTitle = profile ? portfolio?.title?.trim() ?? '' : '';
-    const jobTitle =
-      experiences[0]?.role ||
-      (storedTitle && storedTitle !== fullName ? storedTitle : card.jobTitle);
+    // Titre du portfolio au-dessus de la description — pas le dernier poste.
+    const jobTitle = profile
+      ? storedTitle && storedTitle !== fullName
+        ? storedTitle
+        : ''
+      : (card.jobTitle ?? '');
     const company = experiences[0]?.company || card.company;
     const bio = profile
       ? portfolio?.description
@@ -538,13 +607,17 @@ export class PortfoliosService {
       photoUrl,
       pageUrl,
       vcardUrl: `${this.appPublicUrl}/${prefix}/sharing/public/${encodeURIComponent(card.slug)}/contact.vcf`,
+      cardSlug: card.slug,
+      guestPreview: ownerPreview,
       accentStart: accent.start,
       accentEnd: accent.end,
       colorId: theme.color,
-      socialLinks: card.socialLinks.map((link) => ({
-        platform: link.platform,
-        url: link.url,
-      })),
+      socialLinks: profile
+        ? content.socialLinks
+        : card.socialLinks.map((link) => ({
+            platform: link.platform,
+            url: link.url,
+          })),
       projects: (portfolio?.projects ?? []).map((project) => ({
         title: project.title,
         description: project.description,

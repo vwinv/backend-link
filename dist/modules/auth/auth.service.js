@@ -75,6 +75,7 @@ let AuthService = AuthService_1 = class AuthService {
         if (existing) {
             throw new common_1.ConflictException('Cet email est déjà utilisé');
         }
+        const referredByUserId = await this.resolveReferralSponsorId(dto.referralCode);
         const passwordHash = await bcrypt.hash(dto.password, 10);
         const user = await this.prisma.user.create({
             data: {
@@ -83,14 +84,21 @@ let AuthService = AuthService_1 = class AuthService {
                 authProvider: client_1.AuthProvider.LOCAL,
                 firstName: dto.firstName.trim(),
                 lastName: dto.lastName.trim(),
+                ...(referredByUserId ? { referredByUserId } : {}),
             },
         });
         await this.linkPendingInvites(user.id, email);
         const full = await this.loadAdminUser(user.id);
-        return this.buildAuthResponse(full);
+        return this.buildAuthResponse(full, { isNewUser: true });
     }
     async login(dto) {
         const user = await this.authenticateLocal(dto);
+        const full = await this.loadAdminUser(user.id);
+        return this.buildAuthResponse(full);
+    }
+    async loginEspace(dto) {
+        const user = await this.authenticateLocal(dto);
+        await this.assertHasEspaceAccess(user.id);
         const full = await this.loadAdminUser(user.id);
         return this.buildAuthResponse(full);
     }
@@ -102,9 +110,17 @@ let AuthService = AuthService_1 = class AuthService {
         }
         return this.buildAuthResponse(full);
     }
-    async loginWithGoogle(idToken) {
+    async loginWithGoogle(idToken, referralCode) {
         const profile = await this.oauthService.verifyGoogleIdToken(idToken);
-        return this.authenticateWithOAuth(profile);
+        return this.authenticateWithOAuth(profile, referralCode);
+    }
+    async loginEspaceWithGoogle(idToken) {
+        const profile = await this.oauthService.verifyGoogleIdToken(idToken);
+        return this.authenticateEspaceWithOAuth(profile);
+    }
+    async loginEspaceWithApple(idToken, firstName, lastName) {
+        const profile = await this.oauthService.verifyAppleIdToken(idToken, firstName, lastName);
+        return this.authenticateEspaceWithOAuth(profile);
     }
     async loginAdminWithGoogle(idToken) {
         const profile = await this.oauthService.verifyGoogleIdToken(idToken);
@@ -147,9 +163,9 @@ let AuthService = AuthService_1 = class AuthService {
         }
         return this.buildAuthResponse(full);
     }
-    async loginWithApple(idToken, firstName, lastName) {
+    async loginWithApple(idToken, firstName, lastName, referralCode) {
         const profile = await this.oauthService.verifyAppleIdToken(idToken, firstName, lastName);
-        return this.authenticateWithOAuth(profile);
+        return this.authenticateWithOAuth(profile, referralCode);
     }
     async getMe(userId) {
         const user = await this.loadAdminUser(userId);
@@ -291,7 +307,7 @@ let AuthService = AuthService_1 = class AuthService {
         }
         return user;
     }
-    async authenticateWithOAuth(profile) {
+    async authenticateWithOAuth(profile, referralCode) {
         let user = await this.prisma.user.findFirst({
             where: {
                 authProvider: profile.provider,
@@ -305,6 +321,7 @@ let AuthService = AuthService_1 = class AuthService {
             if (existingEmail) {
                 throw new common_1.ConflictException('Un compte existe déjà avec cet email. Connectez-vous avec votre méthode habituelle.');
             }
+            const referredByUserId = await this.resolveReferralSponsorId(referralCode);
             user = await this.prisma.user.create({
                 data: {
                     email: profile.email,
@@ -313,9 +330,18 @@ let AuthService = AuthService_1 = class AuthService {
                     firstName: profile.firstName,
                     lastName: profile.lastName,
                     avatarUrl: profile.avatarUrl,
+                    ...(referredByUserId ? { referredByUserId } : {}),
                 },
             });
             await this.linkPendingInvites(user.id, profile.email);
+            const full = await this.loadAdminUser(user.id);
+            if (!user.isActive) {
+                throw new common_1.UnauthorizedException(auth_constants_1.ACCOUNT_DELETED_ERROR);
+            }
+            return this.buildAuthResponse(full, {
+                isNewUser: true,
+                needsReferralPrompt: !referredByUserId,
+            });
         }
         else if (profile.avatarUrl && !user.avatarUrl) {
             user = await this.prisma.user.update({
@@ -328,6 +354,70 @@ let AuthService = AuthService_1 = class AuthService {
         }
         const full = await this.loadAdminUser(user.id);
         return this.buildAuthResponse(full);
+    }
+    async authenticateEspaceWithOAuth(profile) {
+        let user = await this.prisma.user.findFirst({
+            where: {
+                authProvider: profile.provider,
+                providerId: profile.providerId,
+            },
+        });
+        if (!user) {
+            const existingEmail = await this.prisma.user.findUnique({
+                where: { email: profile.email },
+            });
+            if (existingEmail) {
+                throw new common_1.ForbiddenException(this.espaceWrongMethodMessage(existingEmail.authProvider, profile.provider));
+            }
+            throw new common_1.ForbiddenException('Aucun compte DropOne trouvé pour cet identifiant. Créez d’abord votre compte dans l’application, puis reconnectez-vous ici avec la même méthode.');
+        }
+        if (!user.isActive) {
+            throw new common_1.UnauthorizedException(auth_constants_1.ACCOUNT_DELETED_ERROR);
+        }
+        if (profile.avatarUrl && !user.avatarUrl) {
+            user = await this.prisma.user.update({
+                where: { id: user.id },
+                data: { avatarUrl: profile.avatarUrl },
+            });
+        }
+        await this.assertHasEspaceAccess(user.id);
+        const full = await this.loadAdminUser(user.id);
+        return this.buildAuthResponse(full);
+    }
+    async assertHasEspaceAccess(userId) {
+        const team = await this.prisma.team.findFirst({
+            where: {
+                isActive: true,
+                OR: [
+                    { ownerId: userId },
+                    {
+                        members: {
+                            some: {
+                                userId,
+                                role: { in: [client_1.TeamMemberRole.OWNER, client_1.TeamMemberRole.ADMIN] },
+                            },
+                        },
+                    },
+                ],
+            },
+            select: { id: true },
+        });
+        if (!team) {
+            throw new common_1.ForbiddenException('Aucun espace équipe accessible pour ce compte. Seuls le propriétaire et les administrateurs d’une équipe peuvent se connecter ici.');
+        }
+    }
+    espaceWrongMethodMessage(accountProvider, attempted) {
+        const label = (provider) => {
+            switch (provider) {
+                case client_1.AuthProvider.GOOGLE:
+                    return 'Google';
+                case client_1.AuthProvider.APPLE:
+                    return 'Apple';
+                default:
+                    return 'e-mail et mot de passe';
+            }
+        };
+        return `Ce compte DropOne a été créé avec ${label(accountProvider)}. Connectez-vous avec ${label(accountProvider)} (comme sur l’application), pas avec ${label(attempted)}.`;
     }
     async linkPendingInvites(userId, email) {
         await this.prisma.teamInvite.updateMany({
@@ -368,7 +458,20 @@ let AuthService = AuthService_1 = class AuthService {
                 return 'Email ou mot de passe incorrect';
         }
     }
-    buildAuthResponse(user) {
+    async resolveReferralSponsorId(rawCode) {
+        const code = rawCode?.trim().toUpperCase();
+        if (!code)
+            return undefined;
+        const sponsor = await this.prisma.user.findFirst({
+            where: { referralCode: code, isActive: true },
+            select: { id: true },
+        });
+        if (!sponsor) {
+            throw new common_1.BadRequestException('Code de parrainage invalide');
+        }
+        return sponsor.id;
+    }
+    buildAuthResponse(user, options) {
         const secret = this.configService.get('jwt.secret', 'change-me');
         const expiresIn = this.configService.get('jwt.expiresIn', '24h') ?? '24h';
         const accessToken = this.jwtService.sign({
@@ -383,6 +486,8 @@ let AuthService = AuthService_1 = class AuthService {
         return {
             accessToken,
             user: this.toPublicUser(user),
+            isNewUser: options?.isNewUser === true,
+            needsReferralPrompt: options?.needsReferralPrompt === true,
         };
     }
     toPublicUser(user) {

@@ -73,12 +73,16 @@ function buildBentoPortfolioHtml(input) {
     const competences = (0, public_portfolio_blocks_1.renderChipGroup)('Compétences', 'Savoir-faire métier', input.competences ?? []);
     const strengths = (0, public_portfolio_blocks_1.renderChipGroup)('Atouts', 'Ce qui vous distingue', input.strengths ?? []);
     const interests = (0, public_portfolio_blocks_1.renderChipGroup)("Centres d'intérêt", 'Une touche personnelle', input.interests ?? []);
-    const contactRows = [
-        email ? `<p class="contact-row">${escapeHtml(email)}</p>` : '',
-        phone ? `<p class="contact-row">${escapeHtml(phone)}</p>` : '',
-        input.address?.trim() ? `<p class="contact-row">${escapeHtml(input.address.trim())}</p>` : '',
-    ].join('');
     const ctaHref = projectCards ? '#realisations' : experience ? '#parcours' : '#contact';
+    const contactSection = (0, public_portfolio_blocks_1.renderContactLeadSection)({
+        slug: input.cardSlug,
+        preview: input.guestPreview,
+        className: 'contact',
+        email: input.email,
+        phone: input.phone,
+        address: input.address,
+        socialLinks: input.socialLinks,
+    });
     return `<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -129,7 +133,8 @@ function buildBentoPortfolioHtml(input) {
     .job { background: var(--btn); color: var(--btn-ink); border: 0; font-size: 18px; font-weight: 800; line-height: 1.25; }
     .bio { margin-top: 10px; padding: 16px; background: var(--glass); border: 1px solid var(--line); color: var(--muted); line-height: 1.45; font-size: 15px; }
     .infos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
-    .info, .placeholder, .skill-card, .contact { background: var(--glass); border: 1px solid var(--line); }
+    .info, .placeholder, .skill-card { background: var(--glass); border: 1px solid var(--line); }
+    .contact { background: transparent; border: 0; }
     .info { padding: 12px 14px; }
     .info span, .section-kicker { display: block; letter-spacing: 1.2px; font-size: 11px; font-weight: 800; color: var(--muted); }
     .info strong { display: block; margin-top: 6px; font-size: 16px; }
@@ -156,7 +161,7 @@ function buildBentoPortfolioHtml(input) {
     .shot { height: 160px; border-radius: 18px; background-size: cover; background-position: center; }
     .project strong { display: block; margin-top: 8px; }
     .project small { display: block; margin-top: 2px; color: var(--muted); }
-    .contact { margin-top: 28px; padding: 22px 18px 18px; border-radius: 22px; }
+    .contact { margin-top: 28px; padding: 0; border-radius: 0; }
     .contact h2 { margin-bottom: 8px; }
     .lead { margin: 0 0 14px; color: var(--muted); line-height: 1.4; }
     .contact-row { margin: 0 0 10px; padding: 14px 16px; border-radius: 14px; background: var(--glass); border: 1px solid var(--line); }
@@ -190,7 +195,6 @@ function buildBentoPortfolioHtml(input) {
       <div class="tile job">${job ? escapeHtml(job) : 'Portfolio'}</div>
     </div>
     ${bio ? `<p class="bio">${escapeHtml(bio)}</p>` : ''}
-    ${company ? `<div class="infos"><article class="info"><span>POSTE</span><strong>${escapeHtml(company)}</strong></article></div>` : ''}
     <a class="pill cta" href="${ctaHref}">Voir mes réalisations</a>
 
     ${experience ? `<section id="parcours">
@@ -217,12 +221,7 @@ function buildBentoPortfolioHtml(input) {
     </section>` : ''}
 
     ${interests}
-    <section class="contact" id="contact">
-      <h2>Travaillons ensemble</h2>
-      <p class="lead">Un projet, une collaboration, une intervention ? Écrivez-moi.</p>
-      ${contactRows || '<p class="contact-row">Ajoutez un email ou un téléphone</p>'}
-      <a class="pill save" href="${escapeAttr(input.vcardUrl)}">Enregistrer le contact</a>
-    </section>
+    ${contactSection}
     <p class="footer">CRÉÉ AVEC DROP ONE</p>
   </div>
 </body>

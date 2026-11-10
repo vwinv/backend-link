@@ -24,4 +24,9 @@ export type PublicCardPageParams = {
     downloadUrl?: string | null;
     appleAppId?: string | null;
     showPortfolioLink?: boolean;
+    guestLead?: {
+        viewId: string;
+        slug: string;
+        preview?: boolean;
+    } | null;
 };

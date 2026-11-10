@@ -1,6 +1,7 @@
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EntitlementsService } from '../subscriptions/entitlements.service';
+import { CvImportService } from './cv-import.service';
 import { SavePortfolioProfileDto } from './dto/save-portfolio-profile.dto';
 import { SavePortfolioStyleDto } from './dto/save-portfolio-style.dto';
 import { CreatePortfolioDto } from './dto/create-portfolio.dto';
@@ -11,7 +12,8 @@ export declare class PortfoliosService {
     private readonly prisma;
     private readonly configService;
     private readonly entitlementsService;
-    constructor(prisma: PrismaService, configService: ConfigService, entitlementsService: EntitlementsService);
+    private readonly cvImportService;
+    constructor(prisma: PrismaService, configService: ConfigService, entitlementsService: EntitlementsService, cvImportService: CvImportService);
     private get appPublicUrl();
     create(dto: CreatePortfolioDto): {
         message: string;
@@ -55,6 +57,7 @@ export declare class PortfoliosService {
         competences?: undefined;
         strengths?: undefined;
         interests?: undefined;
+        socialLinks?: undefined;
         projects?: undefined;
     } | {
         exists: boolean;
@@ -90,11 +93,58 @@ export declare class PortfoliosService {
         competences: string[];
         strengths: string[];
         interests: string[];
+        socialLinks: {
+            platform: string;
+            url: string;
+        }[];
         projects: {
             id: string;
             title: string;
             description: string;
             imageUrl: string | null;
+            projectUrl: string | null;
+        }[];
+    }>;
+    importCvDraft(userId: string, cardId: string, file: Express.Multer.File): Promise<{
+        exists: boolean;
+        draft: boolean;
+        id: string;
+        photoUrl: string | null;
+        firstName: string;
+        lastName: string;
+        age: number | null;
+        phone: string;
+        address: string;
+        hidePersonalDetails: boolean;
+        title: string;
+        description: string;
+        experiences: {
+            id: string;
+            role: string;
+            company: string;
+            period: string;
+            missions: string;
+        }[];
+        teachings: {
+            id: string;
+            title: string;
+            school: string;
+            year: string;
+            audience: string;
+        }[];
+        skills: {
+            id: string;
+            name: string;
+            level: number;
+        }[];
+        competences: string[];
+        strengths: string[];
+        interests: string[];
+        socialLinks: never[];
+        projects: {
+            title: string;
+            description: string;
+            imageUrl: null;
             projectUrl: string | null;
         }[];
     }>;
@@ -116,6 +166,7 @@ export declare class PortfoliosService {
         competences?: undefined;
         strengths?: undefined;
         interests?: undefined;
+        socialLinks?: undefined;
         projects?: undefined;
     } | {
         exists: boolean;
@@ -151,6 +202,10 @@ export declare class PortfoliosService {
         competences: string[];
         strengths: string[];
         interests: string[];
+        socialLinks: {
+            platform: string;
+            url: string;
+        }[];
         projects: {
             id: string;
             title: string;
@@ -175,7 +230,7 @@ export declare class PortfoliosService {
     renderPublicPage(slug: string, viewerUserId?: string, embed?: boolean, preview?: {
         layout?: string;
         color?: string;
-    }): Promise<string | null>;
+    }, asOwnerPreview?: boolean): Promise<string | null>;
     private initials;
     private resolveAssetUrl;
     findOne(id: string): {

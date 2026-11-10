@@ -1,10 +1,12 @@
 import {
   BadRequestException,
   ForbiddenException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
   ServiceUnavailableException,
+  forwardRef,
 } from '@nestjs/common';
 import {
   BillingPeriod,
@@ -20,6 +22,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { paydunyaIpnCallbackUrl } from '../paydunya/paydunya-callback.util';
 import { PaydunyaService } from '../paydunya/paydunya.service';
 import type { PaydunyaSoftPayResponse } from '../paydunya/paydunya-softpay.types';
+import { PointsService } from '../points/points.service';
 import { CheckoutDto } from './dto/checkout.dto';
 import { SoftPaySubscriptionDto } from './dto/softpay-subscription.dto';
 import { SubscribeDto } from './dto/subscribe.dto';
@@ -55,6 +58,8 @@ type ActivateSubscriptionInput = {
   invoiceAmount?: number | null;
   invoiceCurrency?: string | null;
   invoiceProvider?: string | null;
+  /** false pour les achats en points (hors CA). */
+  countsInRevenue?: boolean;
 };
 
 type OfferForPricing = {
@@ -85,7 +90,62 @@ export class SubscriptionsService {
     private readonly mailService: MailService,
     private readonly config: ConfigService,
     private readonly appleIapService: AppleIapService,
+    @Inject(forwardRef(() => PointsService))
+    private readonly pointsService: PointsService,
   ) {}
+
+  /** Devis montant abonnement (pour paiement en points). */
+  async quoteSubscriptionAmount(input: {
+    userId: string;
+    offerSlug: string;
+    billingType: OfferBillingType;
+    teamId?: string;
+    seats?: number;
+  }) {
+    const { offer, price, billingMultiplier } = await this.resolveOfferPrice(
+      input.offerSlug,
+      input.billingType,
+    );
+    const pricing = this.resolveCheckoutPricing(
+      offer,
+      price,
+      input.seats,
+      billingMultiplier,
+    );
+    if (!Number.isFinite(pricing.amount) || pricing.amount <= 0) {
+      throw new BadRequestException('Montant invalide pour un paiement en points');
+    }
+    return {
+      amountFcfa: pricing.amount,
+      seats: pricing.seats,
+      currency: 'FCFA',
+      offerSlug: offer.slug,
+      billingType: price.billingType,
+    };
+  }
+
+  /** Active un abonnement payé intégralement en points. */
+  async activateSubscriptionWithPoints(input: {
+    userId: string;
+    offerSlug: string;
+    billingType: OfferBillingType;
+    teamId?: string;
+    seats?: number;
+    invoiceAmount: number;
+  }) {
+    const quote = await this.quoteSubscriptionAmount(input);
+    return this.activateSubscription({
+      userId: input.userId,
+      offerSlug: input.offerSlug,
+      billingType: input.billingType,
+      teamId: input.teamId,
+      purchasedSeats: quote.seats,
+      invoiceAmount: input.invoiceAmount,
+      invoiceCurrency: 'FCFA',
+      invoiceProvider: 'points',
+      countsInRevenue: false,
+    });
+  }
 
   isInAppPaymentsHidden(): boolean {
     return this.config.get<boolean>('hideInAppPayments') === true;
@@ -1612,6 +1672,9 @@ export class SubscriptionsService {
         stripeCheckoutSessionId: input.stripeCheckoutSessionId ?? null,
         paydunyaInvoiceToken: input.paydunyaInvoiceToken ?? null,
         appleOriginalTransactionId: input.appleOriginalTransactionId ?? null,
+        countsInRevenue: input.countsInRevenue ?? true,
+        totalAmount:
+          input.invoiceAmount != null ? input.invoiceAmount : undefined,
       },
       include: {
         plan: true,
@@ -1725,6 +1788,22 @@ export class SubscriptionsService {
         teamId,
         paidAmount: amount,
       });
+    }
+
+    if (amount != null && amount > 0) {
+      try {
+        await this.pointsService.creditReferralOnSubscribe({
+          subscriberUserId: input.userId,
+          subscriptionId: subscription.id,
+          offerSlug: offer.slug,
+        });
+      } catch (error) {
+        this.logger.warn(
+          `Crédit parrainage impossible pour sub ${subscription.id}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
     }
 
     return subscription;

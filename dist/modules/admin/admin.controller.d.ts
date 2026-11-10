@@ -327,17 +327,31 @@ export declare class AdminController {
     }>;
     getClient(id: string): Promise<{
         stripeCustomerId: string | null;
+        points: {
+            balancePoints: number;
+            balanceFcfa: number;
+            balanceTenths: number;
+            updatedAt: Date | null;
+            ledger: {
+                id: string;
+                amountPoints: number;
+                reason: import("@prisma/client").$Enums.PointsLedgerReason;
+                productType: import("@prisma/client").$Enums.PointsProductType | null;
+                productRef: string | null;
+                createdAt: Date;
+            }[];
+        };
         cards: {
             id: string;
-            slug: string;
-            kind: import("@prisma/client").$Enums.CardKind;
+            createdAt: Date;
             firstName: string;
             lastName: string;
+            isActive: boolean;
+            slug: string;
+            isPublic: boolean;
+            kind: import("@prisma/client").$Enums.CardKind;
             jobTitle: string | null;
             company: string | null;
-            isPublic: boolean;
-            isActive: boolean;
-            createdAt: Date;
         }[];
         subscriptions: {
             id: string;
@@ -353,15 +367,15 @@ export declare class AdminController {
             } | null;
             plan: {
                 id: string;
-                slug: string;
                 name: string;
+                slug: string;
             };
         }[];
         teams: {
             id: string;
-            slug: string;
             isActive: boolean;
             name: string;
+            slug: string;
             role: import("@prisma/client").$Enums.TeamMemberRole;
         }[];
         ownedTeams: {
@@ -495,6 +509,8 @@ export declare class AdminController {
             cancelledAt: Date | null;
             purchasedSeats: number | null;
             totalAmount: number | null;
+            chargedAmount: number | null;
+            pointsSpent: number | null;
             countsInRevenue: boolean;
             createdAt: Date;
             updatedAt: Date;
@@ -547,6 +563,8 @@ export declare class AdminController {
         cancelledAt: Date | null;
         purchasedSeats: number | null;
         totalAmount: number | null;
+        chargedAmount: number | null;
+        pointsSpent: number | null;
         countsInRevenue: boolean;
         createdAt: Date;
         updatedAt: Date;
@@ -592,6 +610,8 @@ export declare class AdminController {
         cancelledAt: Date | null;
         purchasedSeats: number | null;
         totalAmount: number | null;
+        chargedAmount: number | null;
+        pointsSpent: number | null;
         countsInRevenue: boolean;
         createdAt: Date;
         updatedAt: Date;
@@ -637,6 +657,8 @@ export declare class AdminController {
         cancelledAt: Date | null;
         purchasedSeats: number | null;
         totalAmount: number | null;
+        chargedAmount: number | null;
+        pointsSpent: number | null;
         countsInRevenue: boolean;
         createdAt: Date;
         updatedAt: Date;

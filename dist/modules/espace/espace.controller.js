@@ -32,6 +32,10 @@ let EspaceController = class EspaceController {
     getDashboard(user, slug) {
         return this.espaceService.getDashboard(user.userId, slug);
     }
+    getVisitors(user, slug, filter) {
+        const normalized = filter === 'dropone' || filter === 'guest' ? filter : 'all';
+        return this.espaceService.getVisitors(user.userId, slug, normalized);
+    }
     getMembers(user, slug) {
         return this.espaceService.getMembers(user.userId, slug);
     }
@@ -82,6 +86,16 @@ __decorate([
     __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)
 ], EspaceController.prototype, "getDashboard", null);
+__decorate([
+    (0, common_1.Get)(':slug/visitors'),
+    (0, swagger_1.ApiOperation)({ summary: 'Liste des visiteurs des cartes de l’équipe' }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('slug')),
+    __param(2, (0, common_1.Query)('filter')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String]),
+    __metadata("design:returntype", void 0)
+], EspaceController.prototype, "getVisitors", null);
 __decorate([
     (0, common_1.Get)(':slug/members'),
     (0, swagger_1.ApiOperation)({ summary: 'Membres + invitations de l’espace' }),

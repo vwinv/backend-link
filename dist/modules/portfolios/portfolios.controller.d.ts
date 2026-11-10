@@ -61,6 +61,7 @@ export declare class PortfoliosController {
         competences?: undefined;
         strengths?: undefined;
         interests?: undefined;
+        socialLinks?: undefined;
         projects?: undefined;
     } | {
         exists: boolean;
@@ -96,6 +97,10 @@ export declare class PortfoliosController {
         competences: string[];
         strengths: string[];
         interests: string[];
+        socialLinks: {
+            platform: string;
+            url: string;
+        }[];
         projects: {
             id: string;
             title: string;
@@ -124,6 +129,7 @@ export declare class PortfoliosController {
         competences?: undefined;
         strengths?: undefined;
         interests?: undefined;
+        socialLinks?: undefined;
         projects?: undefined;
     } | {
         exists: boolean;
@@ -159,11 +165,60 @@ export declare class PortfoliosController {
         competences: string[];
         strengths: string[];
         interests: string[];
+        socialLinks: {
+            platform: string;
+            url: string;
+        }[];
         projects: {
             id: string;
             title: string;
             description: string;
             imageUrl: string | null;
+            projectUrl: string | null;
+        }[];
+    }>;
+    importCv(user: {
+        userId: string;
+    }, cardId: string, file: Express.Multer.File): Promise<{
+        exists: boolean;
+        draft: boolean;
+        id: string;
+        photoUrl: string | null;
+        firstName: string;
+        lastName: string;
+        age: number | null;
+        phone: string;
+        address: string;
+        hidePersonalDetails: boolean;
+        title: string;
+        description: string;
+        experiences: {
+            id: string;
+            role: string;
+            company: string;
+            period: string;
+            missions: string;
+        }[];
+        teachings: {
+            id: string;
+            title: string;
+            school: string;
+            year: string;
+            audience: string;
+        }[];
+        skills: {
+            id: string;
+            name: string;
+            level: number;
+        }[];
+        competences: string[];
+        strengths: string[];
+        interests: string[];
+        socialLinks: never[];
+        projects: {
+            title: string;
+            description: string;
+            imageUrl: null;
             projectUrl: string | null;
         }[];
     }>;

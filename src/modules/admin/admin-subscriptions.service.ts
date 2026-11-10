@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import {
   BillingPeriod,
+  InvoiceStatus,
   OfferAudience,
   OfferBillingType,
   Prisma,
@@ -75,7 +76,13 @@ export class AdminSubscriptionsService {
         slug: true,
       },
     },
-  } as const;
+    invoices: {
+      where: { status: InvoiceStatus.PAID },
+      orderBy: [{ paidAt: 'desc' as const }, { createdAt: 'desc' as const }],
+      take: 1,
+      select: { provider: true, amount: true, currency: true },
+    },
+  } satisfies Prisma.SubscriptionSelect;
 
   async getStats() {
     const now = new Date();
@@ -630,7 +637,30 @@ export class AdminSubscriptionsService {
       priceLabel: string | null;
     } | null;
     plan: { id: string; name: string; slug: string } | null;
+    invoices?: Array<{
+      provider: string | null;
+      amount: { toString(): string } | number;
+      currency: string;
+    }>;
   }) {
+    const latestInvoice = row.invoices?.[0];
+    const invoiceProvider = latestInvoice?.provider?.toLowerCase() ?? null;
+    const invoiceAmount =
+      latestInvoice?.amount == null
+        ? null
+        : Math.round(Number(latestInvoice.amount));
+    const chargedAmount =
+      invoiceAmount ??
+      (row.totalAmount == null ? null : Math.round(Number(row.totalAmount)));
+    const paymentProvider = row.stripeSubscriptionId
+      ? 'stripe'
+      : row.paydunyaInvoiceToken
+        ? 'paydunya'
+        : invoiceProvider === 'points'
+          ? 'points'
+          : invoiceProvider === 'apple'
+            ? 'apple'
+            : null;
     return {
       id: row.id,
       status: row.status,
@@ -640,14 +670,15 @@ export class AdminSubscriptionsService {
       purchasedSeats: this.displayedPurchasedSeats(row),
       totalAmount:
         row.totalAmount == null ? null : Math.round(Number(row.totalAmount)),
+      chargedAmount,
+      pointsSpent:
+        paymentProvider === 'points' && chargedAmount != null
+          ? Math.round(chargedAmount / 10)
+          : null,
       countsInRevenue: row.countsInRevenue,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
-      paymentProvider: row.stripeSubscriptionId
-        ? 'stripe'
-        : row.paydunyaInvoiceToken
-          ? 'paydunya'
-          : null,
+      paymentProvider,
       user: row.user
         ? {
             id: row.user.id,

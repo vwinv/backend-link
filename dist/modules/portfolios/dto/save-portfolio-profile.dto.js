@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SavePortfolioProfileDto = exports.PortfolioProfileProjectDto = exports.PortfolioSkillDto = exports.PortfolioTeachingDto = exports.PortfolioExperienceDto = void 0;
+exports.SavePortfolioProfileDto = exports.PortfolioSocialLinkDto = exports.PortfolioProfileProjectDto = exports.PortfolioSkillDto = exports.PortfolioTeachingDto = exports.PortfolioExperienceDto = void 0;
 const swagger_1 = require("@nestjs/swagger");
 const class_transformer_1 = require("class-transformer");
 const class_validator_1 = require("class-validator");
@@ -164,6 +164,25 @@ __decorate([
     (0, class_validator_1.MaxLength)(300),
     __metadata("design:type", String)
 ], PortfolioProfileProjectDto.prototype, "projectUrl", void 0);
+class PortfolioSocialLinkDto {
+    platform;
+    url;
+}
+exports.PortfolioSocialLinkDto = PortfolioSocialLinkDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 'LINKEDIN' }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(2),
+    (0, class_validator_1.MaxLength)(32),
+    __metadata("design:type", String)
+], PortfolioSocialLinkDto.prototype, "platform", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(1),
+    (0, class_validator_1.MaxLength)(500),
+    __metadata("design:type", String)
+], PortfolioSocialLinkDto.prototype, "url", void 0);
 class SavePortfolioProfileDto {
     photoUrl;
     firstName;
@@ -181,6 +200,7 @@ class SavePortfolioProfileDto {
     strengths;
     interests;
     projects;
+    socialLinks;
 }
 exports.SavePortfolioProfileDto = SavePortfolioProfileDto;
 __decorate([
@@ -296,4 +316,13 @@ __decorate([
     (0, class_transformer_1.Type)(() => PortfolioProfileProjectDto),
     __metadata("design:type", Array)
 ], SavePortfolioProfileDto.prototype, "projects", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ type: [PortfolioSocialLinkDto] }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ArrayMaxSize)(12),
+    (0, class_validator_1.ValidateNested)({ each: true }),
+    (0, class_transformer_1.Type)(() => PortfolioSocialLinkDto),
+    __metadata("design:type", Array)
+], SavePortfolioProfileDto.prototype, "socialLinks", void 0);
 //# sourceMappingURL=save-portfolio-profile.dto.js.map

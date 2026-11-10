@@ -172,7 +172,7 @@ function renderActions(params) {
             icon: 'portfolio',
             label: 'Consulter mon portfolio',
             tag: 'a',
-            attrs: `href="/portfolios/${escapeAttr(slug)}" data-portfolio-click`,
+            attrs: `href="/portfolios/${escapeAttr(slug)}?v=${Date.now()}" data-portfolio-click`,
         })
         : ''}
       ${downloadUrl
@@ -313,6 +313,68 @@ function renderIdentity(params) {
     ${addressRow}
   `;
 }
+function renderGuestLeadForm(params) {
+    const lead = params.guestLead;
+    if (!lead?.viewId || !lead.slug)
+        return '';
+    const skins = resolveButtonSkins(params.design.layout);
+    const panelClass = `guest-lead guest-lead-panel btn-${skins.secondary}`;
+    const submitClass = `guest-lead-submit btn btn-${skins.primary}`;
+    return `
+    <section
+      class="${panelClass}"
+      data-guest-lead
+      data-view-id="${escapeAttr(lead.viewId)}"
+      data-slug="${escapeAttr(lead.slug)}"
+      ${lead.preview ? 'data-guest-preview="1"' : ''}
+      hidden
+    >
+      <h2 class="guest-lead-title">Laissez moi votre contact</h2>
+      <p class="guest-lead-lead">Un projet, une collaboration ? Laissez vos coordonnées.</p>
+      <form class="guest-lead-form" data-guest-lead-form novalidate>
+        <label class="guest-lead-field">
+          <span class="sr-only">Nom et prénom</span>
+          <input
+            class="guest-lead-input"
+            type="text"
+            name="fullName"
+            required
+            autocomplete="name"
+            placeholder="Aminata Sow"
+          />
+        </label>
+        <label class="guest-lead-field">
+          <span class="sr-only">Email</span>
+          <input
+            class="guest-lead-input"
+            type="email"
+            name="email"
+            required
+            autocomplete="email"
+            inputmode="email"
+            placeholder="aminata.sow@mega-sn.com"
+          />
+        </label>
+        <label class="guest-lead-field">
+          <span class="sr-only">Téléphone</span>
+          <input
+            class="guest-lead-input"
+            type="tel"
+            name="phone"
+            autocomplete="tel"
+            inputmode="tel"
+            placeholder="784504052"
+          />
+        </label>
+        <p class="guest-lead-error" data-guest-lead-error hidden></p>
+        <button class="${submitClass}" type="submit">
+          <span class="btn-label">Envoyer</span>
+        </button>
+      </form>
+      <p class="guest-lead-thanks" data-guest-lead-thanks hidden>Merci, vos coordonnées ont bien été envoyées.</p>
+    </section>
+  `;
+}
 function renderStandardBody(params) {
     const avatarClass = params.design.layout === 'blancLight'
         ? 'avatar-accent-fill'
@@ -327,6 +389,7 @@ function renderStandardBody(params) {
       ${renderIdentity(params)}
       ${renderActions(params)}
       ${renderSocials(params)}
+      ${renderGuestLeadForm(params)}
     </div>
   `;
 }
@@ -354,6 +417,7 @@ function renderBubbleBody(params) {
         ${renderIdentity(params)}
         ${renderActions(params)}
         ${renderSocials(params)}
+        ${renderGuestLeadForm(params)}
       </div>
     </div>
   `;
@@ -380,6 +444,7 @@ function renderArcBody(params) {
         ${renderIdentity(params)}
         ${renderActions(params)}
         ${renderSocials(params)}
+        ${renderGuestLeadForm(params)}
       </div>
       ${renderArcAvatar(params)}
     </div>
@@ -425,36 +490,132 @@ function buildInlineScript(pageUrl) {
           var slug = ${safeSlug};
           if (!slug) return;
           var endpoint = '/api/v1/portfolios/public/' + encodeURIComponent(slug) + '/click';
-          if (navigator.sendBeacon) {
-            navigator.sendBeacon(endpoint, new Blob([], { type: 'application/json' }));
-            return;
-          }
-          fetch(endpoint, { method: 'POST', keepalive: true }).catch(function () {});
+          try {
+            if (navigator.sendBeacon) {
+              navigator.sendBeacon(endpoint, new Blob([], { type: 'application/json' }));
+            } else {
+              fetch(endpoint, { method: 'POST', keepalive: true }).catch(function () {});
+            }
+          } catch (e) {}
         });
       }
 
       var saveLink = document.querySelector('[data-save-contact]');
-      if (!saveLink) return;
+      if (saveLink) {
+        saveLink.addEventListener('click', function (event) {
+          if (window.LinkApp && window.LinkApp.postMessage) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            LinkApp.postMessage('save-contact');
+            return;
+          }
 
-      saveLink.addEventListener('click', function (event) {
-        if (window.LinkApp && window.LinkApp.postMessage) {
-          event.preventDefault();
-          event.stopImmediatePropagation();
-          LinkApp.postMessage('save-contact');
-          return;
+          var slug = ${safeSlug};
+          if (!slug) return;
+
+          var endpoint = '/api/v1/sharing/public/' + encodeURIComponent(slug) + '/save';
+          if (navigator.sendBeacon) {
+            navigator.sendBeacon(endpoint, new Blob([], { type: 'application/json' }));
+            return;
+          }
+
+          fetch(endpoint, { method: 'POST', keepalive: true }).catch(function () {});
+        }, true);
+      }
+
+      var guestBox = document.querySelector('[data-guest-lead]');
+      if (guestBox) {
+        var storageKey = 'dropone-guest-lead:' + (guestBox.getAttribute('data-slug') || ${safeSlug});
+        var alreadySent = false;
+        try { alreadySent = localStorage.getItem(storageKey) === '1'; } catch (e) {}
+        if (alreadySent) {
+          guestBox.setAttribute('hidden', 'hidden');
+        } else {
+          guestBox.removeAttribute('hidden');
         }
 
-        var slug = ${safeSlug};
-        if (!slug) return;
-
-        var endpoint = '/api/v1/sharing/public/' + encodeURIComponent(slug) + '/save';
-        if (navigator.sendBeacon) {
-          navigator.sendBeacon(endpoint, new Blob([], { type: 'application/json' }));
-          return;
+        var form = guestBox.querySelector('[data-guest-lead-form]');
+        var errorEl = guestBox.querySelector('[data-guest-lead-error]');
+        var thanksEl = guestBox.querySelector('[data-guest-lead-thanks]');
+        if (form) {
+          form.addEventListener('submit', function (event) {
+            event.preventDefault();
+            if (errorEl) {
+              errorEl.setAttribute('hidden', 'hidden');
+              errorEl.textContent = '';
+            }
+            var fullNameInput = form.querySelector('input[name="fullName"]');
+            var emailInput = form.querySelector('input[name="email"]');
+            var phoneInput = form.querySelector('input[name="phone"]');
+            var fullName = fullNameInput && fullNameInput.value ? String(fullNameInput.value).trim() : '';
+            var nameParts = fullName.split(/\\s+/).filter(Boolean);
+            var firstName = nameParts[0] || '';
+            var lastName = nameParts.slice(1).join(' ');
+            var email = emailInput && emailInput.value ? String(emailInput.value).trim() : '';
+            var phone = phoneInput && phoneInput.value ? String(phoneInput.value).trim() : '';
+            if (!firstName) {
+              if (errorEl) {
+                errorEl.textContent = 'Indiquez votre nom et prénom.';
+                errorEl.removeAttribute('hidden');
+              }
+              return;
+            }
+            if (!email || email.indexOf('@') < 1) {
+              if (errorEl) {
+                errorEl.textContent = 'Indiquez un email valide.';
+                errorEl.removeAttribute('hidden');
+              }
+              return;
+            }
+            if (guestBox.getAttribute('data-guest-preview') === '1') {
+              if (form) form.setAttribute('hidden', 'hidden');
+              if (thanksEl) {
+                thanksEl.textContent = 'Aperçu : vos visiteurs verront ce formulaire ici.';
+                thanksEl.removeAttribute('hidden');
+              }
+              return;
+            }
+            var submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) {
+              submitBtn.disabled = true;
+              submitBtn.textContent = 'Envoi…';
+            }
+            var slug = guestBox.getAttribute('data-slug') || ${safeSlug};
+            var viewId = guestBox.getAttribute('data-view-id') || '';
+            var endpoint = '/api/v1/sharing/public/' + encodeURIComponent(slug) + '/guest-contact';
+            fetch(endpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+              body: JSON.stringify({
+                viewId: viewId || undefined,
+                firstName: firstName,
+                lastName: lastName,
+                email: email,
+                phone: phone || undefined
+              })
+            }).then(function (response) {
+              if (!response.ok) {
+                return response.json().catch(function () { return {}; }).then(function (body) {
+                  var message = (body && body.message) ? body.message : 'Envoi impossible. Réessayez.';
+                  throw new Error(Array.isArray(message) ? message[0] : message);
+                });
+              }
+              try { localStorage.setItem(storageKey, '1'); } catch (e) {}
+              if (form) form.setAttribute('hidden', 'hidden');
+              if (thanksEl) thanksEl.removeAttribute('hidden');
+            }).catch(function (err) {
+              if (errorEl) {
+                errorEl.textContent = err && err.message ? err.message : 'Envoi impossible. Réessayez.';
+                errorEl.removeAttribute('hidden');
+              }
+              if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Envoyer';
+              }
+            });
+          });
         }
-
-        fetch(endpoint, { method: 'POST', keepalive: true }).catch(function () {});
-      }, true);
+      }
     })();
   `;
 }

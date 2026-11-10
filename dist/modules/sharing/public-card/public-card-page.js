@@ -22,6 +22,10 @@ function buildPublicCardHtml(params) {
     const safeImageUrl = (0, public_card_body_1.escapeHtml)(params.ogImageUrl);
     const layoutClass = `layout-${params.design.layout.replace(/([A-Z])/g, '-$1').toLowerCase()}`;
     const lightClass = params.design.lightSurface ? 'layout-light' : '';
+    const simpleThemeClass = params.design.isSimpleTheme ? 'theme-simple' : '';
+    const simpleBlancClass = params.design.isSimpleTheme && params.design.simpleStyle === 'blanc'
+        ? 'theme-simple-blanc'
+        : '';
     const pageStyle = params.design.pageBackground.startsWith('linear-gradient')
         ? `background: ${params.design.pageBackground};`
         : `background: ${params.design.pageBackground};`;
@@ -52,6 +56,7 @@ function buildPublicCardHtml(params) {
     :root,
     .page {
       --accent: ${params.design.accentColor};
+      --card-color: ${params.design.background};
       --link-blue: #0a6bff;
       --btn-border: ${accentRgba(params.design.accentColor, 0.55)};
       --social-border: ${accentRgba(params.design.accentColor, 0.45)};
@@ -66,7 +71,7 @@ function buildPublicCardHtml(params) {
   </style>
 </head>
 <body>
-  <div class="page ${layoutClass} ${lightClass}">
+  <div class="page ${layoutClass} ${lightClass} ${simpleThemeClass} ${simpleBlancClass}">
     <main class="shell">
       ${(0, public_card_body_1.renderPublicCardBody)(params)}
     </main>

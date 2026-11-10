@@ -18,10 +18,13 @@ export declare class AuthService {
     constructor(prisma: PrismaService, jwtService: JwtService, configService: ConfigService, oauthService: OAuthService, mailService: MailService);
     register(dto: RegisterDto): Promise<AuthResponseDto>;
     login(dto: LoginDto): Promise<AuthResponseDto>;
+    loginEspace(dto: LoginDto): Promise<AuthResponseDto>;
     loginAdmin(dto: LoginDto): Promise<AuthResponseDto>;
-    loginWithGoogle(idToken: string): Promise<AuthResponseDto>;
+    loginWithGoogle(idToken: string, referralCode?: string): Promise<AuthResponseDto>;
+    loginEspaceWithGoogle(idToken: string): Promise<AuthResponseDto>;
+    loginEspaceWithApple(idToken: string, firstName?: string, lastName?: string): Promise<AuthResponseDto>;
     loginAdminWithGoogle(idToken: string): Promise<AuthResponseDto>;
-    loginWithApple(idToken: string, firstName?: string, lastName?: string): Promise<AuthResponseDto>;
+    loginWithApple(idToken: string, firstName?: string, lastName?: string, referralCode?: string): Promise<AuthResponseDto>;
     getMe(userId: string): Promise<{
         id: string;
         email: string;
@@ -62,9 +65,9 @@ export declare class AuthService {
     getValidResetToken(rawToken: string): Promise<{
         id: string;
         createdAt: Date;
+        tokenHash: string;
         userId: string;
         expiresAt: Date;
-        tokenHash: string;
         usedAt: Date | null;
     } | null>;
     resetPassword(dto: ResetPasswordDto): Promise<{
@@ -74,10 +77,14 @@ export declare class AuthService {
     private hashResetToken;
     private authenticateLocal;
     private authenticateWithOAuth;
+    private authenticateEspaceWithOAuth;
+    private assertHasEspaceAccess;
+    private espaceWrongMethodMessage;
     private linkPendingInvites;
     private loadAdminUser;
     private canAccessBackoffice;
     private oauthOnlyMessage;
+    private resolveReferralSponsorId;
     private buildAuthResponse;
     private toPublicUser;
 }

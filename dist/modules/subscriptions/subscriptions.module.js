@@ -13,6 +13,7 @@ const auth_module_1 = require("../auth/auth.module");
 const notifications_module_1 = require("../notifications/notifications.module");
 const paydunya_module_1 = require("../paydunya/paydunya.module");
 const paydunya_webhook_controller_1 = require("../paydunya/paydunya-webhook.controller");
+const points_module_1 = require("../points/points.module");
 const entitlements_service_1 = require("./entitlements.service");
 const invoices_service_1 = require("./invoices.service");
 const stripe_service_1 = require("./stripe.service");
@@ -29,6 +30,7 @@ exports.SubscriptionsModule = SubscriptionsModule = __decorate([
             notifications_module_1.NotificationsModule,
             paydunya_module_1.PaydunyaModule,
             schedule_1.ScheduleModule.forRoot(),
+            (0, common_1.forwardRef)(() => points_module_1.PointsModule),
         ],
         controllers: [subscriptions_controller_1.SubscriptionsController, paydunya_webhook_controller_1.PaydunyaWebhookController],
         providers: [

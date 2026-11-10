@@ -33,6 +33,7 @@ const mail_module_1 = require("./modules/mail/mail.module");
 const notifications_module_1 = require("./modules/notifications/notifications.module");
 const support_module_1 = require("./modules/support/support.module");
 const espace_module_1 = require("./modules/espace/espace.module");
+const points_module_1 = require("./modules/points/points.module");
 const prisma_module_1 = require("./prisma/prisma.module");
 let AppModule = class AppModule {
 };
@@ -67,6 +68,7 @@ exports.AppModule = AppModule = __decorate([
             contacts_module_1.ContactsModule,
             sharing_module_1.SharingModule,
             wallet_module_1.WalletModule,
+            points_module_1.PointsModule,
             uploads_module_1.UploadsModule,
             notifications_module_1.NotificationsModule,
             support_module_1.SupportModule,

@@ -71,10 +71,15 @@ function soleilAccentCss() {
       border-radius: 12px;
       box-shadow: 4px 4px 0 #111111;
     }
-    .info, .project, .contact, .placeholder, .skill, .skill-card, .panel, .bio, .tile {
+    .info, .project, .placeholder, .skill, .skill-card, .panel, .bio, .tile {
       background-color: #ffffff;
       border: 2px solid #111111;
       box-shadow: 4px 4px 0 #111111;
+    }
+    .contact {
+      background: transparent;
+      border: 0;
+      box-shadow: none;
     }
     .skill, .bio { padding: 14px 16px 12px; }
     .contact-row {
@@ -148,12 +153,9 @@ function neonAccentCss() {
       color: #fff;
     }
     .contact {
-      background: linear-gradient(165deg, #3B2A86 0%, #6A3EBE 58%, #8B4FE0 100%);
-      border-color: transparent;
-    }
-    .contact .contact-row {
-      background: rgba(255,255,255,0.12);
-      border-color: rgba(255,255,255,0.18);
+      background: transparent;
+      border: 0;
+      box-shadow: none;
     }
     .save { background: #fff; color: #2A1868; }
     .fill { background: linear-gradient(90deg, #3EC8FF, #A06CFF); }

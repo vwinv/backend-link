@@ -11,6 +11,7 @@ export declare class AuthController {
     constructor(authService: AuthService);
     register(dto: RegisterDto): Promise<AuthResponseDto>;
     login(dto: LoginDto): Promise<AuthResponseDto>;
+    loginEspace(dto: LoginDto): Promise<AuthResponseDto>;
     loginAdmin(dto: LoginDto): Promise<AuthResponseDto>;
     loginAdminWithGoogle(dto: OAuthGoogleDto): Promise<AuthResponseDto>;
     getMe(user: {
@@ -46,7 +47,9 @@ export declare class AuthController {
         permissions: string[];
     }>;
     loginWithGoogle(dto: OAuthGoogleDto): Promise<AuthResponseDto>;
+    loginEspaceWithGoogle(dto: OAuthGoogleDto): Promise<AuthResponseDto>;
     loginWithApple(dto: OAuthAppleDto): Promise<AuthResponseDto>;
+    loginEspaceWithApple(dto: OAuthAppleDto): Promise<AuthResponseDto>;
     refresh(): {
         message: string;
     };

@@ -24,6 +24,10 @@ export declare class PortfolioProfileProjectDto {
     imageUrl?: string;
     projectUrl?: string;
 }
+export declare class PortfolioSocialLinkDto {
+    platform: string;
+    url: string;
+}
 export declare class SavePortfolioProfileDto {
     photoUrl?: string | null;
     firstName: string;
@@ -41,4 +45,5 @@ export declare class SavePortfolioProfileDto {
     strengths: string[];
     interests: string[];
     projects: PortfolioProfileProjectDto[];
+    socialLinks?: PortfolioSocialLinkDto[];
 }

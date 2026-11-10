@@ -10,6 +10,7 @@ exports.PortfoliosModule = void 0;
 const common_1 = require("@nestjs/common");
 const auth_module_1 = require("../auth/auth.module");
 const subscriptions_module_1 = require("../subscriptions/subscriptions.module");
+const cv_import_service_1 = require("./cv-import.service");
 const portfolios_controller_1 = require("./portfolios.controller");
 const portfolios_service_1 = require("./portfolios.service");
 let PortfoliosModule = class PortfoliosModule {
@@ -19,7 +20,7 @@ exports.PortfoliosModule = PortfoliosModule = __decorate([
     (0, common_1.Module)({
         imports: [auth_module_1.AuthModule, subscriptions_module_1.SubscriptionsModule],
         controllers: [portfolios_controller_1.PortfoliosController],
-        providers: [portfolios_service_1.PortfoliosService],
+        providers: [portfolios_service_1.PortfoliosService, cv_import_service_1.CvImportService],
         exports: [portfolios_service_1.PortfoliosService],
     })
 ], PortfoliosModule);

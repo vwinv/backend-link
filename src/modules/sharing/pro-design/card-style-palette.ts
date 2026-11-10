@@ -31,12 +31,12 @@ const CARD_STYLE_PALETTES: Record<string, CardStylePalette> = {
   ambre: {
     background: '#F0A830',
     accent: '#FFB020',
-    layout: 'blancLight',
+    layout: 'azurCentered',
   },
   blanc: {
     background: '#F3F3F5',
-    accent: '#0A6BFF',
-    layout: 'blancLight',
+    accent: '#121212',
+    layout: 'azurCentered',
   },
 };
 

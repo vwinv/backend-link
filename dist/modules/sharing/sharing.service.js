@@ -15,6 +15,8 @@ const config_1 = require("@nestjs/config");
 const client_1 = require("@prisma/client");
 const safe_url_1 = require("../../common/safe-url");
 const prisma_service_1 = require("../../prisma/prisma.service");
+const points_constants_1 = require("../points/points.constants");
+const points_service_1 = require("../points/points.service");
 const entitlements_service_1 = require("../subscriptions/entitlements.service");
 const pro_design_resolver_1 = require("./pro-design/pro-design-resolver");
 const public_card_body_1 = require("./public-card/public-card-body");
@@ -23,10 +25,12 @@ let SharingService = class SharingService {
     prisma;
     configService;
     entitlementsService;
-    constructor(prisma, configService, entitlementsService) {
+    pointsService;
+    constructor(prisma, configService, entitlementsService, pointsService) {
         this.prisma = prisma;
         this.configService = configService;
         this.entitlementsService = entitlementsService;
+        this.pointsService = pointsService;
     }
     getShareQuota(userId) {
         return this.entitlementsService.getShareQuota(userId);
@@ -74,11 +78,16 @@ let SharingService = class SharingService {
         if (!card) {
             return null;
         }
-        if (!options?.embed) {
-            await this.recordCardView(card.id, options?.viewerUserId, {
-                source: options?.source,
-                userAgent: options?.userAgent,
-            });
+        const preview = options?.preview === true;
+        const embed = preview ? false : options?.embed === true;
+        let guestViewId = null;
+        if (!embed && !preview) {
+            guestViewId =
+                (await this.recordCardView(card.id, options?.viewerUserId, {
+                    source: options?.source,
+                    userAgent: options?.userAgent,
+                    ipAddress: options?.ipAddress,
+                })) ?? null;
         }
         const fullName = `${card.firstName} ${card.lastName}`.trim();
         const isTeamCard = card.kind === client_1.CardKind.PROFESSIONAL || card.kind === client_1.CardKind.MEMBER;
@@ -92,8 +101,8 @@ let SharingService = class SharingService {
         const design = (0, pro_design_resolver_1.resolveProDesign)(card.theme);
         const teamLogoSource = card.logoUrl?.trim() || card.team?.logoUrl?.trim();
         const socialLinks = this.toPublicSocialLinks(card);
-        const embed = options?.embed === true;
         const showPortfolioLink = await this.entitlementsService.canPublishPortfolio(card.ownerId);
+        const showGuestLead = preview || (!embed && !options?.viewerUserId && Boolean(guestViewId));
         return (0, public_card_page_1.buildPublicCardHtml)({
             fullName,
             initials: (0, public_card_body_1.buildCardInitials)({ fullName }),
@@ -116,6 +125,13 @@ let SharingService = class SharingService {
             downloadUrl: embed ? null : this.resolveDownloadUrl(options?.userAgent),
             appleAppId: embed ? null : this.appleAppStoreId(),
             showPortfolioLink,
+            guestLead: showGuestLead
+                ? {
+                    viewId: preview ? 'preview' : guestViewId,
+                    slug: card.slug,
+                    preview,
+                }
+                : null,
         });
     }
     async renderPublicVCard(slug) {
@@ -208,17 +224,101 @@ let SharingService = class SharingService {
                 select: { id: true },
             });
             if (ownCard) {
-                return;
+                return null;
             }
         }
-        await this.prisma.cardView.create({
+        const card = await this.prisma.businessCard.findUnique({
+            where: { id: cardId },
+            select: { ownerId: true },
+        });
+        const ipAddress = meta?.ipAddress?.trim().slice(0, 64) || null;
+        const userAgent = meta?.userAgent?.slice(0, 512) || null;
+        const created = await this.prisma.cardView.create({
             data: {
                 cardId,
                 viewerUserId: viewerUserId || null,
                 source: this.normalizeViewSource(meta?.source),
-                userAgent: meta?.userAgent?.slice(0, 512) || null,
+                ipAddress,
+                userAgent,
             },
+            select: { id: true },
         });
+        if (card?.ownerId) {
+            try {
+                await this.pointsService.creditCardVisit({
+                    cardOwnerId: card.ownerId,
+                    cardViewId: created.id,
+                    viewerUserId,
+                    visitorKey: viewerUserId
+                        ? null
+                        : (0, points_constants_1.buildAnonymousVisitorKey)(ipAddress, userAgent),
+                });
+            }
+            catch {
+            }
+        }
+        return created.id;
+    }
+    async saveGuestContact(slug, dto) {
+        const card = await this.findPublicCard(slug);
+        if (!card) {
+            throw new common_1.NotFoundException('Carte introuvable');
+        }
+        const firstName = dto.firstName.trim();
+        const lastName = dto.lastName?.trim() || '';
+        const email = dto.email.trim().toLowerCase();
+        const phone = dto.phone?.trim() || null;
+        if (!firstName) {
+            throw new common_1.BadRequestException('Nom et prénom requis');
+        }
+        if (!email) {
+            throw new common_1.BadRequestException('Email requis');
+        }
+        let view = dto.viewId?.trim()
+            ? await this.prisma.cardView.findFirst({
+                where: {
+                    id: dto.viewId.trim(),
+                    cardId: card.id,
+                    viewerUserId: null,
+                },
+                select: { id: true },
+            })
+            : null;
+        if (!view) {
+            view = await this.prisma.cardView.findFirst({
+                where: {
+                    cardId: card.id,
+                    viewerUserId: null,
+                    guestEmail: null,
+                    viewedAt: { gte: new Date(Date.now() - 2 * 60 * 60 * 1000) },
+                },
+                orderBy: { viewedAt: 'desc' },
+                select: { id: true },
+            });
+        }
+        const guestData = {
+            guestFirstName: firstName,
+            guestLastName: lastName,
+            guestEmail: email,
+            guestPhone: phone,
+        };
+        if (!view) {
+            view = await this.prisma.cardView.create({
+                data: {
+                    cardId: card.id,
+                    viewerUserId: null,
+                    source: 'link',
+                    ...guestData,
+                },
+                select: { id: true },
+            });
+            return { ok: true, viewId: view.id };
+        }
+        await this.prisma.cardView.update({
+            where: { id: view.id },
+            data: guestData,
+        });
+        return { ok: true, viewId: view.id };
     }
     async recordCardSave(slug, userId) {
         const card = await this.findPublicCard(slug);
@@ -372,6 +472,7 @@ exports.SharingService = SharingService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
         config_1.ConfigService,
-        entitlements_service_1.EntitlementsService])
+        entitlements_service_1.EntitlementsService,
+        points_service_1.PointsService])
 ], SharingService);
 //# sourceMappingURL=sharing.service.js.map

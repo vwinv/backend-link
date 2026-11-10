@@ -8,13 +8,15 @@ const LEGACY_IDS: Record<string, string> = {
   coral: 'degrade',
 };
 
+/** Fallback couleur simple / défaut — plus listé comme design premium. */
+const UNI_FALLBACK: ProDesignTemplate = {
+  id: 'uni',
+  name: 'Uni',
+  background: '#0A6BFF',
+  layout: 'azurCentered',
+};
+
 export const PRO_DESIGN_TEMPLATES: ProDesignTemplate[] = [
-  {
-    id: 'uni',
-    name: 'Uni',
-    background: '#0A6BFF',
-    layout: 'azurCentered',
-  },
   {
     id: 'degrade',
     name: 'Degrade',
@@ -70,8 +72,9 @@ export const PRO_DESIGN_TEMPLATES: ProDesignTemplate[] = [
 
 export function getProDesignTemplate(id?: string | null): ProDesignTemplate {
   const resolvedId = id ? (LEGACY_IDS[id] ?? id) : DEFAULT_PRO_DESIGN_ID;
+  if (resolvedId === UNI_FALLBACK.id) return UNI_FALLBACK;
   const template = PRO_DESIGN_TEMPLATES.find((item) => item.id === resolvedId);
-  return template ?? PRO_DESIGN_TEMPLATES[0];
+  return template ?? UNI_FALLBACK;
 }
 
 function parseHex(hex: string): [number, number, number] {

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -9,11 +10,20 @@ import {
   Patch,
   Post,
   Req,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { JwtService } from '@nestjs/jwt';
 import type { Request } from 'express';
+import { memoryStorage } from 'multer';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreatePortfolioDto } from './dto/create-portfolio.dto';
@@ -109,6 +119,31 @@ export class PortfoliosController {
     @Body() dto: SavePortfolioProfileDto,
   ) {
     return this.portfoliosService.saveProfile(user.userId, cardId, dto);
+  }
+
+  @Post('card/:cardId/import-cv')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary:
+      'Analyser un CV PDF et renvoyer un brouillon portfolio (sans enregistrer)',
+  })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: 8 * 1024 * 1024 },
+    }),
+  )
+  importCv(
+    @CurrentUser() user: { userId: string },
+    @Param('cardId') cardId: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException('Fichier PDF requis');
+    }
+    return this.portfoliosService.importCvDraft(user.userId, cardId, file);
   }
 
   @Patch('card/:cardId/style')

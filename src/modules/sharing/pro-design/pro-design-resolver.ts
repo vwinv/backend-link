@@ -50,6 +50,10 @@ export function resolveProDesign(theme: unknown): ResolvedProDesign {
 
   const brandColor = themeJson.brandColor?.trim();
   let cardStyleApplied = false;
+  const simpleStyle =
+    !hasChosenDesign && themeJson.style?.trim()
+      ? themeJson.style.trim().toLowerCase()
+      : null;
   if (themeJson.useCompanyColors === true && brandColor) {
     template = applyBrandColorToTemplate(template, brandColor);
   } else if (!hasChosenDesign) {
@@ -77,7 +81,8 @@ export function resolveProDesign(theme: unknown): ResolvedProDesign {
   const lightSurface =
     template.layout === 'blancLight' ||
     template.layout === 'bubble' ||
-    template.layout === 'arc';
+    template.layout === 'arc' ||
+    simpleStyle === 'blanc';
 
   const resolvedTemplate = {
     ...template,
@@ -94,5 +99,7 @@ export function resolveProDesign(theme: unknown): ResolvedProDesign {
     textPrimary: lightSurface ? '#0C0D10' : '#FFFFFF',
     textMuted: lightSurface ? 'rgba(12, 13, 16, 0.62)' : 'rgba(255, 255, 255, 0.78)',
     lightSurface,
+    isSimpleTheme: !hasChosenDesign,
+    simpleStyle,
   };
 }

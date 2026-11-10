@@ -9,6 +9,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.SharingModule = void 0;
 const common_1 = require("@nestjs/common");
 const auth_module_1 = require("../auth/auth.module");
+const points_module_1 = require("../points/points.module");
 const subscriptions_module_1 = require("../subscriptions/subscriptions.module");
 const sharing_controller_1 = require("./sharing.controller");
 const sharing_service_1 = require("./sharing.service");
@@ -17,7 +18,7 @@ let SharingModule = class SharingModule {
 exports.SharingModule = SharingModule;
 exports.SharingModule = SharingModule = __decorate([
     (0, common_1.Module)({
-        imports: [auth_module_1.AuthModule, subscriptions_module_1.SubscriptionsModule],
+        imports: [auth_module_1.AuthModule, subscriptions_module_1.SubscriptionsModule, points_module_1.PointsModule],
         controllers: [sharing_controller_1.SharingController],
         providers: [sharing_service_1.SharingService],
         exports: [sharing_service_1.SharingService],

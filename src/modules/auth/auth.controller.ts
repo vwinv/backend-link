@@ -105,7 +105,7 @@ export class AuthController {
   })
   @ApiResponse({ status: 200, type: AuthResponseDto })
   loginWithGoogle(@Body() dto: OAuthGoogleDto) {
-    return this.authService.loginWithGoogle(dto.idToken);
+    return this.authService.loginWithGoogle(dto.idToken, dto.referralCode);
   }
 
   @Post('espace/oauth/google')
@@ -130,6 +130,7 @@ export class AuthController {
       dto.idToken,
       dto.firstName,
       dto.lastName,
+      dto.referralCode,
     );
   }
 

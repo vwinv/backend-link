@@ -14,8 +14,10 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PortfoliosController = void 0;
 const common_1 = require("@nestjs/common");
+const platform_express_1 = require("@nestjs/platform-express");
 const swagger_1 = require("@nestjs/swagger");
 const jwt_1 = require("@nestjs/jwt");
+const multer_1 = require("multer");
 const current_user_decorator_1 = require("../auth/decorators/current-user.decorator");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const create_portfolio_dto_1 = require("./dto/create-portfolio.dto");
@@ -61,6 +63,12 @@ let PortfoliosController = class PortfoliosController {
     }
     saveProfile(user, cardId, dto) {
         return this.portfoliosService.saveProfile(user.userId, cardId, dto);
+    }
+    importCv(user, cardId, file) {
+        if (!file?.buffer?.length) {
+            throw new common_1.BadRequestException('Fichier PDF requis');
+        }
+        return this.portfoliosService.importCvDraft(user.userId, cardId, file);
     }
     saveStyle(user, cardId, dto) {
         return this.portfoliosService.saveStyle(user.userId, cardId, dto);
@@ -152,6 +160,25 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, save_portfolio_profile_dto_1.SavePortfolioProfileDto]),
     __metadata("design:returntype", void 0)
 ], PortfoliosController.prototype, "saveProfile", null);
+__decorate([
+    (0, common_1.Post)('card/:cardId/import-cv'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiConsumes)('multipart/form-data'),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Analyser un CV PDF et renvoyer un brouillon portfolio (sans enregistrer)',
+    }),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file', {
+        storage: (0, multer_1.memoryStorage)(),
+        limits: { fileSize: 8 * 1024 * 1024 },
+    })),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('cardId')),
+    __param(2, (0, common_1.UploadedFile)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, Object]),
+    __metadata("design:returntype", void 0)
+], PortfoliosController.prototype, "importCv", null);
 __decorate([
     (0, common_1.Patch)('card/:cardId/style'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),

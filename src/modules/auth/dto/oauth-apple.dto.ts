@@ -21,4 +21,12 @@ export class OAuthAppleDto {
   @IsOptional()
   @IsString()
   lastName?: string;
+
+  @ApiPropertyOptional({
+    example: 'DROP-XXXX',
+    description: 'Code de parrainage (uniquement à la création du compte)',
+  })
+  @IsOptional()
+  @IsString()
+  referralCode?: string;
 }

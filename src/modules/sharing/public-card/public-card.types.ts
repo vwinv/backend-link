@@ -30,4 +30,14 @@ export type PublicCardPageParams = {
   appleAppId?: string | null;
   /** Lien public du portfolio, seulement avec un abonnement Portfolio valide. */
   showPortfolioLink?: boolean;
+  /**
+   * Formulaire « Laissez moi votre contact » pour les visiteurs sans DropOne.
+   * Absent si connecté DropOne ou en embed app (sauf aperçu propriétaire).
+   */
+  guestLead?: {
+    viewId: string;
+    slug: string;
+    /** Aperçu « Voir ma carte » : formulaire visible mais non envoyé. */
+    preview?: boolean;
+  } | null;
 };

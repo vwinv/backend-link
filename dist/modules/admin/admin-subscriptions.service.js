@@ -13,6 +13,7 @@ exports.AdminSubscriptionsService = void 0;
 const common_1 = require("@nestjs/common");
 const client_1 = require("@prisma/client");
 const prisma_service_1 = require("../../prisma/prisma.service");
+const subscription_validity_1 = require("../subscriptions/subscription-validity");
 const team_seats_1 = require("../subscriptions/team-seats");
 let AdminSubscriptionsService = class AdminSubscriptionsService {
     prisma;
@@ -72,6 +73,12 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
                 name: true,
                 slug: true,
             },
+        },
+        invoices: {
+            where: { status: client_1.InvoiceStatus.PAID },
+            orderBy: [{ paidAt: 'desc' }, { createdAt: 'desc' }],
+            take: 1,
+            select: { provider: true, amount: true, currency: true },
         },
     };
     async getStats() {
@@ -325,6 +332,7 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
                         client_1.SubscriptionStatus.PAST_DUE,
                     ],
                 },
+                ...(0, subscription_validity_1.sameSubscriptionFamilyWhere)(offer.audience),
             },
             data: {
                 status: client_1.SubscriptionStatus.CANCELLED,
@@ -474,6 +482,7 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
                             client_1.SubscriptionStatus.PAST_DUE,
                         ],
                     },
+                    ...(0, subscription_validity_1.sameSubscriptionFamilyWhere)(offer.audience),
                 },
                 data: {
                     status: client_1.SubscriptionStatus.CANCELLED,
@@ -514,6 +523,22 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
         return { deleted: true, id };
     }
     serialize(row) {
+        const latestInvoice = row.invoices?.[0];
+        const invoiceProvider = latestInvoice?.provider?.toLowerCase() ?? null;
+        const invoiceAmount = latestInvoice?.amount == null
+            ? null
+            : Math.round(Number(latestInvoice.amount));
+        const chargedAmount = invoiceAmount ??
+            (row.totalAmount == null ? null : Math.round(Number(row.totalAmount)));
+        const paymentProvider = row.stripeSubscriptionId
+            ? 'stripe'
+            : row.paydunyaInvoiceToken
+                ? 'paydunya'
+                : invoiceProvider === 'points'
+                    ? 'points'
+                    : invoiceProvider === 'apple'
+                        ? 'apple'
+                        : null;
         return {
             id: row.id,
             status: row.status,
@@ -522,14 +547,14 @@ let AdminSubscriptionsService = class AdminSubscriptionsService {
             cancelledAt: row.cancelledAt,
             purchasedSeats: this.displayedPurchasedSeats(row),
             totalAmount: row.totalAmount == null ? null : Math.round(Number(row.totalAmount)),
+            chargedAmount,
+            pointsSpent: paymentProvider === 'points' && chargedAmount != null
+                ? Math.round(chargedAmount / 10)
+                : null,
             countsInRevenue: row.countsInRevenue,
             createdAt: row.createdAt,
             updatedAt: row.updatedAt,
-            paymentProvider: row.stripeSubscriptionId
-                ? 'stripe'
-                : row.paydunyaInvoiceToken
-                    ? 'paydunya'
-                    : null,
+            paymentProvider,
             user: row.user
                 ? {
                     id: row.user.id,

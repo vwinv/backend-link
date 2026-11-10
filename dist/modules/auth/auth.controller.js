@@ -38,6 +38,9 @@ let AuthController = class AuthController {
     login(dto) {
         return this.authService.login(dto);
     }
+    loginEspace(dto) {
+        return this.authService.loginEspace(dto);
+    }
     loginAdmin(dto) {
         return this.authService.loginAdmin(dto);
     }
@@ -51,10 +54,16 @@ let AuthController = class AuthController {
         return this.authService.getAdminMe(user.userId);
     }
     loginWithGoogle(dto) {
-        return this.authService.loginWithGoogle(dto.idToken);
+        return this.authService.loginWithGoogle(dto.idToken, dto.referralCode);
+    }
+    loginEspaceWithGoogle(dto) {
+        return this.authService.loginEspaceWithGoogle(dto.idToken);
     }
     loginWithApple(dto) {
-        return this.authService.loginWithApple(dto.idToken, dto.firstName, dto.lastName);
+        return this.authService.loginWithApple(dto.idToken, dto.firstName, dto.lastName, dto.referralCode);
+    }
+    loginEspaceWithApple(dto) {
+        return this.authService.loginEspaceWithApple(dto.idToken, dto.firstName, dto.lastName);
     }
     refresh() {
         return this.authService.refresh();
@@ -90,6 +99,18 @@ __decorate([
     __metadata("design:paramtypes", [login_dto_1.LoginDto]),
     __metadata("design:returntype", void 0)
 ], AuthController.prototype, "login", null);
+__decorate([
+    (0, common_1.Post)('espace/login'),
+    (0, throttler_1.Throttle)({ default: { limit: 10, ttl: 60_000 } }),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Connexion espace équipe (email / mot de passe, owner/admin uniquement)',
+    }),
+    (0, swagger_1.ApiResponse)({ status: 200, type: auth_response_dto_1.AuthResponseDto }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [login_dto_1.LoginDto]),
+    __metadata("design:returntype", void 0)
+], AuthController.prototype, "loginEspace", null);
 __decorate([
     (0, common_1.Post)('admin/login'),
     (0, throttler_1.Throttle)({ default: { limit: 10, ttl: 60_000 } }),
@@ -151,6 +172,18 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], AuthController.prototype, "loginWithGoogle", null);
 __decorate([
+    (0, common_1.Post)('espace/oauth/google'),
+    (0, throttler_1.Throttle)({ default: { limit: 10, ttl: 60_000 } }),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Connexion espace équipe via Google (compte existant, même méthode)',
+    }),
+    (0, swagger_1.ApiResponse)({ status: 200, type: auth_response_dto_1.AuthResponseDto }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [oauth_google_dto_1.OAuthGoogleDto]),
+    __metadata("design:returntype", void 0)
+], AuthController.prototype, "loginEspaceWithGoogle", null);
+__decorate([
     (0, common_1.Post)('oauth/apple'),
     (0, throttler_1.Throttle)({ default: { limit: 10, ttl: 60_000 } }),
     (0, swagger_1.ApiOperation)({
@@ -162,6 +195,18 @@ __decorate([
     __metadata("design:paramtypes", [oauth_apple_dto_1.OAuthAppleDto]),
     __metadata("design:returntype", void 0)
 ], AuthController.prototype, "loginWithApple", null);
+__decorate([
+    (0, common_1.Post)('espace/oauth/apple'),
+    (0, throttler_1.Throttle)({ default: { limit: 10, ttl: 60_000 } }),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Connexion espace équipe via Apple (compte existant, même méthode)',
+    }),
+    (0, swagger_1.ApiResponse)({ status: 200, type: auth_response_dto_1.AuthResponseDto }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [oauth_apple_dto_1.OAuthAppleDto]),
+    __metadata("design:returntype", void 0)
+], AuthController.prototype, "loginEspaceWithApple", null);
 __decorate([
     (0, common_1.Post)('refresh'),
     (0, swagger_1.ApiOperation)({ summary: 'Rafraîchir le token JWT' }),

@@ -17,4 +17,6 @@ export declare class AuthUserDto {
 export declare class AuthResponseDto {
     accessToken: string;
     user: AuthUserDto;
+    isNewUser?: boolean;
+    needsReferralPrompt?: boolean;
 }

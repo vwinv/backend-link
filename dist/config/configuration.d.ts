@@ -26,6 +26,7 @@ declare const _default: () => {
         };
         apple: {
             clientId: string;
+            clientIds: string[];
         };
     };
     mail: {
@@ -84,6 +85,10 @@ declare const _default: () => {
         apiKey: string;
         apiSecret: string;
         folder: string;
+    };
+    openai: {
+        apiKey: string;
+        model: string;
     };
     freeMaxShares: number;
     landingPublicUrl: string;

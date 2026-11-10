@@ -45,9 +45,7 @@ function buildEditorialPortfolioHtml(input) {
             ? `<a class="social" href="${escapeAttr(instagram.url)}" target="_blank" rel="noopener noreferrer" aria-label="Instagram">${instagramIcon}</a>`
             : '',
     ].join('');
-    const meta = company
-        ? `<div class="meta"><span>POSTE</span><strong>${escapeHtml(company)}</strong></div>`
-        : '';
+    const meta = '';
     const experience = (0, public_portfolio_blocks_1.renderEntryTimeline)(input.experiences?.length
         ? input.experiences
         : job
@@ -78,11 +76,15 @@ function buildEditorialPortfolioHtml(input) {
     const competences = (0, public_portfolio_blocks_1.renderChipGroup)('Compétences', 'Savoir-faire métier', input.competences ?? []);
     const strengths = (0, public_portfolio_blocks_1.renderChipGroup)('Atouts', 'Ce qui vous distingue', input.strengths ?? []);
     const interests = (0, public_portfolio_blocks_1.renderChipGroup)("Centres d'intérêt", 'Une touche personnelle', input.interests ?? []);
-    const contactRows = [
-        email ? `<p class="contact-row">${escapeHtml(email)}</p>` : '',
-        phone ? `<p class="contact-row">${escapeHtml(phone)}</p>` : '',
-        input.address?.trim() ? `<p class="contact-row">${escapeHtml(input.address.trim())}</p>` : '',
-    ].join('');
+    const contactSection = (0, public_portfolio_blocks_1.renderContactLeadSection)({
+        slug: input.cardSlug,
+        preview: input.guestPreview,
+        className: 'contact',
+        email: input.email,
+        phone: input.phone,
+        address: input.address,
+        socialLinks: input.socialLinks,
+    });
     return `<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -145,7 +147,8 @@ function buildEditorialPortfolioHtml(input) {
     .when i { display: none; }
     .entry h3 { margin: 0; font-size: 18px; line-height: 1.2; }
     .org { margin: 4px 0 0; font-weight: 700; color: var(--ink); }
-    .placeholder, .skill, .contact { background: var(--glass); border: 1px solid var(--line); border-radius: 18px; }
+    .placeholder, .skill { background: var(--glass); border: 1px solid var(--line); border-radius: 18px; }
+    .contact { background: transparent; border: 0; border-radius: 0; }
     .placeholder { padding: 16px; color: var(--muted); }
     .placeholder strong, .placeholder span, .placeholder p { display: block; color: var(--muted); }
     .placeholder strong { color: var(--ink); margin-top: 4px; }
@@ -157,7 +160,7 @@ function buildEditorialPortfolioHtml(input) {
     .shot { height: 190px; border-radius: 18px; background-size: cover; background-position: center; }
     .project h3 { margin: 0; font-size: 18px; }
     .project p { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
-    .contact { margin-top: 22px; padding: 22px 18px 18px; }
+    .contact { margin-top: 22px; padding: 0; }
     .contact h2 { margin-bottom: 8px; }
     .lead { margin: 0 0 14px; color: var(--muted); line-height: 1.4; }
     .contact-row { margin: 0 0 10px; padding: 14px 16px; border-radius: 14px; background: var(--glass); border: 1px solid var(--line); }
@@ -220,12 +223,7 @@ function buildEditorialPortfolioHtml(input) {
     </section>` : '<div id="realisations"></div>'}
 
     ${interests}
-    <section class="contact" id="contact">
-      <h2>Travaillons ensemble</h2>
-      <p class="lead">Un projet, une collaboration, une intervention ? Écrivez-moi.</p>
-      ${contactRows || '<p class="contact-row">Ajoutez un email ou un téléphone</p>'}
-      <a class="pill save" href="${escapeAttr(input.vcardUrl)}">Enregistrer le contact</a>
-    </section>
+    ${contactSection}
     <p class="footer">CRÉÉ AVEC DROP ONE</p>
   </div>
 </body>

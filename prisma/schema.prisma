@@ -138,6 +138,20 @@ enum InvoiceStatus {
   REFUNDED
 }
 
+/// Motifs du ledger de points (parrainage / visites / achats).
+enum PointsLedgerReason {
+  REFERRAL_SUBSCRIBE
+  CARD_VISIT
+  PURCHASE
+  ADJUSTMENT
+}
+
+/// Produits achetable avec des points (extensible : thèmes, etc.).
+enum PointsProductType {
+  SUBSCRIPTION
+  CARD_THEME
+}
+
 // ─── Auth & Users ────────────────────────────────────────────────────────────
 
 model User {
@@ -157,11 +171,17 @@ model User {
   isActive     Boolean      @default(true)
   /// Incrémente à la déconnexion / reset MDP pour invalider les JWT existants.
   sessionVersion Int        @default(0)
+  /// Code de parrainage unique (ex. DROP-AB12CD).
+  referralCode     String?  @unique
+  /// Utilisateur qui a parrainé ce compte (code saisi une seule fois).
+  referredByUserId String?
   adminRoleId  String?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
   adminRole            AdminRole?   @relation(fields: [adminRoleId], references: [id], onDelete: SetNull)
+  referredBy           User?        @relation("UserReferrals", fields: [referredByUserId], references: [id], onDelete: SetNull)
+  referrals            User[]       @relation("UserReferrals")
   ownedTeams           Team[]       @relation("TeamOwner")
   teamMemberships      TeamMember[]
   teamInvitesSent      TeamInvite[] @relation("TeamInvitesSent")
@@ -181,10 +201,45 @@ model User {
   paymentInvoices      PaymentInvoice[]
   passwordResetTokens  PasswordResetToken[]
   signupRequests       SubscriptionSignupRequest[]
+  pointsAccount        UserPointsAccount?
+  pointsLedger         PointsLedgerEntry[] @relation("PointsLedgerOwner")
 
   @@unique([authProvider, providerId])
   @@index([adminRoleId])
+  @@index([referredByUserId])
   @@map("users")
+}
+
+/// Solde de points (stocké en dixièmes : 10 = 1 point = 10 FCFA).
+model UserPointsAccount {
+  userId         String   @id
+  balanceTenths  Int      @default(0)
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_points_accounts")
+}
+
+/// Historique immuable des crédits / débits de points.
+model PointsLedgerEntry {
+  id             String              @id @default(cuid())
+  userId         String
+  amountTenths   Int
+  reason         PointsLedgerReason
+  productType    PointsProductType?
+  productRef     String?
+  relatedUserId  String?
+  cardViewId     String?             @unique
+  subscriptionId String?             @unique
+  meta           Json?
+  createdAt      DateTime            @default(now())
+
+  user User @relation("PointsLedgerOwner", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([reason, createdAt])
+  @@map("points_ledger_entries")
 }
 
 model PasswordResetToken {
@@ -631,14 +686,19 @@ model SavedCard {
 }
 
 model CardView {
-  id           String   @id @default(cuid())
-  cardId       String
-  viewerUserId String?
-  source       String?
-  ipAddress    String?
-  userAgent    String?
-  referrer     String?
-  viewedAt     DateTime @default(now())
+  id            String   @id @default(cuid())
+  cardId        String
+  viewerUserId  String?
+  source        String?
+  ipAddress     String?
+  userAgent     String?
+  referrer      String?
+  /// Visiteur sans compte DropOne : coordonnées laissées via le formulaire public.
+  guestFirstName String?
+  guestLastName  String?
+  guestEmail     String?
+  guestPhone     String?
+  viewedAt      DateTime @default(now())
 
   card   BusinessCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
   viewer User?        @relation(fields: [viewerUserId], references: [id], onDelete: SetNull)

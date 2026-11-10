@@ -14,6 +14,7 @@ const swagger_1 = require("@nestjs/swagger");
 const class_validator_1 = require("class-validator");
 class OAuthGoogleDto {
     idToken;
+    referralCode;
 }
 exports.OAuthGoogleDto = OAuthGoogleDto;
 __decorate([
@@ -23,4 +24,13 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], OAuthGoogleDto.prototype, "idToken", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        example: 'DROP-XXXX',
+        description: 'Code de parrainage (uniquement à la création du compte)',
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], OAuthGoogleDto.prototype, "referralCode", void 0);
 //# sourceMappingURL=oauth-google.dto.js.map

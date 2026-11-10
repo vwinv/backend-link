@@ -14,6 +14,7 @@ import type { Request, Response } from 'express';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { JwtService } from '@nestjs/jwt';
+import { GuestContactDto } from './dto/guest-contact.dto';
 import { ShareCardDto } from './dto/share-card.dto';
 import { SharingService } from './sharing.service';
 
@@ -44,13 +45,22 @@ export class SharingController {
   private resolveViewMeta(req: Request): {
     source?: string;
     userAgent?: string;
+    ipAddress?: string;
   } {
     const source =
       typeof req.query.source === 'string' ? req.query.source : undefined;
     const userAgent = req.headers['user-agent'];
+    const forwarded = req.headers['x-forwarded-for'];
+    const forwardedIp =
+      typeof forwarded === 'string'
+        ? forwarded.split(',')[0]?.trim()
+        : Array.isArray(forwarded)
+          ? forwarded[0]?.trim()
+          : undefined;
     return {
       source,
       userAgent: typeof userAgent === 'string' ? userAgent : undefined,
+      ipAddress: forwardedIp || req.ip || undefined,
     };
   }
 
@@ -72,8 +82,11 @@ export class SharingController {
     @Req() req: Request,
     @Res() res: Response,
   ) {
+    const preview =
+      req.query.preview === '1' || req.query.preview === 'true';
     const html = await this.sharingService.renderPublicCardPage(slug, {
-      viewerUserId: this.resolveViewerUserId(req),
+      preview,
+      viewerUserId: preview ? undefined : this.resolveViewerUserId(req),
       ...this.resolveViewMeta(req),
     });
     if (!html) {
@@ -118,6 +131,18 @@ export class SharingController {
       slug,
       this.resolveViewerUserId(req),
     );
+  }
+
+  @Post('public/:slug/guest-contact')
+  @ApiOperation({
+    summary:
+      'Visiteur sans DropOne : laisser email / téléphone / adresse sur la visite',
+  })
+  saveGuestContact(
+    @Param('slug') slug: string,
+    @Body() dto: GuestContactDto,
+  ) {
+    return this.sharingService.saveGuestContact(slug, dto);
   }
 
   @Post('cards/:id/share')

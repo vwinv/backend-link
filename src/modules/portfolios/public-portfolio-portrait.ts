@@ -5,6 +5,7 @@ import {
   renderEntryTimeline,
   renderSkillBars,
   renderTeachings,
+  renderContactLeadSection,
 } from './public-portfolio-blocks';
 import { pageWash } from './public-portfolio-wash';
 
@@ -118,11 +119,15 @@ export function buildPortraitPortfolioHtml(input: CoverPortfolioInput): string {
     input.interests ?? [],
   );
 
-  const contactRows = [
-    email ? `<p class="contact-row">${escapeHtml(email)}</p>` : '',
-    phone ? `<p class="contact-row">${escapeHtml(phone)}</p>` : '',
-    input.address?.trim() ? `<p class="contact-row">${escapeHtml(input.address.trim())}</p>` : '',
-  ].join('');
+  const contactSection = renderContactLeadSection({
+    slug: input.cardSlug,
+    preview: input.guestPreview,
+    className: 'contact',
+    email: input.email,
+    phone: input.phone,
+    address: input.address,
+    socialLinks: input.socialLinks,
+  });
 
   return `<!DOCTYPE html>
 <html lang="fr">
@@ -176,7 +181,8 @@ export function buildPortraitPortfolioHtml(input: CoverPortfolioInput): string {
     .social { width: 42px; height: 42px; border-radius: 50%; border: 1.5px solid var(--line); display: inline-flex; align-items: center; justify-content: center; }
     .social svg { width: 18px; height: 18px; fill: var(--ink); }
     .infos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
-    .info, .placeholder, .skill, .contact { background: var(--glass); border: 1px solid var(--line); }
+    .info, .placeholder, .skill { background: var(--glass); border: 1px solid var(--line); }
+    .contact { background: transparent; border: 0; }
     .info { padding: 12px 14px; border-radius: 16px; }
     .info span, .section-kicker { display: block; color: var(--muted); letter-spacing: 1.2px; font-size: 11px; font-weight: 800; }
     .info strong { display: block; margin-top: 6px; font-size: 16px; }
@@ -198,7 +204,7 @@ export function buildPortraitPortfolioHtml(input: CoverPortfolioInput): string {
     .caption > span { color: var(--muted); font-weight: 800; font-size: 14px; padding-top: 2px; }
     .caption strong { display: block; font-size: 18px; }
     .caption small { display: block; margin-top: 2px; color: var(--muted); font-size: 14px; }
-    .contact { margin-top: 12px; padding: 22px 18px 18px; border-radius: 22px; }
+    .contact { margin-top: 12px; padding: 0; border-radius: 0; }
     .contact h2 { margin-bottom: 8px; }
     .lead { margin: 0 0 14px; color: var(--muted); line-height: 1.4; }
     .contact-row { margin: 0 0 10px; padding: 14px 16px; border-radius: 14px; background: var(--glass); border: 1px solid var(--line); }
@@ -241,7 +247,6 @@ export function buildPortraitPortfolioHtml(input: CoverPortfolioInput): string {
         </div>
       </div>
     </div>
-    ${company ? `<div class="infos"><article class="info"><span>POSTE</span><strong>${escapeHtml(company)}</strong></article></div>` : ''}
 
     ${experience ? `<section>
       <p class="section-kicker">PARCOURS</p>
@@ -267,12 +272,7 @@ export function buildPortraitPortfolioHtml(input: CoverPortfolioInput): string {
     </section>
 
     ${interests}
-    <section class="contact" id="contact">
-      <h2>Travaillons ensemble</h2>
-      <p class="lead">Un projet, une collaboration, une intervention ? Écrivez-moi.</p>
-      ${contactRows || '<p class="contact-row">Ajoutez un email ou un téléphone</p>'}
-      <a class="pill save" href="${escapeAttr(input.vcardUrl)}">Enregistrer le contact</a>
-    </section>
+    ${contactSection}
     <p class="footer">CRÉÉ AVEC DROP ONE</p>
   </div>
 </body>

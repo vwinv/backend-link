@@ -1,5 +1,9 @@
 import type { CoverPortfolioInput } from './public-portfolio-cover';
-import { renderEntryTimeline, renderProfileExtras } from './public-portfolio-blocks';
+import {
+  renderEntryTimeline,
+  renderProfileExtras,
+  renderContactLeadSection,
+} from './public-portfolio-blocks';
 import { desktopPortfolioCss } from './public-portfolio-desktop';
 import { pageWash } from './public-portfolio-wash';
 
@@ -49,12 +53,6 @@ export function buildClassicPortfolioHtml(input: CoverPortfolioInput): string {
       : '',
   ].join('');
 
-  const infoCards = [
-    company
-      ? `<article class="info"><span>POSTE</span><strong>${escapeHtml(company)}</strong></article>`
-      : '',
-  ].join('');
-
   const experience = renderEntryTimeline(
     input.experiences?.length
       ? input.experiences
@@ -84,13 +82,17 @@ export function buildClassicPortfolioHtml(input: CoverPortfolioInput): string {
     })
     .join('');
 
-  const contactRows = [
-    email ? `<p class="contact-row">${escapeHtml(email)}</p>` : '',
-    phone ? `<p class="contact-row">${escapeHtml(phone)}</p>` : '',
-    input.address?.trim() ? `<p class="contact-row">${escapeHtml(input.address.trim())}</p>` : '',
-  ].join('');
-
   const wash = pageWash(input.accentStart, input.accentEnd);
+
+  const contactSection = renderContactLeadSection({
+    slug: input.cardSlug,
+    preview: input.guestPreview,
+    className: 'contact',
+    email: input.email,
+    phone: input.phone,
+    address: input.address,
+    socialLinks: input.socialLinks,
+  });
 
   return `<!DOCTYPE html>
 <html lang="fr">
@@ -198,7 +200,7 @@ export function buildClassicPortfolioHtml(input: CoverPortfolioInput): string {
     }
     .placeholder strong, .placeholder span, .placeholder p { display: block; color: var(--muted); }
     .placeholder strong { color: var(--ink); margin-top: 4px; }
-    .contact { margin-top: 28px; padding: 22px 18px 18px; border-radius: 22px; background: var(--glass); border: 1px solid var(--line); }
+    .contact { margin-top: 28px; padding: 0; background: transparent; border: 0; border-radius: 0; }
     .contact h2 { margin-bottom: 8px; }
     .lead { margin: 0 0 14px; color: var(--muted); line-height: 1.4; }
     .contact-row { margin: 0 0 10px; padding: 14px 16px; border-radius: 14px; background: var(--glass); border: 1px solid var(--line); }
@@ -235,7 +237,6 @@ export function buildClassicPortfolioHtml(input: CoverPortfolioInput): string {
         </div>
       </div>
     </div>
-    ${infoCards ? `<div class="infos">${infoCards}</div>` : ''}
 
     ${experience ? `<section>
       <p class="section-kicker">PARCOURS</p>
@@ -250,12 +251,7 @@ export function buildClassicPortfolioHtml(input: CoverPortfolioInput): string {
     </section>` : '<div id="realisations"></div>'}
 
     ${renderProfileExtras(input)}
-    <section class="contact" id="contact">
-      <h2>Travaillons ensemble</h2>
-      <p class="lead">Un projet, une collaboration, une intervention ? Écrivez-moi.</p>
-      ${contactRows || '<p class="contact-row">Ajoutez un email ou un téléphone</p>'}
-      <a class="pill save" href="${escapeAttr(input.vcardUrl)}">Enregistrer le contact</a>
-    </section>
+    ${contactSection}
     <p class="footer">CRÉÉ AVEC DROP ONE</p>
   </div>
 </body>

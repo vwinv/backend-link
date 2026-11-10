@@ -212,6 +212,191 @@ export class EspaceService {
     };
   }
 
+  /**
+   * Visiteurs de toutes les cartes de l’équipe (owner/admin).
+   * filter: all | dropone | guest
+   */
+  async getVisitors(
+    userId: string,
+    slug: string,
+    filter: 'all' | 'dropone' | 'guest' = 'all',
+  ) {
+    const { team } = await this.resolveManagedTeam(userId, slug);
+
+    const ownerEntitlements =
+      await this.entitlementsService.getUserEntitlements(team.ownerId);
+    if (!ownerEntitlements.hasVisitorInsights) {
+      throw new ForbiddenException(
+        'L’historique des visiteurs nécessite une offre Premium adaptée',
+      );
+    }
+
+    const cards = await this.prisma.businessCard.findMany({
+      where: { teamId: team.id, isActive: true },
+      select: {
+        id: true,
+        slug: true,
+        firstName: true,
+        lastName: true,
+        ownerId: true,
+        owner: {
+          select: { firstName: true, lastName: true, email: true },
+        },
+      },
+    });
+    const cardIds = cards.map((card) => card.id);
+    const cardById = new Map(cards.map((card) => [card.id, card]));
+
+    if (cardIds.length === 0) {
+      return {
+        summary: {
+          views: 0,
+          uniqueVisitors: 0,
+          dropOneCount: 0,
+          guestCount: 0,
+        },
+        visitors: [],
+      };
+    }
+
+    const baseWhere = { cardId: { in: cardIds } };
+    const viewWhere =
+      filter === 'dropone'
+        ? { ...baseWhere, viewerUserId: { not: null } }
+        : filter === 'guest'
+          ? { ...baseWhere, viewerUserId: null }
+          : baseWhere;
+
+    const [views, dropOneCount, guestCount, registeredGroups, rawVisitors] =
+      await Promise.all([
+        this.prisma.cardView.count({ where: baseWhere }),
+        this.prisma.cardView.count({
+          where: { ...baseWhere, viewerUserId: { not: null } },
+        }),
+        this.prisma.cardView.count({
+          where: { ...baseWhere, viewerUserId: null },
+        }),
+        this.prisma.cardView.groupBy({
+          by: ['viewerUserId'],
+          where: { ...baseWhere, viewerUserId: { not: null } },
+        }),
+        this.prisma.cardView.findMany({
+          where: viewWhere,
+          orderBy: { viewedAt: 'desc' },
+          take: 200,
+          include: {
+            viewer: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                avatarUrl: true,
+                businessCards: {
+                  where: { isActive: true },
+                  orderBy: { kind: 'asc' },
+                  take: 1,
+                  select: {
+                    slug: true,
+                    jobTitle: true,
+                    company: true,
+                    avatarUrl: true,
+                  },
+                },
+              },
+            },
+          },
+        }),
+      ]);
+
+    const uniqueVisitors = registeredGroups.length + guestCount;
+
+    const visitors = rawVisitors.map((view) => {
+      const viewer = view.viewer;
+      const profileCard = viewer?.businessCards[0];
+      const firstName = viewer?.firstName?.trim() ?? '';
+      const lastName = viewer?.lastName?.trim() ?? '';
+      const guestFirstName = view.guestFirstName?.trim() || '';
+      const guestLastName = view.guestLastName?.trim() || '';
+      const guestEmail = view.guestEmail?.trim() || '';
+      const guestPhone = view.guestPhone?.trim() || '';
+      const guestFullName = `${guestFirstName} ${guestLastName}`.trim();
+      const hasGuestIdentity = Boolean(guestFullName || guestEmail || guestPhone);
+      const displayName =
+        viewer != null
+          ? `${firstName} ${lastName}`.trim() || 'Membre DropOne'
+          : guestFullName || guestEmail || guestPhone || 'Visiteur anonyme';
+      const job = profileCard?.jobTitle?.trim() ?? '';
+      const company = profileCard?.company?.trim() ?? '';
+      const guestSubtitle = [guestEmail, guestPhone].filter(Boolean).join(' · ');
+      const subtitle =
+        viewer != null
+          ? [job, company].filter(Boolean).join(' · ')
+          : guestSubtitle;
+      const initials =
+        viewer != null
+          ? `${firstName[0] ?? ''}${lastName[0] ?? firstName[1] ?? ''}`.toUpperCase() ||
+            'DO'
+          : hasGuestIdentity
+            ? `${guestFirstName[0] ?? ''}${guestLastName[0] ?? guestEmail[0] ?? 'V'}`.toUpperCase()
+            : '?';
+
+      const visitedCard = cardById.get(view.cardId);
+      const ownerFirst = visitedCard?.owner.firstName?.trim() ?? '';
+      const ownerLast = visitedCard?.owner.lastName?.trim() ?? '';
+      const cardOwnerName =
+        `${ownerFirst} ${ownerLast}`.trim() ||
+        visitedCard?.owner.email ||
+        `${visitedCard?.firstName ?? ''} ${visitedCard?.lastName ?? ''}`.trim() ||
+        'Membre';
+
+      return {
+        id: view.id,
+        viewedAt: view.viewedAt.toISOString(),
+        isDropOneUser: viewer != null,
+        source: view.source ?? 'link',
+        displayName,
+        subtitle,
+        avatarUrl: profileCard?.avatarUrl ?? viewer?.avatarUrl ?? null,
+        initials,
+        viewerUserId: view.viewerUserId,
+        guestFirstName: guestFirstName || null,
+        guestLastName: guestLastName || null,
+        guestEmail: guestEmail || null,
+        guestPhone: guestPhone || null,
+        deviceLabel: this.parseVisitorDeviceLabel(view.userAgent),
+        card: visitedCard
+          ? {
+              id: visitedCard.id,
+              slug: visitedCard.slug,
+              ownerName: cardOwnerName,
+            }
+          : null,
+      };
+    });
+
+    return {
+      summary: {
+        views,
+        uniqueVisitors,
+        dropOneCount,
+        guestCount,
+      },
+      visitors,
+    };
+  }
+
+  private parseVisitorDeviceLabel(userAgent?: string | null): string | null {
+    if (!userAgent?.trim()) return null;
+    const ua = userAgent;
+    if (/iPhone/i.test(ua)) return 'iPhone';
+    if (/iPad/i.test(ua)) return 'iPad';
+    if (/Android/i.test(ua)) return 'Android';
+    if (/Macintosh|Mac OS X/i.test(ua)) return 'Mac';
+    if (/Windows/i.test(ua)) return 'Windows';
+    if (/Mobile/i.test(ua)) return 'Mobile';
+    return 'Web';
+  }
+
   async getMembers(userId: string, slug: string) {
     const { team } = await this.resolveManagedTeam(userId, slug);
     const membersPayload = await this.teamsService.getMembers(userId, team.id);

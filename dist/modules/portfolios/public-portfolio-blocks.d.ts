@@ -19,6 +19,18 @@ export declare function renderJobTimeline(items: BlockExperience[]): string;
 export declare function renderTeachings(items: BlockTeaching[]): string;
 export declare function renderSkillBars(items: BlockSkill[]): string;
 export declare function renderChipGroup(title: string, hint: string, items: string[], className?: string): string;
+export declare function renderContactLeadSection(options: {
+    slug: string;
+    preview?: boolean;
+    className?: string;
+    email?: string | null;
+    phone?: string | null;
+    address?: string | null;
+    socialLinks?: {
+        platform: string;
+        url: string;
+    }[];
+}): string;
 export declare function renderProfileExtras(input: {
     skills?: BlockSkill[];
     competences?: string[];

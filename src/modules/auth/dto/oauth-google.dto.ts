@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional, IsString } from 'class-validator';
 
 export class OAuthGoogleDto {
   @ApiProperty({
@@ -7,4 +7,12 @@ export class OAuthGoogleDto {
   })
   @IsString()
   idToken: string;
+
+  @ApiPropertyOptional({
+    example: 'DROP-XXXX',
+    description: 'Code de parrainage (uniquement à la création du compte)',
+  })
+  @IsOptional()
+  @IsString()
+  referralCode?: string;
 }

@@ -1,5 +1,6 @@
 import { desktopPortfolioCss } from './public-portfolio-desktop';
 import {
+  renderContactLeadSection,
   renderJobTimeline,
   renderProfileExtras,
   renderSkillBars,
@@ -50,6 +51,9 @@ export type CoverPortfolioInput = {
   photoUrl?: string | null;
   pageUrl: string;
   vcardUrl: string;
+  /** Slug carte — pour le formulaire « Contactez moi ». */
+  cardSlug: string;
+  guestPreview?: boolean;
   accentStart: string;
   accentEnd: string;
   colorId?: string;
@@ -97,8 +101,6 @@ export function buildCoverPortfolioHtml(input: CoverPortfolioInput): string {
   const bio = input.bio?.trim() ?? '';
   const job = input.jobTitle?.trim() ?? '';
   const company = input.company?.trim() ?? '';
-  const email = input.email?.trim() ?? '';
-  const phone = input.phone?.trim() ?? '';
   const linkedin = input.socialLinks.find((link) => link.platform === 'LINKEDIN');
   const instagram = input.socialLinks.find((link) => link.platform === 'INSTAGRAM');
   const accentStart = input.accentStart;
@@ -116,12 +118,6 @@ export function buildCoverPortfolioHtml(input: CoverPortfolioInput): string {
       : '',
     instagram
       ? `<a class="social" href="${escapeAttr(instagram.url)}" target="_blank" rel="noopener noreferrer" aria-label="Instagram">${instagramIcon}</a>`
-      : '',
-  ].join('');
-
-  const infoCards = [
-    company
-      ? `<article class="info"><span>POSTE</span><strong>${escapeHtml(company)}</strong></article>`
       : '',
   ].join('');
 
@@ -156,11 +152,15 @@ export function buildCoverPortfolioHtml(input: CoverPortfolioInput): string {
       : `<article class="project"><div class="shot" style="background:linear-gradient(160deg,#5B7CFF,#7A6CFF)"></div><h3>Projet</h3><p>À compléter</p></article>
          <article class="project"><div class="shot" style="background:linear-gradient(160deg,#FFB199,#F08A78)"></div><h3>Projet</h3><p>À compléter</p></article>`;
 
-  const contactRows = [
-    email ? `<p class="contact-row">${escapeHtml(email)}</p>` : '',
-    phone ? `<p class="contact-row">${escapeHtml(phone)}</p>` : '',
-    input.address?.trim() ? `<p class="contact-row">${escapeHtml(input.address.trim())}</p>` : '',
-  ].join('');
+  const contactSection = renderContactLeadSection({
+    slug: input.cardSlug,
+    preview: input.guestPreview,
+    className: 'contact',
+    email: input.email,
+    phone: input.phone,
+    address: input.address,
+    socialLinks: input.socialLinks,
+  });
 
   return `<!DOCTYPE html>
 <html lang="fr">
@@ -214,7 +214,8 @@ export function buildCoverPortfolioHtml(input: CoverPortfolioInput): string {
     .social { width: 42px; height: 42px; border-radius: 50%; border: 1.5px solid var(--line); display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
     .social svg { width: 18px; height: 18px; fill: var(--ink); }
     .infos { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-top: 18px; }
-    .info, .placeholder, .contact, .skill { background: var(--glass); border: 1px solid var(--line); border-radius: 18px; }
+    .info, .placeholder, .skill { background: var(--glass); border: 1px solid var(--line); border-radius: 18px; }
+    .contact { background: transparent; border: 0; border-radius: 0; }
     .info { padding: 12px 14px; }
     .info span, .section-kicker { display: block; color: var(--muted); letter-spacing: 1.2px; font-size: 11px; font-weight: 800; }
     .info strong { display: block; margin-top: 6px; font-size: 16px; }
@@ -235,7 +236,7 @@ export function buildCoverPortfolioHtml(input: CoverPortfolioInput): string {
     .shot { height: 148px; border-radius: 18px; background-size: cover; background-position: center; }
     .project h3 { margin: 10px 0 0; font-size: 16px; }
     .project p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
-    .contact { margin: 8px 20px 0; padding: 22px 18px 18px; }
+    .contact { margin: 8px 20px 0; padding: 0; }
     .contact h2 { margin-bottom: 8px; }
     .contact .lead { margin: 0 0 14px; color: var(--muted); line-height: 1.4; }
     .contact-row { margin: 0 0 10px; padding: 14px 16px; border-radius: 14px; background: var(--glass); border: 1px solid var(--line); }
@@ -274,7 +275,6 @@ export function buildCoverPortfolioHtml(input: CoverPortfolioInput): string {
           <a class="pill cta" href="#realisations">Voir mes réalisations</a>
           ${socials}
         </div>
-        ${infoCards ? `<div class="infos">${infoCards}</div>` : ''}
       </div>
     </header>
 
@@ -299,12 +299,7 @@ export function buildCoverPortfolioHtml(input: CoverPortfolioInput): string {
     </section>
 
     ${renderProfileExtras(input, { includeSkills: false })}
-    <section class="contact" id="contact">
-      <h2>Travaillons ensemble</h2>
-      <p class="lead">Un projet, une collaboration, une intervention ? Écrivez-moi.</p>
-      ${contactRows || '<p class="contact-row">Ajoutez un email ou un téléphone</p>'}
-      <a class="pill save" href="${escapeAttr(input.vcardUrl)}">Enregistrer le contact</a>
-    </section>
+    ${contactSection}
     <p class="footer">CRÉÉ AVEC DROP ONE</p>
   </div>
 </body>

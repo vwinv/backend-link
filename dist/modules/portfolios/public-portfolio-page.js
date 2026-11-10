@@ -13,7 +13,6 @@ function buildPublicPortfolioHtml(input) {
     const name = escapeHtml(input.fullName || 'Portfolio');
     const initials = escapeHtml(input.initials || '•');
     const role = input.jobTitle?.trim() ? escapeHtml(input.jobTitle.trim()) : '';
-    const company = input.company?.trim() ? escapeHtml(input.company.trim()) : '';
     const avatar = input.avatarUrl?.trim() ?? '';
     const safeAvatar = avatar.startsWith('https://') || avatar.startsWith('http://')
         ? escapeHtml(avatar)
@@ -23,8 +22,8 @@ function buildPublicPortfolioHtml(input) {
         ? `<img src="${safeAvatar}" alt="" />`
         : `<span>${initials}</span>`;
     const roleBlock = role ? `<p class="role">${role}</p>` : '';
-    const pathBlock = role || company
-        ? `<div class="item"><i></i><div>${role ? `<strong>${role}</strong>` : ''}${company ? `<small>${company}</small>` : ''}</div></div>`
+    const pathBlock = role
+        ? `<div class="item"><i></i><div><strong>${role}</strong></div></div>`
         : `<p class="empty">Parcours à compléter</p>`;
     return `<!DOCTYPE html>
 <html lang="fr">

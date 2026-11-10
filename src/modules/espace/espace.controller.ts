@@ -38,6 +38,18 @@ export class EspaceController {
     return this.espaceService.getDashboard(user.userId, slug);
   }
 
+  @Get(':slug/visitors')
+  @ApiOperation({ summary: 'Liste des visiteurs des cartes de l’équipe' })
+  getVisitors(
+    @CurrentUser() user: { userId: string },
+    @Param('slug') slug: string,
+    @Query('filter') filter?: string,
+  ) {
+    const normalized =
+      filter === 'dropone' || filter === 'guest' ? filter : 'all';
+    return this.espaceService.getVisitors(user.userId, slug, normalized);
+  }
+
   @Get(':slug/members')
   @ApiOperation({ summary: 'Membres + invitations de l’espace' })
   getMembers(

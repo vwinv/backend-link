@@ -9,13 +9,13 @@ const LEGACY_IDS = {
     azur: 'uni',
     coral: 'degrade',
 };
+const UNI_FALLBACK = {
+    id: 'uni',
+    name: 'Uni',
+    background: '#0A6BFF',
+    layout: 'azurCentered',
+};
 exports.PRO_DESIGN_TEMPLATES = [
-    {
-        id: 'uni',
-        name: 'Uni',
-        background: '#0A6BFF',
-        layout: 'azurCentered',
-    },
     {
         id: 'degrade',
         name: 'Degrade',
@@ -70,8 +70,10 @@ exports.PRO_DESIGN_TEMPLATES = [
 ];
 function getProDesignTemplate(id) {
     const resolvedId = id ? (LEGACY_IDS[id] ?? id) : exports.DEFAULT_PRO_DESIGN_ID;
+    if (resolvedId === UNI_FALLBACK.id)
+        return UNI_FALLBACK;
     const template = exports.PRO_DESIGN_TEMPLATES.find((item) => item.id === resolvedId);
-    return template ?? exports.PRO_DESIGN_TEMPLATES[0];
+    return template ?? UNI_FALLBACK;
 }
 function parseHex(hex) {
     const normalized = hex.replace('#', '').trim();

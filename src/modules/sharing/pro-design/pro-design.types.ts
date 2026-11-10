@@ -23,6 +23,10 @@ export type ResolvedProDesign = ProDesignTemplate & {
   textPrimary: string;
   textMuted: string;
   lightSurface: boolean;
+  /** Couleur de carte seule, sans thème premium choisi. */
+  isSimpleTheme: boolean;
+  /** Clé style simple (noir, bleu, blanc…), null si thème premium. */
+  simpleStyle: string | null;
 };
 
 export type CardThemeJson = {

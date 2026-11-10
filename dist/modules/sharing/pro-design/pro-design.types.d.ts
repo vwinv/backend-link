@@ -13,6 +13,8 @@ export type ResolvedProDesign = ProDesignTemplate & {
     textPrimary: string;
     textMuted: string;
     lightSurface: boolean;
+    isSimpleTheme: boolean;
+    simpleStyle: string | null;
 };
 export type CardThemeJson = {
     style?: string;

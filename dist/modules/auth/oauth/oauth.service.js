@@ -55,13 +55,17 @@ let OAuthService = class OAuthService {
         };
     }
     async verifyAppleIdToken(idToken, firstName, lastName) {
-        const clientId = this.configService.get('oauth.apple.clientId');
-        if (!clientId) {
+        const clientIds = this.configService.get('oauth.apple.clientIds', []);
+        const legacyClientId = this.configService.get('oauth.apple.clientId', '');
+        const audiences = [
+            ...new Set([...clientIds, legacyClientId].map((id) => id.trim()).filter(Boolean)),
+        ];
+        if (audiences.length === 0) {
             throw new common_1.UnauthorizedException('Apple OAuth non configuré');
         }
         const payload = await apple_signin_auth_1.default
             .verifyIdToken(idToken, {
-            audience: clientId,
+            audience: audiences.length === 1 ? audiences[0] : audiences,
             ignoreExpiration: false,
         })
             .catch(() => {

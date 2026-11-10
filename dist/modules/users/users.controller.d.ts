@@ -15,8 +15,8 @@ export declare class UsersController {
         userId: string;
     }, dto: UpdatePreferredLocaleDto): Promise<{
         id: string;
-        updatedAt: Date;
         preferredLocale: string;
+        updatedAt: Date;
     }>;
     findOne(id: string): {
         message: string;

@@ -18,6 +18,7 @@ const swagger_1 = require("@nestjs/swagger");
 const current_user_decorator_1 = require("../auth/decorators/current-user.decorator");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const jwt_1 = require("@nestjs/jwt");
+const guest_contact_dto_1 = require("./dto/guest-contact.dto");
 const share_card_dto_1 = require("./dto/share-card.dto");
 const sharing_service_1 = require("./sharing.service");
 let SharingController = class SharingController {
@@ -43,17 +44,26 @@ let SharingController = class SharingController {
     resolveViewMeta(req) {
         const source = typeof req.query.source === 'string' ? req.query.source : undefined;
         const userAgent = req.headers['user-agent'];
+        const forwarded = req.headers['x-forwarded-for'];
+        const forwardedIp = typeof forwarded === 'string'
+            ? forwarded.split(',')[0]?.trim()
+            : Array.isArray(forwarded)
+                ? forwarded[0]?.trim()
+                : undefined;
         return {
             source,
             userAgent: typeof userAgent === 'string' ? userAgent : undefined,
+            ipAddress: forwardedIp || req.ip || undefined,
         };
     }
     getPublicCard(slug, req) {
         return this.sharingService.getPublicCard(slug, this.resolveViewerUserId(req), this.resolveViewMeta(req));
     }
     async renderPublicCardPage(slug, req, res) {
+        const preview = req.query.preview === '1' || req.query.preview === 'true';
         const html = await this.sharingService.renderPublicCardPage(slug, {
-            viewerUserId: this.resolveViewerUserId(req),
+            preview,
+            viewerUserId: preview ? undefined : this.resolveViewerUserId(req),
             ...this.resolveViewMeta(req),
         });
         if (!html) {
@@ -77,6 +87,9 @@ let SharingController = class SharingController {
     }
     recordPublicCardSave(slug, req) {
         return this.sharingService.recordCardSave(slug, this.resolveViewerUserId(req));
+    }
+    saveGuestContact(slug, dto) {
+        return this.sharingService.saveGuestContact(slug, dto);
     }
     shareCard(user, id, dto) {
         return this.sharingService.shareCard(user.userId, id, dto);
@@ -137,6 +150,17 @@ __decorate([
     __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], SharingController.prototype, "recordPublicCardSave", null);
+__decorate([
+    (0, common_1.Post)('public/:slug/guest-contact'),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Visiteur sans DropOne : laisser email / téléphone / adresse sur la visite',
+    }),
+    __param(0, (0, common_1.Param)('slug')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, guest_contact_dto_1.GuestContactDto]),
+    __metadata("design:returntype", void 0)
+], SharingController.prototype, "saveGuestContact", null);
 __decorate([
     (0, common_1.Post)('cards/:id/share'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),

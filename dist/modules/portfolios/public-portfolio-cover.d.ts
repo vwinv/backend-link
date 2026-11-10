@@ -36,6 +36,8 @@ export type CoverPortfolioInput = {
     photoUrl?: string | null;
     pageUrl: string;
     vcardUrl: string;
+    cardSlug: string;
+    guestPreview?: boolean;
     accentStart: string;
     accentEnd: string;
     colorId?: string;

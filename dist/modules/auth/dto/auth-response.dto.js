@@ -8,7 +8,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuthResponseDto = exports.AuthUserDto = exports.AdminRoleSummaryDto = void 0;
 const swagger_1 = require("@nestjs/swagger");
@@ -64,7 +63,7 @@ __decorate([
 ], AuthUserDto.prototype, "avatarUrl", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({ enum: client_1.UserRole }),
-    __metadata("design:type", typeof (_a = typeof client_1.UserRole !== "undefined" && client_1.UserRole) === "function" ? _a : Object)
+    __metadata("design:type", String)
 ], AuthUserDto.prototype, "role", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)({ type: AdminRoleSummaryDto, nullable: true }),
@@ -77,6 +76,8 @@ __decorate([
 class AuthResponseDto {
     accessToken;
     user;
+    isNewUser;
+    needsReferralPrompt;
 }
 exports.AuthResponseDto = AuthResponseDto;
 __decorate([
@@ -87,4 +88,16 @@ __decorate([
     (0, swagger_1.ApiProperty)({ type: AuthUserDto }),
     __metadata("design:type", AuthUserDto)
 ], AuthResponseDto.prototype, "user", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        description: 'true si le compte vient d’être créé',
+    }),
+    __metadata("design:type", Boolean)
+], AuthResponseDto.prototype, "isNewUser", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        description: 'true si le compte vient d’être créé sans code de parrainage (proposer la saisie)',
+    }),
+    __metadata("design:type", Boolean)
+], AuthResponseDto.prototype, "needsReferralPrompt", void 0);
 //# sourceMappingURL=auth-response.dto.js.map

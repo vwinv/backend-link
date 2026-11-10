@@ -159,12 +159,14 @@ async function bootstrap() {
     });
     expressApp.get('/cards/:slug', async (req, res) => {
         const slug = String(req.params.slug);
+        const preview = req.query.preview === '1' || req.query.preview === 'true';
         const embed = req.query.embed === '1' || req.query.embed === 'true';
-        const viewerUserId = resolveViewerUserId(req);
+        const viewerUserId = preview ? undefined : resolveViewerUserId(req);
         const source = typeof req.query.source === 'string' ? req.query.source : undefined;
         const userAgentHeader = req.headers['user-agent'];
         const html = await sharingService.renderPublicCardPage(slug, {
             embed,
+            preview,
             viewerUserId,
             source,
             userAgent: typeof userAgentHeader === 'string' ? userAgentHeader : undefined,
@@ -180,10 +182,13 @@ async function bootstrap() {
     });
     expressApp.get('/portfolios/:slug', async (req, res) => {
         const slug = String(req.params.slug);
-        const embed = req.query.embed === '1' || req.query.embed === 'true';
+        const asOwnerPreview = req.query.preview === '1' || req.query.preview === 'true';
+        const embed = asOwnerPreview
+            ? false
+            : req.query.embed === '1' || req.query.embed === 'true';
         const layout = typeof req.query.layout === 'string' ? req.query.layout : undefined;
         const color = typeof req.query.color === 'string' ? req.query.color : undefined;
-        const html = await portfoliosService.renderPublicPage(slug, resolveViewerUserId(req), embed, { layout, color });
+        const html = await portfoliosService.renderPublicPage(slug, resolveViewerUserId(req), embed, { layout, color }, asOwnerPreview);
         if (!html) {
             res
                 .status(404)

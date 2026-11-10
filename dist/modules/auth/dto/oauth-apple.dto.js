@@ -16,6 +16,7 @@ class OAuthAppleDto {
     idToken;
     firstName;
     lastName;
+    referralCode;
 }
 exports.OAuthAppleDto = OAuthAppleDto;
 __decorate([
@@ -41,4 +42,13 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], OAuthAppleDto.prototype, "lastName", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        example: 'DROP-XXXX',
+        description: 'Code de parrainage (uniquement à la création du compte)',
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], OAuthAppleDto.prototype, "referralCode", void 0);
 //# sourceMappingURL=oauth-apple.dto.js.map
