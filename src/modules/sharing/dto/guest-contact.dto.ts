@@ -10,24 +10,24 @@ export class GuestContactDto {
   @MaxLength(40)
   viewId?: string;
 
-  @ApiProperty({ example: 'Aminata', description: 'Prénom, ou nom complet si lastName est vide' })
+  @ApiProperty({ example: 'Ibrahima', description: 'Prénom, ou nom complet si lastName est vide' })
   @IsString()
   @MinLength(1)
   @MaxLength(120)
   firstName: string;
 
-  @ApiPropertyOptional({ example: 'Sow' })
+  @ApiPropertyOptional({ example: 'Fall' })
   @IsOptional()
   @IsString()
   @MaxLength(80)
   lastName?: string;
 
-  @ApiProperty({ example: 'aminata.sow@mega-sn.com' })
+  @ApiProperty({ example: 'ibrahima.fall@email.com' })
   @IsEmail()
   @MaxLength(180)
   email: string;
 
-  @ApiPropertyOptional({ example: '784504052' })
+  @ApiPropertyOptional({ example: '771234567' })
   @IsOptional()
   @IsString()
   @MaxLength(40)

@@ -423,7 +423,7 @@ function renderGuestLeadForm(params: PublicCardPageParams): string {
             name="fullName"
             required
             autocomplete="name"
-            placeholder="Aminata Sow"
+            placeholder="Ibrahima Fall"
           />
         </label>
         <label class="guest-lead-field">
@@ -435,7 +435,7 @@ function renderGuestLeadForm(params: PublicCardPageParams): string {
             required
             autocomplete="email"
             inputmode="email"
-            placeholder="aminata.sow@mega-sn.com"
+            placeholder="ibrahima.fall@email.com"
           />
         </label>
         <label class="guest-lead-field">
@@ -446,7 +446,7 @@ function renderGuestLeadForm(params: PublicCardPageParams): string {
             name="phone"
             autocomplete="tel"
             inputmode="tel"
-            placeholder="784504052"
+            placeholder="771234567"
           />
         </label>
         <p class="guest-lead-error" data-guest-lead-error hidden></p>

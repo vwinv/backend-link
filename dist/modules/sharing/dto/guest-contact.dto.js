@@ -30,27 +30,27 @@ __decorate([
     __metadata("design:type", String)
 ], GuestContactDto.prototype, "viewId", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)({ example: 'Aminata', description: 'Prénom, ou nom complet si lastName est vide' }),
+    (0, swagger_1.ApiProperty)({ example: 'Ibrahima', description: 'Prénom, ou nom complet si lastName est vide' }),
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.MinLength)(1),
     (0, class_validator_1.MaxLength)(120),
     __metadata("design:type", String)
 ], GuestContactDto.prototype, "firstName", void 0);
 __decorate([
-    (0, swagger_1.ApiPropertyOptional)({ example: 'Sow' }),
+    (0, swagger_1.ApiPropertyOptional)({ example: 'Fall' }),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.MaxLength)(80),
     __metadata("design:type", String)
 ], GuestContactDto.prototype, "lastName", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)({ example: 'aminata.sow@mega-sn.com' }),
+    (0, swagger_1.ApiProperty)({ example: 'ibrahima.fall@email.com' }),
     (0, class_validator_1.IsEmail)(),
     (0, class_validator_1.MaxLength)(180),
     __metadata("design:type", String)
 ], GuestContactDto.prototype, "email", void 0);
 __decorate([
-    (0, swagger_1.ApiPropertyOptional)({ example: '784504052' }),
+    (0, swagger_1.ApiPropertyOptional)({ example: '771234567' }),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.MaxLength)(40),

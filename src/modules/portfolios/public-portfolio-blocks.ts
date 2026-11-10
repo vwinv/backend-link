@@ -362,15 +362,15 @@ export function renderContactLeadSection(options: {
       <form class="guest-lead-form" data-guest-lead-form novalidate>
         <label class="guest-lead-field">
           <span class="sr-only">Nom et prénom</span>
-          <input class="guest-lead-input" type="text" name="fullName" required autocomplete="name" placeholder="Aminata Sow" />
+          <input class="guest-lead-input" type="text" name="fullName" required autocomplete="name" placeholder="Ibrahima Fall" />
         </label>
         <label class="guest-lead-field">
           <span class="sr-only">Email</span>
-          <input class="guest-lead-input" type="email" name="email" required autocomplete="email" inputmode="email" placeholder="aminata.sow@mega-sn.com" />
+          <input class="guest-lead-input" type="email" name="email" required autocomplete="email" inputmode="email" placeholder="ibrahima.fall@email.com" />
         </label>
         <label class="guest-lead-field">
           <span class="sr-only">Téléphone</span>
-          <input class="guest-lead-input" type="tel" name="phone" autocomplete="tel" inputmode="tel" placeholder="784504052" />
+          <input class="guest-lead-input" type="tel" name="phone" autocomplete="tel" inputmode="tel" placeholder="771234567" />
         </label>
         <p class="guest-lead-error" data-guest-lead-error hidden></p>
         <button class="guest-lead-submit" type="submit">
