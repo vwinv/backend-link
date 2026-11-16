@@ -20,11 +20,15 @@ export const PUBLIC_CARD_STYLES = `
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
+  html {
+    min-height: 100%;
+  }
+
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     background: #0c0d10;
     color: var(--text);
-    min-height: 100vh;
+    min-height: 100%;
   }
 
   body:has(.layout-bubble) {
@@ -33,9 +37,12 @@ export const PUBLIC_CARD_STYLES = `
 
   .page {
     min-height: 100vh;
+    min-height: 100dvh;
+    width: 100%;
     display: flex;
     justify-content: center;
     background: var(--page-bg);
+    background-attachment: scroll;
   }
 
   .layout-arc.page {
@@ -46,8 +53,9 @@ export const PUBLIC_CARD_STYLES = `
     width: 100%;
     max-width: 430px;
     min-height: 100vh;
+    min-height: 100dvh;
     position: relative;
-    overflow: hidden;
+    overflow: visible;
   }
 
   .content {
@@ -422,21 +430,22 @@ export const PUBLIC_CARD_STYLES = `
 
   .layout-arc .shell {
     min-height: 100vh;
+    min-height: 100dvh;
     overflow: visible;
   }
 
   .layout-arc .arc-stage {
     position: relative;
     min-height: 100vh;
+    min-height: 100dvh;
+    height: auto;
     background: var(--accent);
   }
 
+  /* En flux pour que le fond suive le formulaire contact (plus d’absolu coupé à 100vh) */
   .layout-arc .arc-sheet {
-    position: absolute;
-    top: 164px;
-    left: 24px;
-    right: 24px;
-    bottom: 0;
+    position: relative;
+    margin: 164px 24px 0;
     background: #ffffff;
     border-radius: 50px 50px 0 0;
     padding: 74px 16px 40px;
@@ -772,98 +781,5 @@ export const PUBLIC_CARD_STYLES = `
     font-size: 0.95rem;
     font-weight: 700;
     color: inherit;
-  }
-
-  /* Desktop : carte centrée comme un cadre, mobile inchangé */
-  @media (min-width: 768px) {
-    html:not(.embed) body {
-      background: #0f1117 !important;
-    }
-
-    html:not(.embed) body:has(.layout-bubble),
-    html:not(.embed) body:has(.layout-light:not(.layout-arc)),
-    html:not(.embed) body:has(.theme-simple-blanc) {
-      background: #e8eaef !important;
-    }
-
-    html:not(.embed) .page {
-      align-items: center;
-      justify-content: center;
-      padding: 48px 24px;
-      background: transparent !important;
-      min-height: 100vh;
-    }
-
-    html:not(.embed) .shell {
-      width: min(100%, 440px);
-      max-width: 440px;
-      min-height: auto;
-      border-radius: 32px;
-      overflow: hidden;
-      background: var(--page-surface, var(--card-color, var(--accent)));
-      box-shadow:
-        0 0 0 1px rgba(12, 13, 16, 0.06),
-        0 28px 80px rgba(12, 13, 16, 0.28);
-    }
-
-    html:not(.embed) .layout-arc .shell {
-      background: var(--accent);
-    }
-
-    html:not(.embed) .layout-bubble .shell {
-      background: #ffffff;
-    }
-
-    html:not(.embed) .content {
-      padding: 64px 28px 48px;
-      padding-top: 64px;
-    }
-
-    html:not(.embed) .layout-bubble .bubble-body {
-      padding: 0 28px 48px;
-    }
-
-    html:not(.embed) .layout-arc .arc-stage {
-      min-height: auto;
-    }
-
-    html:not(.embed) .layout-arc .arc-sheet {
-      position: relative;
-      top: auto;
-      left: auto;
-      right: auto;
-      bottom: auto;
-      margin: 164px 24px 0;
-      padding: 74px 20px 48px;
-      border-radius: 50px 50px 0 0;
-    }
-
-    html:not(.embed) .name {
-      font-size: 30px;
-    }
-
-    html:not(.embed) .actions {
-      gap: 10px;
-    }
-
-    html:not(.embed) .guest-lead {
-      margin-top: 12px;
-      padding: 22px 20px 20px;
-    }
-  }
-
-  @media (min-width: 1100px) {
-    html:not(.embed) .page {
-      padding: 56px 32px;
-    }
-
-    html:not(.embed) .shell {
-      width: min(100%, 460px);
-      max-width: 460px;
-      border-radius: 36px;
-      box-shadow:
-        0 0 0 1px rgba(12, 13, 16, 0.05),
-        0 36px 100px rgba(12, 13, 16, 0.32);
-    }
   }
 `;

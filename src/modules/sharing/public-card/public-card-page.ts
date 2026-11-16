@@ -67,7 +67,6 @@ export function buildPublicCardHtml(params: PublicCardPageParams): string {
     .page {
       --accent: ${params.design.accentColor};
       --card-color: ${params.design.background};
-      --page-surface: ${params.design.pageBackground};
       --link-blue: #0a6bff;
       --btn-border: ${accentRgba(params.design.accentColor, 0.55)};
       --social-border: ${accentRgba(params.design.accentColor, 0.45)};
