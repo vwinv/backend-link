@@ -773,4 +773,97 @@ export const PUBLIC_CARD_STYLES = `
     font-weight: 700;
     color: inherit;
   }
+
+  /* Desktop : carte centrée comme un cadre, mobile inchangé */
+  @media (min-width: 768px) {
+    html:not(.embed) body {
+      background: #0f1117 !important;
+    }
+
+    html:not(.embed) body:has(.layout-bubble),
+    html:not(.embed) body:has(.layout-light:not(.layout-arc)),
+    html:not(.embed) body:has(.theme-simple-blanc) {
+      background: #e8eaef !important;
+    }
+
+    html:not(.embed) .page {
+      align-items: center;
+      justify-content: center;
+      padding: 48px 24px;
+      background: transparent !important;
+      min-height: 100vh;
+    }
+
+    html:not(.embed) .shell {
+      width: min(100%, 440px);
+      max-width: 440px;
+      min-height: auto;
+      border-radius: 32px;
+      overflow: hidden;
+      background: var(--page-surface, var(--card-color, var(--accent)));
+      box-shadow:
+        0 0 0 1px rgba(12, 13, 16, 0.06),
+        0 28px 80px rgba(12, 13, 16, 0.28);
+    }
+
+    html:not(.embed) .layout-arc .shell {
+      background: var(--accent);
+    }
+
+    html:not(.embed) .layout-bubble .shell {
+      background: #ffffff;
+    }
+
+    html:not(.embed) .content {
+      padding: 64px 28px 48px;
+      padding-top: 64px;
+    }
+
+    html:not(.embed) .layout-bubble .bubble-body {
+      padding: 0 28px 48px;
+    }
+
+    html:not(.embed) .layout-arc .arc-stage {
+      min-height: auto;
+    }
+
+    html:not(.embed) .layout-arc .arc-sheet {
+      position: relative;
+      top: auto;
+      left: auto;
+      right: auto;
+      bottom: auto;
+      margin: 164px 24px 0;
+      padding: 74px 20px 48px;
+      border-radius: 50px 50px 0 0;
+    }
+
+    html:not(.embed) .name {
+      font-size: 30px;
+    }
+
+    html:not(.embed) .actions {
+      gap: 10px;
+    }
+
+    html:not(.embed) .guest-lead {
+      margin-top: 12px;
+      padding: 22px 20px 20px;
+    }
+  }
+
+  @media (min-width: 1100px) {
+    html:not(.embed) .page {
+      padding: 56px 32px;
+    }
+
+    html:not(.embed) .shell {
+      width: min(100%, 460px);
+      max-width: 460px;
+      border-radius: 36px;
+      box-shadow:
+        0 0 0 1px rgba(12, 13, 16, 0.05),
+        0 36px 100px rgba(12, 13, 16, 0.32);
+    }
+  }
 `;
