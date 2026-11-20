@@ -45,12 +45,12 @@ export declare class SubscriptionsService {
         invoiceAmount: number;
     }): Promise<{
         plan: {
-            id: string;
-            isActive: boolean;
-            createdAt: Date;
-            updatedAt: Date;
             name: string;
+            id: string;
+            createdAt: Date;
             slug: string;
+            isActive: boolean;
+            updatedAt: Date;
             maxTeamMembers: number;
             hasPortfolio: boolean;
             hasAnalytics: boolean;
@@ -63,11 +63,11 @@ export declare class SubscriptionsService {
         };
         offer: {
             id: string;
-            isActive: boolean;
             createdAt: Date;
+            slug: string;
+            isActive: boolean;
             updatedAt: Date;
             title: string;
-            slug: string;
             subtitle: string | null;
             audience: import("@prisma/client").$Enums.OfferAudience;
             canCustomize: boolean;
@@ -85,11 +85,11 @@ export declare class SubscriptionsService {
         } | null;
         offerPrice: {
             id: string;
-            isActive: boolean;
             createdAt: Date;
+            isActive: boolean;
             updatedAt: Date;
-            sortOrder: number;
             offerId: string;
+            sortOrder: number;
             billingType: import("@prisma/client").$Enums.OfferBillingType;
             priceLabel: string | null;
             priceAmount: Prisma.Decimal;
@@ -102,10 +102,13 @@ export declare class SubscriptionsService {
         } | null;
     } & {
         id: string;
+        userId: string | null;
         createdAt: Date;
         updatedAt: Date;
-        userId: string | null;
+        teamId: string | null;
+        planId: string;
         offerId: string | null;
+        offerPriceId: string | null;
         purchasedSeats: number | null;
         status: import("@prisma/client").$Enums.SubscriptionStatus;
         billingPeriod: import("@prisma/client").$Enums.BillingPeriod;
@@ -117,9 +120,6 @@ export declare class SubscriptionsService {
         appleOriginalTransactionId: string | null;
         countsInRevenue: boolean;
         totalAmount: Prisma.Decimal | null;
-        teamId: string | null;
-        planId: string;
-        offerPriceId: string | null;
     }>;
     isInAppPaymentsHidden(): boolean;
     getPaymentConfig(): {

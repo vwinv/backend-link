@@ -22,6 +22,16 @@ const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const register_push_token_dto_1 = require("./dto/register-push-token.dto");
 const unregister_push_token_dto_1 = require("./dto/unregister-push-token.dto");
 const notifications_service_1 = require("./notifications.service");
+const push_program_service_1 = require("./push-program.service");
+class HeartbeatDto {
+    timezone;
+}
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(64),
+    __metadata("design:type", String)
+], HeartbeatDto.prototype, "timezone", void 0);
 class NotificationsQueryDto {
     page = 1;
     limit = 30;
@@ -43,8 +53,10 @@ __decorate([
 ], NotificationsQueryDto.prototype, "limit", void 0);
 let NotificationsController = class NotificationsController {
     notificationsService;
-    constructor(notificationsService) {
+    pushProgramService;
+    constructor(notificationsService, pushProgramService) {
         this.notificationsService = notificationsService;
+        this.pushProgramService = pushProgramService;
     }
     listMine(user, query) {
         return this.notificationsService.listMine(user.userId, query.page ?? 1, query.limit ?? 30);
@@ -57,6 +69,9 @@ let NotificationsController = class NotificationsController {
     }
     markAllRead(user) {
         return this.notificationsService.markAllRead(user.userId);
+    }
+    heartbeat(user, dto) {
+        return this.pushProgramService.touchLastOpened(user.userId, dto.timezone);
     }
     registerToken(user, dto) {
         return this.notificationsService.registerPushToken(user.userId, dto.token, dto.platform);
@@ -101,6 +116,17 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], NotificationsController.prototype, "markAllRead", null);
 __decorate([
+    (0, common_1.Post)('devices/heartbeat'),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Signaler l’ouverture de l’app (programme push / lastOpenedAt)',
+    }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, HeartbeatDto]),
+    __metadata("design:returntype", void 0)
+], NotificationsController.prototype, "heartbeat", null);
+__decorate([
     (0, common_1.Put)('devices/push-token'),
     (0, swagger_1.ApiOperation)({ summary: 'Enregistrer / mettre à jour un token push' }),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
@@ -123,6 +149,7 @@ exports.NotificationsController = NotificationsController = __decorate([
     (0, swagger_1.ApiBearerAuth)(),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Controller)(),
-    __metadata("design:paramtypes", [notifications_service_1.NotificationsService])
+    __metadata("design:paramtypes", [notifications_service_1.NotificationsService,
+        push_program_service_1.PushProgramService])
 ], NotificationsController);
 //# sourceMappingURL=notifications.controller.js.map

@@ -1,5 +1,4 @@
 import { Module, forwardRef } from '@nestjs/common';
-import { ScheduleModule } from '@nestjs/schedule';
 import { AuthModule } from '../auth/auth.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { PaydunyaModule } from '../paydunya/paydunya.module';
@@ -17,7 +16,6 @@ import { SubscriptionsService } from './subscriptions.service';
     AuthModule,
     NotificationsModule,
     PaydunyaModule,
-    ScheduleModule.forRoot(),
     forwardRef(() => PointsModule),
   ],
   controllers: [SubscriptionsController, PaydunyaWebhookController],

@@ -16,13 +16,28 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, Max, Min } from 'class-validator';
+import {
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUserPayload } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RegisterPushTokenDto } from './dto/register-push-token.dto';
 import { UnregisterPushTokenDto } from './dto/unregister-push-token.dto';
 import { NotificationsService } from './notifications.service';
+import { PushProgramService } from './push-program.service';
+
+class HeartbeatDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  timezone?: string;
+}
 
 class NotificationsQueryDto {
   @IsOptional()
@@ -44,7 +59,10 @@ class NotificationsQueryDto {
 @UseGuards(JwtAuthGuard)
 @Controller()
 export class NotificationsController {
-  constructor(private readonly notificationsService: NotificationsService) {}
+  constructor(
+    private readonly notificationsService: NotificationsService,
+    private readonly pushProgramService: PushProgramService,
+  ) {}
 
   @Get('notifications')
   @ApiOperation({ summary: 'Inbox notifications de l’utilisateur connecté' })
@@ -78,6 +96,17 @@ export class NotificationsController {
   @ApiOperation({ summary: 'Tout marquer comme lu' })
   markAllRead(@CurrentUser() user: AuthUserPayload) {
     return this.notificationsService.markAllRead(user.userId);
+  }
+
+  @Post('devices/heartbeat')
+  @ApiOperation({
+    summary: 'Signaler l’ouverture de l’app (programme push / lastOpenedAt)',
+  })
+  heartbeat(
+    @CurrentUser() user: AuthUserPayload,
+    @Body() dto: HeartbeatDto,
+  ) {
+    return this.pushProgramService.touchLastOpened(user.userId, dto.timezone);
   }
 
   @Put('devices/push-token')

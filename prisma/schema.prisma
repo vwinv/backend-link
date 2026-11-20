@@ -166,6 +166,10 @@ model User {
   avatarUrl    String?
   /** Langue de l’app (fr|en) pour notifications in-app et push. */
   preferredLocale String      @default("fr")
+  /// Fuseau IANA pour le programme push (défaut Dakar).
+  timezone         String     @default("Africa/Dakar")
+  /// Dernière ouverture de l’app (heartbeat Flutter).
+  lastOpenedAt     DateTime?
   stripeCustomerId String?      @unique
   role         UserRole     @default(USER)
   isActive     Boolean      @default(true)
@@ -197,6 +201,7 @@ model User {
   pushTokens      DevicePushToken[]
   notifications   UserNotification[]
   notificationCampaignsCreated NotificationCampaign[] @relation("NotificationCampaignCreator")
+  pushProgramDeliveries PushProgramDelivery[]
   supportTicketReplies SupportTicketReply[] @relation("SupportTicketReplies")
   paymentInvoices      PaymentInvoice[]
   passwordResetTokens  PasswordResetToken[]
@@ -822,6 +827,26 @@ model UserNotification {
   @@index([userId, isRead])
   @@index([campaignId])
   @@map("user_notifications")
+}
+
+/// Historique du programme push Drop One (messages N°1–20).
+model PushProgramDelivery {
+  id            String   @id @default(cuid())
+  userId        String
+  messageNumber Int
+  family        String
+  localDate     String
+  weekKey       String
+  monthKey      String
+  sentAt        DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, localDate])
+  @@index([userId, messageNumber, weekKey])
+  @@index([userId, messageNumber, monthKey])
+  @@index([userId, family, sentAt])
+  @@map("push_program_deliveries")
 }
 
 // ─── Support ─────────────────────────────────────────────────────────────────

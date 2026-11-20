@@ -2,21 +2,26 @@ import type { AuthUserPayload } from '../auth/decorators/current-user.decorator'
 import { RegisterPushTokenDto } from './dto/register-push-token.dto';
 import { UnregisterPushTokenDto } from './dto/unregister-push-token.dto';
 import { NotificationsService } from './notifications.service';
+import { PushProgramService } from './push-program.service';
+declare class HeartbeatDto {
+    timezone?: string;
+}
 declare class NotificationsQueryDto {
     page?: number;
     limit?: number;
 }
 export declare class NotificationsController {
     private readonly notificationsService;
-    constructor(notificationsService: NotificationsService);
+    private readonly pushProgramService;
+    constructor(notificationsService: NotificationsService, pushProgramService: PushProgramService);
     listMine(user: AuthUserPayload, query: NotificationsQueryDto): Promise<{
         data: {
             id: string;
-            title: string;
             createdAt: Date;
+            title: string;
             isRead: boolean;
-            campaignId: string | null;
             body: string;
+            campaignId: string | null;
             readAt: Date | null;
         }[];
         meta: {
@@ -32,21 +37,26 @@ export declare class NotificationsController {
     }>;
     markRead(user: AuthUserPayload, id: string): Promise<{
         id: string;
-        title: string;
-        createdAt: Date;
         userId: string;
+        createdAt: Date;
+        title: string;
         isRead: boolean;
-        campaignId: string | null;
         body: string;
+        campaignId: string | null;
         readAt: Date | null;
     }>;
     markAllRead(user: AuthUserPayload): Promise<{
         updated: number;
     }>;
+    heartbeat(user: AuthUserPayload, dto: HeartbeatDto): Promise<{
+        id: string;
+        timezone: string;
+        lastOpenedAt: Date | null;
+    }>;
     registerToken(user: AuthUserPayload, dto: RegisterPushTokenDto): Promise<{
+        token: string;
         id: string;
         updatedAt: Date;
-        token: string;
         platform: import("@prisma/client").$Enums.PushPlatform;
     }>;
     unregisterToken(user: AuthUserPayload, dto: UnregisterPushTokenDto): Promise<{

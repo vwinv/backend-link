@@ -109,17 +109,25 @@ let NotificationsService = NotificationsService_1 = class NotificationsService {
     }
     async registerPushToken(userId, token, platform) {
         const cleaned = token.trim();
-        return this.prisma.devicePushToken.upsert({
-            where: { token: cleaned },
-            update: { userId, platform },
-            create: { userId, token: cleaned, platform },
-            select: {
-                id: true,
-                token: true,
-                platform: true,
-                updatedAt: true,
-            },
-        });
+        const [row] = await Promise.all([
+            this.prisma.devicePushToken.upsert({
+                where: { token: cleaned },
+                update: { userId, platform },
+                create: { userId, token: cleaned, platform },
+                select: {
+                    id: true,
+                    token: true,
+                    platform: true,
+                    updatedAt: true,
+                },
+            }),
+            this.prisma.user.update({
+                where: { id: userId },
+                data: { lastOpenedAt: new Date() },
+                select: { id: true },
+            }),
+        ]);
+        return row;
     }
     async unregisterPushToken(userId, token) {
         await this.prisma.devicePushToken.deleteMany({

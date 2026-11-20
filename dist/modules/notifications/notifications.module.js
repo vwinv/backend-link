@@ -11,14 +11,21 @@ const common_1 = require("@nestjs/common");
 const fcm_push_service_1 = require("./fcm-push.service");
 const notifications_controller_1 = require("./notifications.controller");
 const notifications_service_1 = require("./notifications.service");
+const push_program_scheduler_1 = require("./push-program.scheduler");
+const push_program_service_1 = require("./push-program.service");
 let NotificationsModule = class NotificationsModule {
 };
 exports.NotificationsModule = NotificationsModule;
 exports.NotificationsModule = NotificationsModule = __decorate([
     (0, common_1.Module)({
         controllers: [notifications_controller_1.NotificationsController],
-        providers: [notifications_service_1.NotificationsService, fcm_push_service_1.FcmPushService],
-        exports: [notifications_service_1.NotificationsService, fcm_push_service_1.FcmPushService],
+        providers: [
+            notifications_service_1.NotificationsService,
+            fcm_push_service_1.FcmPushService,
+            push_program_service_1.PushProgramService,
+            push_program_scheduler_1.PushProgramScheduler,
+        ],
+        exports: [notifications_service_1.NotificationsService, fcm_push_service_1.FcmPushService, push_program_service_1.PushProgramService],
     })
 ], NotificationsModule);
 //# sourceMappingURL=notifications.module.js.map

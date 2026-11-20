@@ -13,6 +13,7 @@ exports.AppModule = void 0;
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const core_1 = require("@nestjs/core");
+const schedule_1 = require("@nestjs/schedule");
 const throttler_1 = require("@nestjs/throttler");
 const configuration_1 = __importDefault(require("./config/configuration"));
 const health_controller_1 = require("./health/health.controller");
@@ -45,6 +46,7 @@ exports.AppModule = AppModule = __decorate([
                 isGlobal: true,
                 load: [configuration_1.default],
             }),
+            schedule_1.ScheduleModule.forRoot(),
             throttler_1.ThrottlerModule.forRootAsync({
                 inject: [config_1.ConfigService],
                 useFactory: (config) => [

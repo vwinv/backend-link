@@ -344,14 +344,14 @@ export declare class AdminController {
         cards: {
             id: string;
             createdAt: Date;
-            firstName: string;
-            lastName: string;
-            isActive: boolean;
             slug: string;
-            isPublic: boolean;
+            lastName: string;
+            firstName: string;
+            isActive: boolean;
             kind: import("@prisma/client").$Enums.CardKind;
             jobTitle: string | null;
             company: string | null;
+            isPublic: boolean;
         }[];
         subscriptions: {
             id: string;
@@ -366,16 +366,16 @@ export declare class AdminController {
                 audience: import("@prisma/client").$Enums.OfferAudience;
             } | null;
             plan: {
-                id: string;
                 name: string;
+                id: string;
                 slug: string;
             };
         }[];
         teams: {
-            id: string;
-            isActive: boolean;
             name: string;
+            id: string;
             slug: string;
+            isActive: boolean;
             role: import("@prisma/client").$Enums.TeamMemberRole;
         }[];
         ownedTeams: {

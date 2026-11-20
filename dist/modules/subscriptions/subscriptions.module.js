@@ -8,7 +8,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SubscriptionsModule = void 0;
 const common_1 = require("@nestjs/common");
-const schedule_1 = require("@nestjs/schedule");
 const auth_module_1 = require("../auth/auth.module");
 const notifications_module_1 = require("../notifications/notifications.module");
 const paydunya_module_1 = require("../paydunya/paydunya.module");
@@ -29,7 +28,6 @@ exports.SubscriptionsModule = SubscriptionsModule = __decorate([
             auth_module_1.AuthModule,
             notifications_module_1.NotificationsModule,
             paydunya_module_1.PaydunyaModule,
-            schedule_1.ScheduleModule.forRoot(),
             (0, common_1.forwardRef)(() => points_module_1.PointsModule),
         ],
         controllers: [subscriptions_controller_1.SubscriptionsController, paydunya_webhook_controller_1.PaydunyaWebhookController],
