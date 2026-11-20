@@ -314,8 +314,15 @@ export const PUBLIC_CARD_STYLES = `
 
   .socials {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 12px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .socials::-webkit-scrollbar {
+    display: none;
   }
 
   .social-link {
@@ -366,6 +373,111 @@ export const PUBLIC_CARD_STYLES = `
 
   .layout-corail-gradient .social-glass {
     border-color: rgba(255, 255, 255, 0.28);
+  }
+
+  .pro-company-card {
+    margin-top: 20px;
+    padding: 18px 16px 14px;
+    border-radius: 28px;
+  }
+
+  .pro-company-card-glass {
+    background: rgba(255, 255, 255, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+  }
+
+  .pro-company-card-light {
+    background: #ffffff;
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+    box-shadow: 0 8px 24px color-mix(in srgb, var(--accent) 10%, transparent);
+  }
+
+  .pro-company-card-dark {
+    background: #141414;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  .pro-company-card-soft {
+    background: #f2f2f7;
+    border: none;
+  }
+
+  .pro-company-card-soft .pro-company-divider {
+    display: none;
+  }
+
+  .pro-company-card-soft .social-soft {
+    background: #ffffff;
+    border-color: #e5e5ea;
+  }
+
+  .pro-company-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .pro-company-logo {
+    width: 52px;
+    height: 52px;
+    border-radius: 12px;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.18);
+  }
+
+  .pro-company-card-light .pro-company-logo {
+    background: color-mix(in srgb, var(--accent) 8%, #ffffff);
+  }
+
+  .pro-company-meta {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .pro-company-name {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--text);
+  }
+
+  .pro-company-address {
+    margin: 4px 0 0;
+    font-size: 13px;
+    line-height: 1.3;
+    color: var(--text-muted);
+  }
+
+  .pro-company-description {
+    margin: 14px 0 0;
+    font-size: 14px;
+    line-height: 1.4;
+    color: var(--text);
+  }
+
+  .pro-company-divider {
+    margin: 14px 0;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.28);
+  }
+
+  .pro-company-card-light .pro-company-divider {
+    background: color-mix(in srgb, var(--accent) 28%, transparent);
+  }
+
+  .pro-company-card-dark .pro-company-divider {
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .pro-company-socials {
+    margin-top: 0;
+  }
+
+  .pro-company-card-light .social-accent {
+    background: #ffffff;
+    border-color: color-mix(in srgb, var(--accent) 28%, transparent);
   }
 
   .brand {

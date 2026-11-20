@@ -9,6 +9,7 @@ export type PublicCardPageParams = {
     initials: string;
     subtitle: string;
     companyName?: string | null;
+    companyDescription?: string | null;
     teamLogoUrl?: string | null;
     email?: string | null;
     phone?: string | null;

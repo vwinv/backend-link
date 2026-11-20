@@ -287,7 +287,7 @@ let CardsService = class CardsService {
         const sanitized = links
             .map((link, index) => ({
             platform: link.platform,
-            url: this.normalizeSocialUrl(link.url) ?? '',
+            url: this.normalizeSocialUrl(link.url, link.platform) ?? '',
             label: link.label?.trim() || null,
             order: link.order ?? index,
         }))
@@ -854,10 +854,63 @@ let CardsService = class CardsService {
         return trimmed.length > 0 ? trimmed : null;
     }
     normalizeWebsiteUrl(value) {
-        return this.normalizeSocialUrl(value);
+        return this.normalizeSocialUrl(value, client_1.SocialPlatform.WEBSITE);
     }
-    normalizeSocialUrl(value) {
-        return (0, safe_url_1.sanitizePublicHttpUrl)(value, { allowHttp: false });
+    normalizeSocialUrl(value, platform) {
+        const trimmed = value?.trim();
+        if (!trimmed)
+            return null;
+        const platformKey = (platform ?? '').toString().toUpperCase();
+        let candidate = trimmed;
+        if (platformKey === 'WHATSAPP') {
+            const phone = this.normalizeWhatsAppPhone(trimmed);
+            if (!phone)
+                return null;
+            return `https://wa.me/${phone}`;
+        }
+        else if (!/^https?:\/\//i.test(trimmed) && !trimmed.includes('.')) {
+            const handle = trimmed.replace(/^@/, '');
+            switch (platformKey) {
+                case 'LINKEDIN':
+                    candidate = `https://www.linkedin.com/in/${handle}`;
+                    break;
+                case 'INSTAGRAM':
+                    candidate = `https://www.instagram.com/${handle}/`;
+                    break;
+                case 'TIKTOK':
+                    candidate = `https://www.tiktok.com/@${handle}`;
+                    break;
+                case 'YOUTUBE':
+                    candidate = `https://www.youtube.com/@${handle}`;
+                    break;
+                case 'TWITTER':
+                case 'X':
+                    candidate = `https://x.com/${handle}`;
+                    break;
+                case 'FACEBOOK':
+                    candidate = `https://www.facebook.com/${handle}`;
+                    break;
+                default:
+                    break;
+            }
+        }
+        if (/^http:\/\//i.test(candidate)) {
+            candidate = `https://${candidate.slice('http://'.length)}`;
+        }
+        return (0, safe_url_1.sanitizePublicHttpUrl)(candidate, { allowHttp: false });
+    }
+    normalizeWhatsAppPhone(raw) {
+        let digits = raw.replace(/\D/g, '');
+        if (!digits)
+            return null;
+        if (digits.startsWith('00'))
+            digits = digits.slice(2);
+        if (digits.length === 9 && digits.startsWith('7')) {
+            digits = `221${digits}`;
+        }
+        if (digits.length < 8 || digits.length > 15)
+            return null;
+        return digits;
     }
     async generateUniqueSlug(firstName, lastName, kind = client_1.CardKind.PERSONAL) {
         const base = `${firstName}-${lastName}`

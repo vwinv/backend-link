@@ -378,7 +378,7 @@ export class CardsService {
     const sanitized = links
       .map((link, index) => ({
         platform: link.platform,
-        url: this.normalizeSocialUrl(link.url) ?? '',
+        url: this.normalizeSocialUrl(link.url, link.platform) ?? '',
         label: link.label?.trim() || null,
         order: link.order ?? index,
       }))
@@ -1090,11 +1090,68 @@ export class CardsService {
   }
 
   private normalizeWebsiteUrl(value?: string | null): string | null {
-    return this.normalizeSocialUrl(value);
+    return this.normalizeSocialUrl(value, SocialPlatform.WEBSITE);
   }
 
-  private normalizeSocialUrl(value?: string | null): string | null {
-    return sanitizePublicHttpUrl(value, { allowHttp: false });
+  private normalizeSocialUrl(
+    value?: string | null,
+    platform?: SocialPlatform | string,
+  ): string | null {
+    const trimmed = value?.trim();
+    if (!trimmed) return null;
+
+    const platformKey = (platform ?? '').toString().toUpperCase();
+    let candidate = trimmed;
+
+    if (platformKey === 'WHATSAPP') {
+      const phone = this.normalizeWhatsAppPhone(trimmed);
+      if (!phone) return null;
+      return `https://wa.me/${phone}`;
+    } else if (!/^https?:\/\//i.test(trimmed) && !trimmed.includes('.')) {
+      const handle = trimmed.replace(/^@/, '');
+      switch (platformKey) {
+        case 'LINKEDIN':
+          candidate = `https://www.linkedin.com/in/${handle}`;
+          break;
+        case 'INSTAGRAM':
+          candidate = `https://www.instagram.com/${handle}/`;
+          break;
+        case 'TIKTOK':
+          candidate = `https://www.tiktok.com/@${handle}`;
+          break;
+        case 'YOUTUBE':
+          candidate = `https://www.youtube.com/@${handle}`;
+          break;
+        case 'TWITTER':
+        case 'X':
+          candidate = `https://x.com/${handle}`;
+          break;
+        case 'FACEBOOK':
+          candidate = `https://www.facebook.com/${handle}`;
+          break;
+        default:
+          break;
+      }
+    }
+
+    // http → https pour conserver les liens saisis en http
+    if (/^http:\/\//i.test(candidate)) {
+      candidate = `https://${candidate.slice('http://'.length)}`;
+    }
+
+    return sanitizePublicHttpUrl(candidate, { allowHttp: false });
+  }
+
+  /** Chiffres internationaux pour wa.me (SN local 7XXXXXXXX → 221…). */
+  private normalizeWhatsAppPhone(raw: string): string | null {
+    let digits = raw.replace(/\D/g, '');
+    if (!digits) return null;
+    if (digits.startsWith('00')) digits = digits.slice(2);
+    if (digits.length === 9 && digits.startsWith('7')) {
+      digits = `221${digits}`;
+    }
+    if (digits.length < 8 || digits.length > 15) return null;
+    return digits;
   }
 
   private async generateUniqueSlug(

@@ -80,7 +80,9 @@ export declare class SharingService {
     private findPublicCard;
     private toPublicCardPayload;
     private toPublicSocialLinks;
+    private expandSocialUrl;
     private normalizeWebsiteUrl;
+    private normalizeWhatsAppPhone;
     private buildSubtitle;
     private resolvePortraitUrl;
     private resolvePublicAssetUrl;

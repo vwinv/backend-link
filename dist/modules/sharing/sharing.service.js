@@ -108,6 +108,9 @@ let SharingService = class SharingService {
             initials: (0, public_card_body_1.buildCardInitials)({ fullName }),
             subtitle,
             companyName: companyName || null,
+            companyDescription: isTeamCard
+                ? card.team?.description?.trim() || null
+                : null,
             teamLogoUrl: isTeamCard && teamLogoSource
                 ? this.resolvePublicAssetUrl(teamLogoSource)
                 : null,
@@ -345,7 +348,7 @@ let SharingService = class SharingService {
                     orderBy: { order: 'asc' },
                 },
                 team: {
-                    select: { name: true, logoUrl: true },
+                    select: { name: true, logoUrl: true, description: true },
                 },
             },
         });
@@ -399,14 +402,14 @@ let SharingService = class SharingService {
         const links = card.socialLinks
             .map((link) => ({
             platform: link.platform,
-            url: this.normalizeWebsiteUrl(link.url) ?? '',
+            url: this.expandSocialUrl(link.platform, link.url) ?? '',
             label: link.label,
         }))
             .filter((link) => link.url.length > 0);
         if (!isTeamCard) {
             return links.filter((link) => link.platform !== 'WEBSITE');
         }
-        const website = this.normalizeWebsiteUrl(card.website);
+        const website = this.expandSocialUrl('WEBSITE', card.website ?? '');
         if (!website || links.some((link) => link.platform === 'WEBSITE')) {
             return links;
         }
@@ -419,8 +422,64 @@ let SharingService = class SharingService {
             },
         ];
     }
+    expandSocialUrl(platform, value) {
+        const trimmed = value?.trim() ?? '';
+        if (!trimmed)
+            return null;
+        const platformKey = platform.toUpperCase();
+        let candidate = trimmed;
+        if (platformKey === 'WHATSAPP') {
+            const phone = this.normalizeWhatsAppPhone(trimmed);
+            if (!phone)
+                return null;
+            return `https://wa.me/${phone}`;
+        }
+        else if (!/^https?:\/\//i.test(trimmed) && !trimmed.includes('.')) {
+            const handle = trimmed.replace(/^@/, '');
+            switch (platformKey) {
+                case 'LINKEDIN':
+                    candidate = `https://www.linkedin.com/in/${handle}`;
+                    break;
+                case 'INSTAGRAM':
+                    candidate = `https://www.instagram.com/${handle}/`;
+                    break;
+                case 'TIKTOK':
+                    candidate = `https://www.tiktok.com/@${handle}`;
+                    break;
+                case 'YOUTUBE':
+                    candidate = `https://www.youtube.com/@${handle}`;
+                    break;
+                case 'TWITTER':
+                case 'X':
+                    candidate = `https://x.com/${handle}`;
+                    break;
+                case 'FACEBOOK':
+                    candidate = `https://www.facebook.com/${handle}`;
+                    break;
+                default:
+                    candidate = trimmed;
+            }
+        }
+        if (/^http:\/\//i.test(candidate)) {
+            candidate = `https://${candidate.slice('http://'.length)}`;
+        }
+        return (0, safe_url_1.sanitizePublicHttpUrl)(candidate, { allowHttp: false });
+    }
     normalizeWebsiteUrl(value) {
-        return (0, safe_url_1.sanitizePublicHttpUrl)(value, { allowHttp: false });
+        return this.expandSocialUrl('WEBSITE', value);
+    }
+    normalizeWhatsAppPhone(raw) {
+        let digits = raw.replace(/\D/g, '');
+        if (!digits)
+            return null;
+        if (digits.startsWith('00'))
+            digits = digits.slice(2);
+        if (digits.length === 9 && digits.startsWith('7')) {
+            digits = `221${digits}`;
+        }
+        if (digits.length < 8 || digits.length > 15)
+            return null;
+        return digits;
     }
     buildSubtitle(card) {
         const job = card.jobTitle?.trim() ?? '';

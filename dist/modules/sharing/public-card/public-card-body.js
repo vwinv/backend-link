@@ -289,13 +289,24 @@ function buildVCard(params) {
     lines.push('END:VCARD');
     return `${lines.join('\r\n')}\r\n`;
 }
-function renderIdentity(params) {
+function isProCompanyCardLayout(params) {
+    return ((params.design.layout === 'corailGradient' ||
+        params.design.layout === 'blancLight' ||
+        params.design.layout === 'degradeNoir' ||
+        params.design.layout === 'bubble' ||
+        params.design.layout === 'arc' ||
+        params.design.layout === 'nuit' ||
+        params.design.layout === 'or') &&
+        Boolean(params.companyName?.trim()));
+}
+function renderIdentity(params, options) {
     const safeName = escapeHtml(params.fullName);
     const safeSubtitle = escapeHtml(params.subtitle);
     const companyName = params.companyName?.trim() ?? '';
     const teamLogoUrl = params.teamLogoUrl?.trim() ?? '';
     const address = params.address?.trim() ?? '';
-    const teamRow = companyName.length > 0
+    const omitTeam = options?.omitTeam === true;
+    const teamRow = !omitTeam && companyName.length > 0
         ? `<div class="team-row">
           ${teamLogoUrl
             ? `<img class="team-logo" src="${escapeAttr(teamLogoUrl)}" alt="${escapeHtml(companyName)}" />`
@@ -303,7 +314,7 @@ function renderIdentity(params) {
           <span class="team-name">${escapeHtml(companyName)}</span>
         </div>`
         : '';
-    const addressRow = address
+    const addressRow = !omitTeam && address
         ? `<p class="address">${escapeHtml(address)}</p>`
         : '';
     return `
@@ -311,6 +322,53 @@ function renderIdentity(params) {
     ${params.subtitle ? `<p class="subtitle">${safeSubtitle}</p>` : ''}
     ${teamRow}
     ${addressRow}
+  `;
+}
+function renderProCompanyCard(params) {
+    const companyName = params.companyName?.trim() ?? '';
+    if (!companyName)
+        return '';
+    const teamLogoUrl = params.teamLogoUrl?.trim() ?? '';
+    const address = params.address?.trim() ?? '';
+    const description = params.companyDescription?.trim() ?? '';
+    const socialClass = `social-link ${resolveSocialSkin(params.design.layout)}`;
+    const panelClass = params.design.layout === 'blancLight'
+        ? 'pro-company-card pro-company-card-light'
+        : params.design.layout === 'degradeNoir' ||
+            params.design.layout === 'or'
+            ? 'pro-company-card pro-company-card-dark'
+            : params.design.layout === 'bubble' ||
+                params.design.layout === 'arc'
+                ? 'pro-company-card pro-company-card-soft'
+                : 'pro-company-card pro-company-card-glass';
+    const socialsMarkup = params.socialLinks.length === 0
+        ? ['LINKEDIN', 'INSTAGRAM', 'WHATSAPP']
+            .map((platform) => `<span class="${socialClass}" aria-hidden="true">${renderSocialLogoMarkup(platform)}</span>`)
+            .join('')
+        : params.socialLinks
+            .filter((link) => isSafeHref(link.url))
+            .map((link) => {
+            const name = escapeAttr(socialAccessibleName(link.platform, link.label));
+            return `<a class="${socialClass}" href="${escapeAttr(link.url)}" target="_blank" rel="noopener noreferrer" aria-label="${name}">${renderSocialLogoMarkup(link.platform, link.label)}</a>`;
+        })
+            .join('');
+    return `
+    <section class="${panelClass}">
+      <div class="pro-company-head">
+        ${teamLogoUrl
+        ? `<img class="pro-company-logo" src="${escapeAttr(teamLogoUrl)}" alt="${escapeHtml(companyName)}" />`
+        : ''}
+        <div class="pro-company-meta">
+          <p class="pro-company-name">${escapeHtml(companyName)}</p>
+          ${address ? `<p class="pro-company-address">${escapeHtml(address)}</p>` : ''}
+        </div>
+      </div>
+      ${description
+        ? `<p class="pro-company-description">${escapeHtml(description)}</p>`
+        : ''}
+      <div class="pro-company-divider" role="presentation"></div>
+      <div class="socials pro-company-socials">${socialsMarkup}</div>
+    </section>
   `;
 }
 function renderGuestLeadForm(params) {
@@ -381,20 +439,23 @@ function renderStandardBody(params) {
         : params.design.layout === 'nuit'
             ? ''
             : 'avatar-light-ring';
+    const proCompany = isProCompanyCardLayout(params);
     return `
     <div class="content">
       <div class="avatar-wrap">
         ${renderAvatar(params, avatarClass)}
       </div>
-      ${renderIdentity(params)}
+      ${renderIdentity(params, { omitTeam: proCompany })}
+      ${proCompany ? renderProCompanyCard(params) : ''}
       ${renderActions(params)}
-      ${renderSocials(params)}
+      ${proCompany ? '' : renderSocials(params)}
       ${renderGuestLeadForm(params)}
     </div>
   `;
 }
 function renderBubbleBody(params) {
     const accent = escapeAttr(params.design.accentColor);
+    const proCompany = isProCompanyCardLayout(params);
     return `
     <div class="bubble-stage">
       <div class="bubble-header" aria-hidden="true">
@@ -414,9 +475,10 @@ function renderBubbleBody(params) {
         ${renderAvatar(params, 'bubble-avatar', params.design.accentColor)}
       </div>
       <div class="bubble-body layout-light">
-        ${renderIdentity(params)}
+        ${renderIdentity(params, { omitTeam: proCompany })}
+        ${proCompany ? renderProCompanyCard(params) : ''}
         ${renderActions(params)}
-        ${renderSocials(params)}
+        ${proCompany ? '' : renderSocials(params)}
         ${renderGuestLeadForm(params)}
       </div>
     </div>
@@ -438,12 +500,14 @@ function renderArcAvatar(params) {
 }
 function renderArcBody(params) {
     const accent = escapeAttr(params.design.accentColor);
+    const proCompany = isProCompanyCardLayout(params);
     return `
     <div class="arc-stage layout-light" style="background: ${accent};">
       <div class="arc-sheet">
-        ${renderIdentity(params)}
+        ${renderIdentity(params, { omitTeam: proCompany })}
+        ${proCompany ? renderProCompanyCard(params) : ''}
         ${renderActions(params)}
-        ${renderSocials(params)}
+        ${proCompany ? '' : renderSocials(params)}
         ${renderGuestLeadForm(params)}
       </div>
       ${renderArcAvatar(params)}

@@ -16,25 +16,25 @@ export declare class CardsService {
     create(userId: string, dto: CreateCardDto): Promise<BusinessCard>;
     findAll(userId: string): Promise<{
         id: string;
-        email: string | null;
-        firstName: string;
-        lastName: string;
+        createdAt: Date;
+        slug: string;
         phone: string | null;
+        lastName: string;
+        firstName: string;
+        email: string | null;
         avatarUrl: string | null;
         isActive: boolean;
-        createdAt: Date;
         updatedAt: Date;
-        slug: string;
-        logoUrl: string | null;
-        ownerId: string;
-        jobTitle: string | null;
         teamId: string | null;
+        ownerId: string;
         kind: import("@prisma/client").$Enums.CardKind;
+        jobTitle: string | null;
         company: string | null;
         bio: string | null;
         address: string | null;
         website: string | null;
         coverImageUrl: string | null;
+        logoUrl: string | null;
         theme: import("@prisma/client/runtime/client").JsonValue;
         isPublic: boolean;
     }[]>;
@@ -48,22 +48,22 @@ export declare class CardsService {
         id: string;
     };
     syncSocialLinks(userId: string, cardId: string, links: SocialLinkItemDto[]): Promise<{
+        url: string;
         id: string;
         createdAt: Date;
-        label: string | null;
         platform: import("@prisma/client").$Enums.SocialPlatform;
-        url: string;
-        order: number;
+        label: string | null;
         cardId: string;
+        order: number;
     }[]>;
     getSocialLinks(userId: string, cardId: string): Promise<{
+        url: string;
         id: string;
         createdAt: Date;
-        label: string | null;
         platform: import("@prisma/client").$Enums.SocialPlatform;
-        url: string;
-        order: number;
+        label: string | null;
         cardId: string;
+        order: number;
     }[]>;
     addSocialLink(id: string): {
         message: string;
@@ -93,7 +93,7 @@ export declare class CardsService {
             count: number;
         }[];
         sources: {
-            key: "link" | "app" | "other" | "qr" | "share";
+            key: "link" | "app" | "qr" | "share" | "other";
             count: number;
             percent: number;
         }[];
@@ -170,5 +170,6 @@ export declare class CardsService {
     private optionalString;
     private normalizeWebsiteUrl;
     private normalizeSocialUrl;
+    private normalizeWhatsAppPhone;
     private generateUniqueSlug;
 }
