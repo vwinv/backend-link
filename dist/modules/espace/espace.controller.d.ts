@@ -23,9 +23,9 @@ export declare class EspaceController {
             name: string;
             id: string;
             slug: string;
+            description: string | null;
             ownerId: string;
             logoUrl: string | null;
-            description: string | null;
             brandColor: string | null;
         };
         myRole: "ADMIN" | "OWNER";
@@ -62,8 +62,8 @@ export declare class EspaceController {
             joinedAt: string;
             user: {
                 id: string;
-                lastName: string;
                 firstName: string;
+                lastName: string;
                 email: string;
                 avatarUrl: string | null;
             };
@@ -130,35 +130,35 @@ export declare class EspaceController {
         members: ({
             user: {
                 id: string;
-                lastName: string;
                 firstName: string;
+                lastName: string;
                 email: string;
                 avatarUrl: string | null;
             };
         } & {
             id: string;
             userId: string;
-            role: import("@prisma/client").$Enums.TeamMemberRole;
-            updatedAt: Date;
             teamId: string;
+            updatedAt: Date;
+            role: import("@prisma/client").$Enums.TeamMemberRole;
             joinedAt: Date;
         })[];
         pendingInvites: {
             id: string;
             expiresAt: Date | null;
             createdAt: Date;
-            lastName: string | null;
+            teamId: string;
             firstName: string | null;
+            lastName: string | null;
+            jobTitle: string | null;
             email: string;
             avatarUrl: string | null;
-            role: import("@prisma/client").$Enums.TeamMemberRole;
             updatedAt: Date;
-            teamId: string;
+            role: import("@prisma/client").$Enums.TeamMemberRole;
             status: import("@prisma/client").$Enums.TeamInviteStatus;
-            jobTitle: string | null;
+            invitedById: string;
             inviteeUserId: string | null;
             respondedAt: Date | null;
-            invitedById: string;
         }[];
         seats: import("../subscriptions/entitlements.types").TeamSeatsQuota;
     }>;
@@ -357,8 +357,8 @@ export declare class EspaceController {
             joinedAt: string;
             user: {
                 id: string;
-                lastName: string;
                 firstName: string;
+                lastName: string;
                 email: string;
                 avatarUrl: string | null;
             };
@@ -410,27 +410,27 @@ export declare class EspaceController {
         id: string;
         expiresAt: Date | null;
         createdAt: Date;
-        lastName: string | null;
+        teamId: string;
         firstName: string | null;
+        lastName: string | null;
+        jobTitle: string | null;
         email: string;
         avatarUrl: string | null;
-        role: import("@prisma/client").$Enums.TeamMemberRole;
         updatedAt: Date;
-        teamId: string;
+        role: import("@prisma/client").$Enums.TeamMemberRole;
         status: import("@prisma/client").$Enums.TeamInviteStatus;
-        jobTitle: string | null;
+        invitedById: string;
         inviteeUserId: string | null;
         respondedAt: Date | null;
-        invitedById: string;
     }>;
     removeMember(user: {
         userId: string;
     }, slug: string, memberId: string): Promise<{
         id: string;
         userId: string;
-        role: import("@prisma/client").$Enums.TeamMemberRole;
-        updatedAt: Date;
         teamId: string;
+        updatedAt: Date;
+        role: import("@prisma/client").$Enums.TeamMemberRole;
         joinedAt: Date;
     }>;
     cancelInvitation(user: {
@@ -439,18 +439,18 @@ export declare class EspaceController {
         id: string;
         expiresAt: Date | null;
         createdAt: Date;
-        lastName: string | null;
+        teamId: string;
         firstName: string | null;
+        lastName: string | null;
+        jobTitle: string | null;
         email: string;
         avatarUrl: string | null;
-        role: import("@prisma/client").$Enums.TeamMemberRole;
         updatedAt: Date;
-        teamId: string;
+        role: import("@prisma/client").$Enums.TeamMemberRole;
         status: import("@prisma/client").$Enums.TeamInviteStatus;
-        jobTitle: string | null;
+        invitedById: string;
         inviteeUserId: string | null;
         respondedAt: Date | null;
-        invitedById: string;
     }>;
     getInvoices(user: {
         userId: string;

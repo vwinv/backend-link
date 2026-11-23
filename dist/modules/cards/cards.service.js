@@ -206,9 +206,31 @@ let CardsService = class CardsService {
                 ...(dto.website !== undefined && { website: updated.website }),
             });
         }
-        if (card.kind === client_1.CardKind.PROFESSIONAL &&
+        if (this.isTeamCardKind(card.kind) &&
             card.teamId &&
-            dto.logoUrl !== undefined) {
+            dto.company !== undefined) {
+            try {
+                await this.assertCanEditTeamSharedFields(userId, card);
+                const company = updated.company;
+                if (company) {
+                    await this.prisma.team.update({
+                        where: { id: card.teamId },
+                        data: { name: company },
+                    });
+                }
+                await this.prisma.businessCard.updateMany({
+                    where: {
+                        teamId: card.teamId,
+                        isActive: true,
+                        kind: { in: [client_1.CardKind.PROFESSIONAL, client_1.CardKind.MEMBER] },
+                    },
+                    data: { company },
+                });
+            }
+            catch {
+            }
+        }
+        if (card.teamId && dto.logoUrl !== undefined) {
             await this.prisma.team.update({
                 where: { id: card.teamId },
                 data: { logoUrl: updated.logoUrl },
@@ -839,11 +861,8 @@ let CardsService = class CardsService {
         }
     }
     async assertCanEditTeamLogo(userId, card) {
-        if (card.kind === client_1.CardKind.MEMBER) {
-            throw new common_1.ForbiddenException('Le logo d’équipe ne peut être modifié que par un administrateur');
-        }
-        if (card.kind !== client_1.CardKind.PROFESSIONAL || !card.teamId) {
-            throw new common_1.BadRequestException('Le logo d’équipe n’est disponible que sur la carte professionnelle');
+        if (!this.isTeamCardKind(card.kind) || !card.teamId) {
+            throw new common_1.BadRequestException('Le logo d’équipe n’est disponible que sur une carte liée à une équipe');
         }
         await this.assertCanEditTeamSharedFields(userId, card);
     }

@@ -254,11 +254,35 @@ export class CardsService {
       });
     }
 
+    // Nom d’entreprise partagé : admin/owner synchronise équipe + toutes les cartes.
     if (
-      card.kind === CardKind.PROFESSIONAL &&
+      this.isTeamCardKind(card.kind) &&
       card.teamId &&
-      dto.logoUrl !== undefined
+      dto.company !== undefined
     ) {
+      try {
+        await this.assertCanEditTeamSharedFields(userId, card);
+        const company = updated.company;
+        if (company) {
+          await this.prisma.team.update({
+            where: { id: card.teamId },
+            data: { name: company },
+          });
+        }
+        await this.prisma.businessCard.updateMany({
+          where: {
+            teamId: card.teamId,
+            isActive: true,
+            kind: { in: [CardKind.PROFESSIONAL, CardKind.MEMBER] },
+          },
+          data: { company },
+        });
+      } catch {
+        // Membre simple : la company reste uniquement sur sa carte.
+      }
+    }
+
+    if (card.teamId && dto.logoUrl !== undefined) {
       await this.prisma.team.update({
         where: { id: card.teamId },
         data: { logoUrl: updated.logoUrl },
@@ -1068,15 +1092,9 @@ export class CardsService {
   }
 
   private async assertCanEditTeamLogo(userId: string, card: BusinessCard) {
-    if (card.kind === CardKind.MEMBER) {
-      throw new ForbiddenException(
-        'Le logo d’équipe ne peut être modifié que par un administrateur',
-      );
-    }
-
-    if (card.kind !== CardKind.PROFESSIONAL || !card.teamId) {
+    if (!this.isTeamCardKind(card.kind) || !card.teamId) {
       throw new BadRequestException(
-        'Le logo d’équipe n’est disponible que sur la carte professionnelle',
+        'Le logo d’équipe n’est disponible que sur une carte liée à une équipe',
       );
     }
 
