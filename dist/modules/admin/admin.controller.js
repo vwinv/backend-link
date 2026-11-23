@@ -176,6 +176,9 @@ let AdminController = class AdminController {
     createNotification(dto, actor) {
         return this.notificationsService.createAndSend(dto, actor.userId);
     }
+    cancelNotification(id) {
+        return this.notificationsService.cancelScheduled(id);
+    }
     listUsers(query) {
         return this.usersService.list(query);
     }
@@ -514,13 +517,24 @@ __decorate([
 __decorate([
     (0, common_1.Post)('notifications'),
     (0, permissions_decorator_1.RequirePermissions)('notifications.send'),
-    (0, swagger_1.ApiOperation)({ summary: 'Créer et envoyer une notification ciblée' }),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Créer et envoyer (ou programmer) une notification ciblée',
+    }),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [create_notification_campaign_dto_1.CreateNotificationCampaignDto, Object]),
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "createNotification", null);
+__decorate([
+    (0, common_1.Post)('notifications/:id/cancel'),
+    (0, permissions_decorator_1.RequirePermissions)('notifications.send'),
+    (0, swagger_1.ApiOperation)({ summary: 'Annuler une campagne programmée' }),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "cancelNotification", null);
 __decorate([
     (0, common_1.Get)('users'),
     (0, permissions_decorator_1.RequirePermissions)('backoffice_users.view'),

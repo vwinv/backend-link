@@ -15,6 +15,7 @@ const app_update_module_1 = require("../app-update/app-update.module");
 const notifications_module_1 = require("../notifications/notifications.module");
 const admin_clients_service_1 = require("./admin-clients.service");
 const admin_dashboard_service_1 = require("./admin-dashboard.service");
+const admin_notifications_scheduler_1 = require("./admin-notifications.scheduler");
 const admin_notifications_service_1 = require("./admin-notifications.service");
 const admin_offers_service_1 = require("./admin-offers.service");
 const admin_roles_service_1 = require("./admin-roles.service");
@@ -37,6 +38,7 @@ exports.AdminModule = AdminModule = __decorate([
             admin_subscriptions_service_1.AdminSubscriptionsService,
             admin_offers_service_1.AdminOffersService,
             admin_notifications_service_1.AdminNotificationsService,
+            admin_notifications_scheduler_1.AdminNotificationsScheduler,
             admin_support_service_1.AdminSupportService,
             admin_roles_service_1.AdminRolesService,
             admin_access_guard_1.AdminAccessGuard,

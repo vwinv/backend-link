@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreateNotificationCampaignDto = void 0;
 const swagger_1 = require("@nestjs/swagger");
 const client_1 = require("@prisma/client");
+const class_transformer_1 = require("class-transformer");
 const class_validator_1 = require("class-validator");
 class CreateNotificationCampaignDto {
     title;
@@ -20,6 +21,10 @@ class CreateNotificationCampaignDto {
     bodyEn;
     audience;
     userIds;
+    scheduledAt;
+    recurrence;
+    recurrenceEndsAt;
+    maxOccurrences;
 }
 exports.CreateNotificationCampaignDto = CreateNotificationCampaignDto;
 __decorate([
@@ -74,4 +79,42 @@ __decorate([
     (0, class_validator_1.IsString)({ each: true }),
     __metadata("design:type", Array)
 ], CreateNotificationCampaignDto.prototype, "userIds", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        description: 'Date/heure d’envoi ISO (UTC). Absent = envoi immédiat. Ex. 2026-11-25T14:30:00.000Z',
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsDateString)(),
+    __metadata("design:type", String)
+], CreateNotificationCampaignDto.prototype, "scheduledAt", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        enum: client_1.NotificationRecurrence,
+        default: client_1.NotificationRecurrence.ONCE,
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsEnum)(client_1.NotificationRecurrence),
+    __metadata("design:type", String)
+], CreateNotificationCampaignDto.prototype, "recurrence", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        description: 'Fin des envois récurrents (ISO UTC)',
+    }),
+    (0, class_validator_1.ValidateIf)((o) => !!o.scheduledAt),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsDateString)(),
+    __metadata("design:type", String)
+], CreateNotificationCampaignDto.prototype, "recurrenceEndsAt", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        description: 'Nombre max d’envois (1–365). Null = illimité jusqu’à la date de fin.',
+    }),
+    (0, class_validator_1.ValidateIf)((o) => !!o.scheduledAt),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Type)(() => Number),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(1),
+    (0, class_validator_1.Max)(365),
+    __metadata("design:type", Number)
+], CreateNotificationCampaignDto.prototype, "maxOccurrences", void 0);
 //# sourceMappingURL=create-notification-campaign.dto.js.map

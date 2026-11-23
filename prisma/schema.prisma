@@ -120,9 +120,18 @@ enum NotificationAudience {
 
 enum NotificationCampaignStatus {
   DRAFT
+  SCHEDULED
   SENDING
   SENT
   FAILED
+  CANCELLED
+}
+
+enum NotificationRecurrence {
+  ONCE
+  DAILY
+  WEEKLY
+  MONTHLY
 }
 
 enum PushPlatform {
@@ -797,6 +806,15 @@ model NotificationCampaign {
   readCount      Int                        @default(0)
   pushAttempted  Int                        @default(0)
   errorMessage   String?
+  /** Prochaine (ou unique) date/heure d’envoi (UTC). */
+  scheduledAt    DateTime?
+  recurrence     NotificationRecurrence     @default(ONCE)
+  /** Fin optionnelle des envois récurrents. */
+  recurrenceEndsAt DateTime?
+  /** Nombre max d’envois (null = illimité jusqu’à recurrenceEndsAt). */
+  maxOccurrences Int?
+  /** Nombre d’envois déjà effectués pour cette campagne. */
+  occurrenceCount Int                       @default(0)
   createdById    String?
   createdAt      DateTime                   @default(now())
   sentAt         DateTime?
@@ -807,6 +825,7 @@ model NotificationCampaign {
 
   @@index([createdAt])
   @@index([status])
+  @@index([status, scheduledAt])
   @@map("notification_campaigns")
 }
 

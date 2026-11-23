@@ -1,13 +1,22 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { NotificationAudience } from '@prisma/client';
+import {
+  NotificationAudience,
+  NotificationRecurrence,
+} from '@prisma/client';
+import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
+  IsDateString,
   IsEnum,
+  IsInt,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
+  Min,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 
 export class CreateNotificationCampaignDto {
@@ -56,4 +65,39 @@ export class CreateNotificationCampaignDto {
   @ArrayMaxSize(500)
   @IsString({ each: true })
   userIds?: string[];
+
+  @ApiPropertyOptional({
+    description:
+      'Date/heure d’envoi ISO (UTC). Absent = envoi immédiat. Ex. 2026-11-25T14:30:00.000Z',
+  })
+  @IsOptional()
+  @IsDateString()
+  scheduledAt?: string;
+
+  @ApiPropertyOptional({
+    enum: NotificationRecurrence,
+    default: NotificationRecurrence.ONCE,
+  })
+  @IsOptional()
+  @IsEnum(NotificationRecurrence)
+  recurrence?: NotificationRecurrence;
+
+  @ApiPropertyOptional({
+    description: 'Fin des envois récurrents (ISO UTC)',
+  })
+  @ValidateIf((o: CreateNotificationCampaignDto) => !!o.scheduledAt)
+  @IsOptional()
+  @IsDateString()
+  recurrenceEndsAt?: string;
+
+  @ApiPropertyOptional({
+    description: 'Nombre max d’envois (1–365). Null = illimité jusqu’à la date de fin.',
+  })
+  @ValidateIf((o: CreateNotificationCampaignDto) => !!o.scheduledAt)
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  maxOccurrences?: number;
 }

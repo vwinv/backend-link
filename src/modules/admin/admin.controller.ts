@@ -345,12 +345,21 @@ export class AdminController {
 
   @Post('notifications')
   @RequirePermissions('notifications.send')
-  @ApiOperation({ summary: 'Créer et envoyer une notification ciblée' })
+  @ApiOperation({
+    summary: 'Créer et envoyer (ou programmer) une notification ciblée',
+  })
   createNotification(
     @Body() dto: CreateNotificationCampaignDto,
     @CurrentUser() actor: AuthUserPayload,
   ) {
     return this.notificationsService.createAndSend(dto, actor.userId);
+  }
+
+  @Post('notifications/:id/cancel')
+  @RequirePermissions('notifications.send')
+  @ApiOperation({ summary: 'Annuler une campagne programmée' })
+  cancelNotification(@Param('id') id: string) {
+    return this.notificationsService.cancelScheduled(id);
   }
 
   @Get('users')

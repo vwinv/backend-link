@@ -6,11 +6,13 @@ export declare class AdminNotificationsService {
     private readonly prisma;
     private readonly fcmPushService;
     private readonly logger;
+    private processingDue;
     constructor(prisma: PrismaService, fcmPushService: FcmPushService);
     getStats(): Promise<{
         campaigns: number;
         sent: number;
         failed: number;
+        scheduled: number;
         delivered: number;
         unread: number;
         pushTokens: number;
@@ -30,6 +32,11 @@ export declare class AdminNotificationsService {
             readCount: number;
             pushAttempted: number;
             errorMessage: string | null;
+            scheduledAt: Date | null;
+            recurrence: import("@prisma/client").$Enums.NotificationRecurrence;
+            recurrenceEndsAt: Date | null;
+            maxOccurrences: number | null;
+            occurrenceCount: number;
             createdAt: Date;
             sentAt: Date | null;
             updatedAt: Date;
@@ -60,6 +67,11 @@ export declare class AdminNotificationsService {
         readCount: number;
         pushAttempted: number;
         errorMessage: string | null;
+        scheduledAt: Date | null;
+        recurrence: import("@prisma/client").$Enums.NotificationRecurrence;
+        recurrenceEndsAt: Date | null;
+        maxOccurrences: number | null;
+        occurrenceCount: number;
         createdAt: Date;
         sentAt: Date | null;
         updatedAt: Date;
@@ -83,6 +95,11 @@ export declare class AdminNotificationsService {
         readCount: number;
         pushAttempted: number;
         errorMessage: string | null;
+        scheduledAt: Date | null;
+        recurrence: import("@prisma/client").$Enums.NotificationRecurrence;
+        recurrenceEndsAt: Date | null;
+        maxOccurrences: number | null;
+        occurrenceCount: number;
         createdAt: Date;
         sentAt: Date | null;
         updatedAt: Date;
@@ -92,6 +109,72 @@ export declare class AdminNotificationsService {
             name: string;
         } | null;
     }>;
+    cancelScheduled(id: string): Promise<{
+        id: string;
+        title: string;
+        body: string;
+        titleEn: string | null;
+        bodyEn: string | null;
+        audience: import("@prisma/client").$Enums.NotificationAudience;
+        userIds: string[];
+        status: import("@prisma/client").$Enums.NotificationCampaignStatus;
+        targetCount: number;
+        deliveredCount: number;
+        readCount: number;
+        pushAttempted: number;
+        errorMessage: string | null;
+        scheduledAt: Date | null;
+        recurrence: import("@prisma/client").$Enums.NotificationRecurrence;
+        recurrenceEndsAt: Date | null;
+        maxOccurrences: number | null;
+        occurrenceCount: number;
+        createdAt: Date;
+        sentAt: Date | null;
+        updatedAt: Date;
+        createdBy: {
+            id: string;
+            email: string;
+            name: string;
+        } | null;
+    }>;
+    processDueScheduledCampaigns(now?: Date): Promise<{
+        processed: number;
+        sent: number;
+        failed: number;
+    }>;
+    private createScheduled;
+    deliverCampaign(campaignId: string): Promise<{
+        id: string;
+        title: string;
+        body: string;
+        titleEn: string | null;
+        bodyEn: string | null;
+        audience: import("@prisma/client").$Enums.NotificationAudience;
+        userIds: string[];
+        status: import("@prisma/client").$Enums.NotificationCampaignStatus;
+        targetCount: number;
+        deliveredCount: number;
+        readCount: number;
+        pushAttempted: number;
+        errorMessage: string | null;
+        scheduledAt: Date | null;
+        recurrence: import("@prisma/client").$Enums.NotificationRecurrence;
+        recurrenceEndsAt: Date | null;
+        maxOccurrences: number | null;
+        occurrenceCount: number;
+        createdAt: Date;
+        sentAt: Date | null;
+        updatedAt: Date;
+        createdBy: {
+            id: string;
+            email: string;
+            name: string;
+        } | null;
+    }>;
+    private finalizeAfterDelivery;
+    private shouldContinueRecurrence;
+    private computeNextScheduledAt;
+    private prepareCampaignInput;
     private resolveAudience;
     private toCampaignDto;
 }

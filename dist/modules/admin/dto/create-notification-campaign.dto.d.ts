@@ -1,4 +1,4 @@
-import { NotificationAudience } from '@prisma/client';
+import { NotificationAudience, NotificationRecurrence } from '@prisma/client';
 export declare class CreateNotificationCampaignDto {
     title: string;
     body: string;
@@ -6,4 +6,8 @@ export declare class CreateNotificationCampaignDto {
     bodyEn?: string;
     audience: NotificationAudience;
     userIds?: string[];
+    scheduledAt?: string;
+    recurrence?: NotificationRecurrence;
+    recurrenceEndsAt?: string;
+    maxOccurrences?: number;
 }

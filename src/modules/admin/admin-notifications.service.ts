@@ -7,6 +7,7 @@ import {
 import {
   NotificationAudience,
   NotificationCampaignStatus,
+  NotificationRecurrence,
   Prisma,
   UserRole,
 } from '@prisma/client';
@@ -23,6 +24,7 @@ import { validSubscriptionWhere } from '../subscriptions/subscription-validity';
 @Injectable()
 export class AdminNotificationsService {
   private readonly logger = new Logger(AdminNotificationsService.name);
+  private processingDue = false;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -30,7 +32,7 @@ export class AdminNotificationsService {
   ) {}
 
   async getStats() {
-    const [campaigns, sent, failed, delivered, unread, tokens] =
+    const [campaigns, sent, failed, scheduled, delivered, unread, tokens] =
       await Promise.all([
         this.prisma.notificationCampaign.count(),
         this.prisma.notificationCampaign.count({
@@ -38,6 +40,9 @@ export class AdminNotificationsService {
         }),
         this.prisma.notificationCampaign.count({
           where: { status: NotificationCampaignStatus.FAILED },
+        }),
+        this.prisma.notificationCampaign.count({
+          where: { status: NotificationCampaignStatus.SCHEDULED },
         }),
         this.prisma.userNotification.count(),
         this.prisma.userNotification.count({ where: { isRead: false } }),
@@ -48,6 +53,7 @@ export class AdminNotificationsService {
       campaigns,
       sent,
       failed,
+      scheduled,
       delivered,
       unread,
       pushTokens: tokens,
@@ -76,7 +82,7 @@ export class AdminNotificationsService {
         where,
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ scheduledAt: 'desc' }, { createdAt: 'desc' }],
         include: {
           createdBy: {
             select: {
@@ -125,70 +131,195 @@ export class AdminNotificationsService {
     dto: CreateNotificationCampaignDto,
     actorUserId: string,
   ) {
-    const title = dto.title.trim();
-    const body = dto.body.trim();
-    const titleEn = dto.titleEn?.trim() || null;
-    const bodyEn = dto.bodyEn?.trim() || null;
-    if (!title || !body) {
-      throw new BadRequestException('Titre et message requis');
+    const prepared = this.prepareCampaignInput(dto);
+
+    if (prepared.scheduledAt) {
+      return this.createScheduled(prepared, actorUserId);
     }
-    if ((titleEn && !bodyEn) || (!titleEn && bodyEn)) {
+
+    const campaign = await this.prisma.notificationCampaign.create({
+      data: {
+        title: prepared.title,
+        body: prepared.body,
+        titleEn: prepared.titleEn,
+        bodyEn: prepared.bodyEn,
+        audience: prepared.audience,
+        userIds:
+          prepared.audience === NotificationAudience.USER_IDS
+            ? prepared.userIds
+            : [],
+        status: NotificationCampaignStatus.SENDING,
+        targetCount: 0,
+        createdById: actorUserId,
+        recurrence: NotificationRecurrence.ONCE,
+      },
+    });
+
+    return this.deliverCampaign(campaign.id);
+  }
+
+  async cancelScheduled(id: string) {
+    const campaign = await this.prisma.notificationCampaign.findUnique({
+      where: { id },
+    });
+    if (!campaign) {
+      throw new NotFoundException('Campagne introuvable');
+    }
+    if (campaign.status !== NotificationCampaignStatus.SCHEDULED) {
       throw new BadRequestException(
-        'Pour l’anglais, renseignez le titre et le message ensemble',
+        'Seules les campagnes programmées peuvent être annulées',
       );
     }
 
-    if (
-      dto.audience === NotificationAudience.USER_IDS &&
-      (!dto.userIds || dto.userIds.length === 0)
-    ) {
-      throw new BadRequestException(
-        'Sélectionnez au moins un client pour un envoi ciblé',
-      );
-    }
+    const updated = await this.prisma.notificationCampaign.update({
+      where: { id },
+      data: {
+        status: NotificationCampaignStatus.CANCELLED,
+        errorMessage: 'Annulée par un administrateur',
+      },
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+    return this.toCampaignDto(updated);
+  }
 
+  async processDueScheduledCampaigns(now = new Date()): Promise<{
+    processed: number;
+    sent: number;
+    failed: number;
+  }> {
+    if (this.processingDue) {
+      return { processed: 0, sent: 0, failed: 0 };
+    }
+    this.processingDue = true;
+    let processed = 0;
+    let sent = 0;
+    let failed = 0;
+    try {
+      const due = await this.prisma.notificationCampaign.findMany({
+        where: {
+          status: NotificationCampaignStatus.SCHEDULED,
+          scheduledAt: { lte: now },
+        },
+        orderBy: { scheduledAt: 'asc' },
+        take: 20,
+        select: { id: true },
+      });
+
+      for (const row of due) {
+        processed += 1;
+        try {
+          await this.deliverCampaign(row.id);
+          sent += 1;
+        } catch (error) {
+          failed += 1;
+          const message =
+            error instanceof Error ? error.message : String(error);
+          this.logger.warn(
+            `Campagne programmée ${row.id} en échec: ${message}`,
+          );
+        }
+      }
+      return { processed, sent, failed };
+    } finally {
+      this.processingDue = false;
+    }
+  }
+
+  private async createScheduled(
+    prepared: PreparedCampaignInput,
+    actorUserId: string,
+  ) {
     const targetUserIds = await this.resolveAudience(
-      dto.audience,
-      dto.userIds ?? [],
+      prepared.audience,
+      prepared.userIds,
     );
 
     const campaign = await this.prisma.notificationCampaign.create({
       data: {
-        title,
-        body,
-        titleEn,
-        bodyEn,
-        audience: dto.audience,
-        userIds: dto.audience === NotificationAudience.USER_IDS
-          ? dto.userIds ?? []
-          : [],
-        status: NotificationCampaignStatus.SENDING,
+        title: prepared.title,
+        body: prepared.body,
+        titleEn: prepared.titleEn,
+        bodyEn: prepared.bodyEn,
+        audience: prepared.audience,
+        userIds:
+          prepared.audience === NotificationAudience.USER_IDS
+            ? prepared.userIds
+            : [],
+        status: NotificationCampaignStatus.SCHEDULED,
         targetCount: targetUserIds.length,
         createdById: actorUserId,
+        scheduledAt: prepared.scheduledAt!,
+        recurrence: prepared.recurrence,
+        recurrenceEndsAt: prepared.recurrenceEndsAt,
+        maxOccurrences: prepared.maxOccurrences,
+        occurrenceCount: 0,
+      },
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
       },
     });
 
+    return this.toCampaignDto(campaign);
+  }
+
+  /** Envoi effectif (immédiat ou cron). Gère aussi la récurrence. */
+  async deliverCampaign(campaignId: string) {
+    const campaign = await this.prisma.notificationCampaign.findUnique({
+      where: { id: campaignId },
+    });
+    if (!campaign) {
+      throw new NotFoundException('Campagne introuvable');
+    }
+    if (
+      campaign.status !== NotificationCampaignStatus.SENDING &&
+      campaign.status !== NotificationCampaignStatus.SCHEDULED
+    ) {
+      throw new BadRequestException(
+        'Cette campagne ne peut pas être envoyée dans son état actuel',
+      );
+    }
+
+    await this.prisma.notificationCampaign.update({
+      where: { id: campaignId },
+      data: { status: NotificationCampaignStatus.SENDING, errorMessage: null },
+    });
+
+    const title = campaign.title;
+    const body = campaign.body;
+    const titleEn = campaign.titleEn;
+    const bodyEn = campaign.bodyEn;
+    const userIds = Array.isArray(campaign.userIds)
+      ? (campaign.userIds as string[])
+      : [];
+
     try {
+      const targetUserIds = await this.resolveAudience(
+        campaign.audience,
+        userIds,
+      );
+
       if (targetUserIds.length === 0) {
-        const updated = await this.prisma.notificationCampaign.update({
-          where: { id: campaign.id },
-          data: {
-            status: NotificationCampaignStatus.SENT,
-            deliveredCount: 0,
-            sentAt: new Date(),
-          },
-          include: {
-            createdBy: {
-              select: {
-                id: true,
-                email: true,
-                firstName: true,
-                lastName: true,
-              },
-            },
-          },
+        return this.finalizeAfterDelivery(campaign, {
+          deliveredCount: 0,
+          pushAttempted: 0,
+          errorMessage: null,
         });
-        return this.toCampaignDto(updated);
       }
 
       const targetUsers = await this.prisma.user.findMany({
@@ -278,41 +409,18 @@ export class AdminNotificationsService {
         this.logger.log(
           `Campagne ${campaign.id}: push ${success}/${attempted} (échecs: ${failure})`,
         );
-        if (attempted > 0 && success === 0) {
-          this.logger.warn(
-            `Campagne ${campaign.id}: aucun push livré. Vérifier Firebase Cloud Messaging API et le token appareil.`,
-          );
-        }
       }
 
-      const updated = await this.prisma.notificationCampaign.update({
-        where: { id: campaign.id },
-        data: {
-          status: NotificationCampaignStatus.SENT,
-          deliveredCount: targetUserIds.length,
-          pushAttempted: attempted,
-          sentAt: new Date(),
-          errorMessage:
-            pushTokens.length === 0
-              ? 'Inbox livrée, aucun token push enregistré'
-              : success === 0
-                ? lastError ??
-                  'Inbox livrée, mais le push FCM a échoué'
-                : null,
-        },
-        include: {
-          createdBy: {
-            select: {
-              id: true,
-              email: true,
-              firstName: true,
-              lastName: true,
-            },
-          },
-        },
+      return this.finalizeAfterDelivery(campaign, {
+        deliveredCount: targetUserIds.length,
+        pushAttempted: attempted,
+        errorMessage:
+          pushTokens.length === 0
+            ? 'Inbox livrée, aucun token push enregistré'
+            : success === 0
+              ? lastError ?? 'Inbox livrée, mais le push FCM a échoué'
+              : null,
       });
-
-      return this.toCampaignDto(updated);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Envoi impossible';
@@ -327,6 +435,179 @@ export class AdminNotificationsService {
     }
   }
 
+  private async finalizeAfterDelivery(
+    campaign: {
+      id: string;
+      recurrence: NotificationRecurrence;
+      scheduledAt: Date | null;
+      recurrenceEndsAt: Date | null;
+      maxOccurrences: number | null;
+      occurrenceCount: number;
+      targetCount: number;
+    },
+    result: {
+      deliveredCount: number;
+      pushAttempted: number;
+      errorMessage: string | null;
+    },
+  ) {
+    const occurrenceCount = campaign.occurrenceCount + 1;
+    const nextScheduledAt = this.computeNextScheduledAt(
+      campaign.scheduledAt ?? new Date(),
+      campaign.recurrence,
+    );
+    const continueRecurrence = this.shouldContinueRecurrence({
+      recurrence: campaign.recurrence,
+      occurrenceCount,
+      maxOccurrences: campaign.maxOccurrences,
+      recurrenceEndsAt: campaign.recurrenceEndsAt,
+      nextScheduledAt,
+    });
+
+    const updated = await this.prisma.notificationCampaign.update({
+      where: { id: campaign.id },
+      data: {
+        status: continueRecurrence
+          ? NotificationCampaignStatus.SCHEDULED
+          : NotificationCampaignStatus.SENT,
+        targetCount: Math.max(campaign.targetCount, result.deliveredCount),
+        deliveredCount: { increment: result.deliveredCount },
+        pushAttempted: { increment: result.pushAttempted },
+        sentAt: new Date(),
+        occurrenceCount,
+        scheduledAt: continueRecurrence ? nextScheduledAt : campaign.scheduledAt,
+        errorMessage: result.errorMessage,
+      },
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+
+    return this.toCampaignDto(updated);
+  }
+
+  private shouldContinueRecurrence(input: {
+    recurrence: NotificationRecurrence;
+    occurrenceCount: number;
+    maxOccurrences: number | null;
+    recurrenceEndsAt: Date | null;
+    nextScheduledAt: Date | null;
+  }): boolean {
+    if (input.recurrence === NotificationRecurrence.ONCE) return false;
+    if (!input.nextScheduledAt) return false;
+    if (
+      input.maxOccurrences != null &&
+      input.occurrenceCount >= input.maxOccurrences
+    ) {
+      return false;
+    }
+    if (
+      input.recurrenceEndsAt &&
+      input.nextScheduledAt.getTime() > input.recurrenceEndsAt.getTime()
+    ) {
+      return false;
+    }
+    return true;
+  }
+
+  private computeNextScheduledAt(
+    from: Date,
+    recurrence: NotificationRecurrence,
+  ): Date | null {
+    if (recurrence === NotificationRecurrence.ONCE) return null;
+    const next = new Date(from.getTime());
+    if (recurrence === NotificationRecurrence.DAILY) {
+      next.setUTCDate(next.getUTCDate() + 1);
+      return next;
+    }
+    if (recurrence === NotificationRecurrence.WEEKLY) {
+      next.setUTCDate(next.getUTCDate() + 7);
+      return next;
+    }
+    // MONTHLY
+    next.setUTCMonth(next.getUTCMonth() + 1);
+    return next;
+  }
+
+  private prepareCampaignInput(
+    dto: CreateNotificationCampaignDto,
+  ): PreparedCampaignInput {
+    const title = dto.title.trim();
+    const body = dto.body.trim();
+    const titleEn = dto.titleEn?.trim() || null;
+    const bodyEn = dto.bodyEn?.trim() || null;
+    if (!title || !body) {
+      throw new BadRequestException('Titre et message requis');
+    }
+    if ((titleEn && !bodyEn) || (!titleEn && bodyEn)) {
+      throw new BadRequestException(
+        'Pour l’anglais, renseignez le titre et le message ensemble',
+      );
+    }
+
+    if (
+      dto.audience === NotificationAudience.USER_IDS &&
+      (!dto.userIds || dto.userIds.length === 0)
+    ) {
+      throw new BadRequestException(
+        'Sélectionnez au moins un client pour un envoi ciblé',
+      );
+    }
+
+    let scheduledAt: Date | null = null;
+    if (dto.scheduledAt?.trim()) {
+      scheduledAt = new Date(dto.scheduledAt);
+      if (Number.isNaN(scheduledAt.getTime())) {
+        throw new BadRequestException('Date/heure de programmation invalide');
+      }
+      if (scheduledAt.getTime() < Date.now() - 60_000) {
+        throw new BadRequestException(
+          'La date/heure programmée doit être dans le futur',
+        );
+      }
+    }
+
+    const recurrence = dto.recurrence ?? NotificationRecurrence.ONCE;
+    if (!scheduledAt && recurrence !== NotificationRecurrence.ONCE) {
+      throw new BadRequestException(
+        'Une récurrence nécessite une date/heure de programmation',
+      );
+    }
+
+    let recurrenceEndsAt: Date | null = null;
+    if (dto.recurrenceEndsAt?.trim()) {
+      recurrenceEndsAt = new Date(dto.recurrenceEndsAt);
+      if (Number.isNaN(recurrenceEndsAt.getTime())) {
+        throw new BadRequestException('Date de fin de récurrence invalide');
+      }
+      if (scheduledAt && recurrenceEndsAt.getTime() <= scheduledAt.getTime()) {
+        throw new BadRequestException(
+          'La fin de récurrence doit être après la première date d’envoi',
+        );
+      }
+    }
+
+    return {
+      title,
+      body,
+      titleEn,
+      bodyEn,
+      audience: dto.audience,
+      userIds: dto.userIds ?? [],
+      scheduledAt,
+      recurrence,
+      recurrenceEndsAt,
+      maxOccurrences: dto.maxOccurrences ?? null,
+    };
+  }
+
   private async resolveAudience(
     audience: NotificationAudience,
     userIds: string[],
@@ -338,7 +619,9 @@ export class AdminNotificationsService {
     };
 
     if (audience === NotificationAudience.USER_IDS) {
-      const uniqueIds = [...new Set(userIds.map((id) => id.trim()).filter(Boolean))];
+      const uniqueIds = [
+        ...new Set(userIds.map((id) => id.trim()).filter(Boolean)),
+      ];
       const users = await this.prisma.user.findMany({
         where: { ...baseWhere, id: { in: uniqueIds } },
         select: { id: true },
@@ -393,6 +676,11 @@ export class AdminNotificationsService {
     readCount: number;
     pushAttempted: number;
     errorMessage: string | null;
+    scheduledAt?: Date | null;
+    recurrence?: NotificationRecurrence;
+    recurrenceEndsAt?: Date | null;
+    maxOccurrences?: number | null;
+    occurrenceCount?: number;
     createdById: string | null;
     createdAt: Date;
     sentAt: Date | null;
@@ -422,6 +710,11 @@ export class AdminNotificationsService {
       readCount: campaign.readCount,
       pushAttempted: campaign.pushAttempted,
       errorMessage: campaign.errorMessage,
+      scheduledAt: campaign.scheduledAt ?? null,
+      recurrence: campaign.recurrence ?? NotificationRecurrence.ONCE,
+      recurrenceEndsAt: campaign.recurrenceEndsAt ?? null,
+      maxOccurrences: campaign.maxOccurrences ?? null,
+      occurrenceCount: campaign.occurrenceCount ?? 0,
       createdAt: campaign.createdAt,
       sentAt: campaign.sentAt,
       updatedAt: campaign.updatedAt,
@@ -435,3 +728,16 @@ export class AdminNotificationsService {
     };
   }
 }
+
+type PreparedCampaignInput = {
+  title: string;
+  body: string;
+  titleEn: string | null;
+  bodyEn: string | null;
+  audience: NotificationAudience;
+  userIds: string[];
+  scheduledAt: Date | null;
+  recurrence: NotificationRecurrence;
+  recurrenceEndsAt: Date | null;
+  maxOccurrences: number | null;
+};

@@ -6,6 +6,7 @@ import { AppUpdateModule } from '../app-update/app-update.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { AdminClientsService } from './admin-clients.service';
 import { AdminDashboardService } from './admin-dashboard.service';
+import { AdminNotificationsScheduler } from './admin-notifications.scheduler';
 import { AdminNotificationsService } from './admin-notifications.service';
 import { AdminOffersService } from './admin-offers.service';
 import { AdminRolesService } from './admin-roles.service';
@@ -25,6 +26,7 @@ import { SupportModule } from '../support/support.module';
     AdminSubscriptionsService,
     AdminOffersService,
     AdminNotificationsService,
+    AdminNotificationsScheduler,
     AdminSupportService,
     AdminRolesService,
     AdminAccessGuard,
